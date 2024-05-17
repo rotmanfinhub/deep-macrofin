@@ -1,0 +1,51 @@
+site_name: Eco Model Wiki
+site_description: 'Diffusitron Wiki'
+site_author: 'Rotman Finhub'
+site_url: 'https://rotmanfinhub.github.io/continuous-time-eco-models' # the last path should be the same as the reponame for now
+
+copyright: "Rotman Finhub"
+
+# Repository
+repo_name: 'GitHub'
+repo_url: https://github.com/rotmanfinhub/continuous-time-eco-models" target="_blank
+
+theme:
+  name: material
+  # custom_dir: mkdocs-material/material
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Dark Mode
+    - scheme: slate
+      toggle:
+        icon: material/toggle-switch
+        name: Light Mode
+
+  # 404 page
+  static_templates:
+    - 404.html
+
+  # Default values, taken from mkdocs_theme.yml
+  language: en
+  font: false
+  # icon:
+  #   repo: fontawesome/brands/git-alt
+  # favicon: images/favicon.ico
+  # logo: images/favicon.ico
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.tabs
+    - navigation.top
+
+extra_css:
+  - assets/css/lightbox.css
+  - https://use.fontawesome.com/releases/v6.4.0/css/all.css
+extra_javascript:
+  - https://code.jquery.com/jquery-3.6.0.min.js
+  - assets/js/lightbox.js
+
+# Page tree
+nav:
+  - 'Home Page': 'index.md'
