@@ -3,9 +3,11 @@ on:
   pull_request:
     types: [ opened, reopened, synchronize ]
     branches: [main, master, develop]
+  push:
+    branches: [develop]
 
 jobs:
-  build:
+  run-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,5 +24,8 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
-      # - name: Run tests
-      #   run: mkdocs build
+      - name: Install current package
+        run: pip install -e .
+
+      - name: Run tests
+        run: pytest tests/
