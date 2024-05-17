@@ -18,6 +18,12 @@ pip install -r requirements-doc.txt
 
 For easier testing, you can create a file in the root folder of the project, and import functions from `ecomodels`.
 
+To properly run all tests in the `tests/` folder
+```
+pip install -e .
+pytest tests/
+```
+
 ### Docs
 The documentation site is based on [mkdocs](https://www.mkdocs.org/) and [mkdocs-mateiral](https://squidfunk.github.io/mkdocs-material/).
 
