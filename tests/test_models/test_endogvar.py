@@ -2,8 +2,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from ecomodels.models import EndogVar, ModelType, ActivationType
-    
+from ecomodels.models import EndogVar
+
+
 def test_init():
     config = {
         "device": "cpu",

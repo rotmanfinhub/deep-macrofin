@@ -1,4 +1,4 @@
-from .agents import *
+from .agents import Agent
 from .derivative_utils import *
-from .endogvars import *
-from .model_types import ModelType, ActivationType
+from .endogvars import EndogVar
+from .model_utils import ActivationType, LayerType, LearnableModelType

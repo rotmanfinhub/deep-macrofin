@@ -4,7 +4,11 @@ from enum import Enum
 import torch.nn as nn
 
 
-class ModelType(str, Enum):
+class LearnableModelType(str, Enum):
+    Agent="Agent"
+    EndogVar="EndogVar"
+
+class LayerType(str, Enum):
     MLP="MLP"
     KAN="KAN"
 

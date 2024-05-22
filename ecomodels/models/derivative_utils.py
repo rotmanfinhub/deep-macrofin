@@ -1,5 +1,7 @@
+from typing import Callable, Dict
+
 import torch
-from typing import Dict, Callable
+
 
 def get_derivs_1order(y, x, idx):
     """ Returns the first order derivatives,
