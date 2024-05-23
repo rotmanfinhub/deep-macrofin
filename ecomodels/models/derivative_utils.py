@@ -1,15 +1,23 @@
+from typing import Callable, Dict
+
 import torch
-from typing import Dict, Callable
+
 
 def get_derivs_1order(y, x, idx):
     """ Returns the first order derivatives,
         Automatic differentiation used
     """
-    dy_dx = torch.autograd.grad(y, x, 
-                                create_graph=True, 
-                                retain_graph=True, 
-                                grad_outputs=torch.ones_like(y))[0][:, idx:idx+1]
-    return dy_dx ## Return 'automatic' gradient.
+    try:
+        dy_dx = torch.autograd.grad(y, x, 
+                                    create_graph=True, 
+                                    retain_graph=True, 
+                                    allow_unused=True,
+                                    grad_outputs=torch.ones_like(y))[0][:, idx:idx+1]
+        return dy_dx ## Return 'automatic' gradient.
+    except:
+        # in case the derivative cannot be evaluated, likely a constant/linear function
+        # and higher order derivatives are required
+        return torch.zeros((x.shape[0], 1))
 
 def get_all_derivs(target_var_name="f", all_vars = ["x", "y", "z"]) -> Dict[str, Callable]:
     level_derivatives = {i: {} for i in range(1, len(all_vars) + 1)}
