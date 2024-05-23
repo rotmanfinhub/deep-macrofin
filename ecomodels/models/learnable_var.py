@@ -27,8 +27,8 @@ class LearnableVar(nn.Module):
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
             - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false
-            - test_derivatives: **bool**, whether or not use some hard coded function to test the derivatives instead of neural network forward, default: false
             - hardcode_function: a lambda function for hardcoded forwarding function.
+            - min_derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives 
         '''
         super(LearnableVar, self).__init__()
         self.name = name
@@ -39,7 +39,7 @@ class LearnableVar(nn.Module):
         self.device = self.config["device"]
         self.build_network()
 
-        self.derives_template = get_all_derivs(name, self.state_variables)
+        self.derives_template = get_all_derivs(name, self.state_variables, self.config["min_derivative_order"])
         self.get_all_derivatives()
         self.to(self.device)
 
@@ -56,21 +56,17 @@ class LearnableVar(nn.Module):
         if "positive" not in config:
             config["positive"] = False
         
-        if "test_derivatives" not in config:
-            config["test_derivatives"] = False
-        
-        if not config["test_derivatives"]:
+        if "hardcode_function" not in config:
             for key in ["hidden_units"]:
                 assert key in config, f"Missing required configuration: {key}"
-        
-        if config["test_derivatives"] and "hardcode_function" not in config:
-            # return the identity function
-            config["hardcode_function"] = lambda x: x
+
+        if "min_derivative_order" not in config:
+            config["min_derivative_order"] = 2
 
         return config
     
     def build_network(self):
-        if self.config["test_derivatives"]:
+        if "hardcode_function" in self.config:
             self.model = self.config["hardcode_function"]
         elif self.config["layer_type"] == LayerType.MLP:
             self.model = get_MLP_layers(self.config)

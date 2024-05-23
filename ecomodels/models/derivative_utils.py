@@ -19,8 +19,9 @@ def get_derivs_1order(y, x, idx):
         # and higher order derivatives are required
         return torch.zeros((x.shape[0], 1))
 
-def get_all_derivs(target_var_name="f", all_vars = ["x", "y", "z"]) -> Dict[str, Callable]:
-    level_derivatives = {i: {} for i in range(1, len(all_vars) + 1)}
+def get_all_derivs(target_var_name="f", all_vars = ["x", "y", "z"], min_derivative_order = 2) -> Dict[str, Callable]:
+    num_levels = max(len(all_vars), min_derivative_order) + 1
+    level_derivatives = {i: {} for i in range(1, num_levels)}
     # first order
     for i, var in enumerate(all_vars):
         # note that we must do idx=i as an additional variable, 
@@ -29,7 +30,7 @@ def get_all_derivs(target_var_name="f", all_vars = ["x", "y", "z"]) -> Dict[str,
         level_derivatives[1][f"{target_var_name}_{var}"] = lambda output, input, idx=i: get_derivs_1order(output, input, idx)
 
     # recursively define higher order derivatives
-    for derivative_order in range(2, len(all_vars) + 1):
+    for derivative_order in range(2, num_levels):
         prev_derivatives = level_derivatives[derivative_order - 1]
         for prev_str, prev_val in prev_derivatives.items():
             for i, var in enumerate(all_vars):

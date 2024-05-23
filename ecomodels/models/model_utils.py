@@ -14,10 +14,14 @@ class LayerType(str, Enum):
 
 class ActivationType(str, Enum):
     ReLU="relu"
+    SiLU="silu"
+    Sigmoid="sigmoid"
     Tanh="tanh"
 
 activation_function_mapping = {
     ActivationType.ReLU: nn.ReLU,
+    ActivationType.SiLU: nn.SiLU,
+    ActivationType.Sigmoid: nn.Sigmoid,
     ActivationType.Tanh: nn.Tanh
 }
 

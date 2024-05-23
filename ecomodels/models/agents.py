@@ -19,8 +19,8 @@ class Agent(LearnableVar):
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
             - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false
-            - test_derivatives: **bool**, whether or not use some hard coded function to test the derivatives instead of neural network forward, default: false
             - hardcode_function: a lambda function for hardcoded forwarding function.
+            - min_derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives 
         '''
         super(Agent, self).__init__(name, state_variables, config)
         self.model_type = LearnableModelType.Agent
