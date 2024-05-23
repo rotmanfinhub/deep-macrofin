@@ -28,18 +28,18 @@ class LearnableVar(nn.Module):
             - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false
             - hardcode_function: a lambda function for hardcoded forwarding function.
-            - min_derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives 
+            - derivative_order: int, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables
         '''
         super(LearnableVar, self).__init__()
         self.name = name
         self.state_variables = state_variables
-        self.config = self.check_inputs(config)
-        self.config["input_size"] = len(self.state_variables)
+        config["input_size"] = len(self.state_variables)
         config["output_size"] = 1
+        self.config = self.check_inputs(config)
         self.device = self.config["device"]
         self.build_network()
 
-        self.derives_template = get_all_derivs(name, self.state_variables, self.config["min_derivative_order"])
+        self.derives_template = get_all_derivs(name, self.state_variables, self.config["derivative_order"])
         self.get_all_derivatives()
         self.to(self.device)
 
@@ -60,8 +60,8 @@ class LearnableVar(nn.Module):
             for key in ["hidden_units"]:
                 assert key in config, f"Missing required configuration: {key}"
 
-        if "min_derivative_order" not in config:
-            config["min_derivative_order"] = 2
+        if "derivative_order" not in config:
+            config["derivative_order"] = config["input_size"]
 
         return config
     

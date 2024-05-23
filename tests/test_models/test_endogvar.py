@@ -156,7 +156,7 @@ def test_custom_function_high_order():
     config = {
         "device": "cpu",
         "hardcode_function": lambda x: x ** 4,
-        "min_derivative_order": 6,
+        "derivative_order": 6,
     }
     model = EndogVar("qa", ["x"], config)
     model.eval()
