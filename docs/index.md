@@ -1,4 +1,4 @@
-# Continuous Time Economic Models
+# deepMacroFin
 
 This is a template.
 

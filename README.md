@@ -1,4 +1,4 @@
-# continuous-time-eco-models
+# deepMacroFin
  Deep neural network for solving continuous time economic models
 
 ## Start developing
