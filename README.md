@@ -1,4 +1,4 @@
-# continuous-time-eco-models
+# deepMacroFin
  Deep neural network for solving continuous time economic models
 
 ## Start developing
@@ -16,7 +16,7 @@ pip install -r requirements-dev.txt
 pip install -r requirements-doc.txt
 ```
 
-For easier testing, you can create a file in the root folder of the project, and import functions from `ecomodels`.
+For easier testing, you can create a file in the root folder of the project, and import functions from `deepMacroFin`.
 
 To properly run all tests in the `tests/` folder
 ```

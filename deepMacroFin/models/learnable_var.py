@@ -21,25 +21,25 @@ class LearnableVar(nn.Module):
             - name (str): The name of the model.
             - state_variables (List[str]): List of state variables.
 
-        Config: specifies number of layers/hidden units of the neural network.
+        Config: specifies number of layers/hidden units of the neural network and highest order of derivatives to take.
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
-            - hidden_units: **List[int]**, number of units in each layer
+            - hidden_units: **List[int]**, number of units in each layer, default: [30, 30, 30, 30]
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
             - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false
-            - test_derivatives: **bool**, whether or not use some hard coded function to test the derivatives instead of neural network forward, default: false
-            - hardcode_function: a lambda function for hardcoded forwarding function.
+            - hardcode_function: a lambda function for hardcoded forwarding function, default: None
+            - derivative_order: int, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables
         '''
         super(LearnableVar, self).__init__()
         self.name = name
         self.state_variables = state_variables
-        self.config = self.check_inputs(config)
-        self.config["input_size"] = len(self.state_variables)
+        config["input_size"] = len(self.state_variables)
         config["output_size"] = 1
+        self.config = self.check_inputs(config)
         self.device = self.config["device"]
         self.build_network()
 
-        self.derives_template = get_all_derivs(name, self.state_variables)
+        self.derives_template = get_all_derivs(name, self.state_variables, self.config["derivative_order"])
         self.get_all_derivatives()
         self.to(self.device)
 
@@ -56,21 +56,16 @@ class LearnableVar(nn.Module):
         if "positive" not in config:
             config["positive"] = False
         
-        if "test_derivatives" not in config:
-            config["test_derivatives"] = False
-        
-        if not config["test_derivatives"]:
-            for key in ["hidden_units"]:
-                assert key in config, f"Missing required configuration: {key}"
-        
-        if config["test_derivatives"] and "hardcode_function" not in config:
-            # return the identity function
-            config["hardcode_function"] = lambda x: x
+        if "hardcode_function" not in config and "hidden_units" not in config:
+            config["hidden_units"] = [30, 30, 30, 30]
+
+        if "derivative_order" not in config:
+            config["derivative_order"] = config["input_size"]
 
         return config
     
     def build_network(self):
-        if self.config["test_derivatives"]:
+        if "hardcode_function" in self.config:
             self.model = self.config["hardcode_function"]
         elif self.config["layer_type"] == LayerType.MLP:
             self.model = get_MLP_layers(self.config)
@@ -103,7 +98,7 @@ class LearnableVar(nn.Module):
     def get_all_derivatives(self):
         '''
         Returns a dictionary of derivative functional mapping 
-        e.g. if name="qa", state_variables=["e", "t"], it will return 
+        e.g. if name="qa", state_variables=["e", "t"], derivative_order=2, it will return 
         {
             "qa_e": lambda x:self.compute_derivative(x, "e")
             "qa_t": lambda x:self.compute_derivative(x, "t"),

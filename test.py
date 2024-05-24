@@ -1,4 +1,4 @@
-from ecomodels.models import *
+from deepMacroFin.models import *
 
 
 if __name__ == "__main__":
