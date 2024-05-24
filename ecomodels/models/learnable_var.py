@@ -21,13 +21,13 @@ class LearnableVar(nn.Module):
             - name (str): The name of the model.
             - state_variables (List[str]): List of state variables.
 
-        Config: specifies number of layers/hidden units of the neural network.
+        Config: specifies number of layers/hidden units of the neural network and highest order of derivatives to take.
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
-            - hidden_units: **List[int]**, number of units in each layer
+            - hidden_units: **List[int]**, number of units in each layer, default: [30, 30, 30, 30]
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
             - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false
-            - hardcode_function: a lambda function for hardcoded forwarding function.
+            - hardcode_function: a lambda function for hardcoded forwarding function, default: None
             - derivative_order: int, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables
         '''
         super(LearnableVar, self).__init__()
@@ -56,9 +56,8 @@ class LearnableVar(nn.Module):
         if "positive" not in config:
             config["positive"] = False
         
-        if "hardcode_function" not in config:
-            for key in ["hidden_units"]:
-                assert key in config, f"Missing required configuration: {key}"
+        if "hardcode_function" not in config and "hidden_units" not in config:
+            config["hidden_units"] = [30, 30, 30, 30]
 
         if "derivative_order" not in config:
             config["derivative_order"] = config["input_size"]
@@ -99,7 +98,7 @@ class LearnableVar(nn.Module):
     def get_all_derivatives(self):
         '''
         Returns a dictionary of derivative functional mapping 
-        e.g. if name="qa", state_variables=["e", "t"], it will return 
+        e.g. if name="qa", state_variables=["e", "t"], derivative_order=2, it will return 
         {
             "qa_e": lambda x:self.compute_derivative(x, "e")
             "qa_t": lambda x:self.compute_derivative(x, "t"),
