@@ -1,12 +1,14 @@
 import random
 from typing import Any, Dict, List
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
 
 from .derivative_utils import *
 from .model_utils import *
+
 
 class LearnableVar(nn.Module):
     def __init__(self, name, state_variables: List[str], config: Dict[str, Any]):
@@ -135,3 +137,9 @@ class LearnableVar(nn.Module):
         '''
         self.load_state_dict(dict_to_load["model"])
 
+    def plot(self, target: str, domain: Dict[str, List[float]], ax=None):
+        '''
+        
+        '''
+        
+        pass
