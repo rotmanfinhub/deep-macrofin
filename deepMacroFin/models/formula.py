@@ -24,4 +24,5 @@ class Formula:
             return result
         except Exception as e:
             print(f"Error evaluating formula: {self.formula_str}, error: {e}")
+            print(f"Local context: {local_context}")
             raise
