@@ -1,12 +1,14 @@
 import random
 from typing import Any, Dict, List
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
 
 from .derivative_utils import *
 from .model_utils import *
+
 
 class LearnableVar(nn.Module):
     def __init__(self, name, state_variables: List[str], config: Dict[str, Any]):
@@ -135,3 +137,42 @@ class LearnableVar(nn.Module):
         '''
         self.load_state_dict(dict_to_load["model"])
 
+    def plot(self, target: str, domain: Dict[str, List[np.float32]]={}, ax=None):
+        '''
+        Inputs:
+            target: name for the original function, or the associated derivatives to plot
+            domain: the range of state variables to plot. 
+            If state_variables=["x", "y"] domain = {"x": [0,1], "y":[-1,1]}, it will be plotted on the region [0,1]x[-1,1].
+            If one of the variable is not provided in the domain, [0,1] will be taken as the default
+            ax: a matplotlib.Axes object to plot on, if not provided, it will be plotted on a new figure
+
+        This function is only supported for 1D or 2D state_variables.
+        '''
+        assert len(self.state_variables) <= 2, "Plot is only supported for problems with no more than 2 state variables"
+        X = []
+        for sv in self.state_variables:
+            x_lims = domain.get(sv, [0, 1])
+            X.append(np.linspace(x_lims[0], x_lims[1], 100))
+        X = np.stack(X).T
+        if len(self.state_variables) == 1:
+            y = self.derivatives[target](torch.Tensor(X).to(self.device)).detach().cpu().numpy()
+            if ax is None:
+                fig = plt.figure()
+                ax = fig.add_subplot()
+            ax.plot(X.reshape(-1), y.reshape(-1), label=target)
+            ax.set_xlabel(self.state_variables[0])
+            ax.set_ylabel(target)
+            ax.set_title(f"{target} vs {self.state_variables[0]}")
+            ax.legend()
+        elif len(self.state_variables) == 2:
+            if ax is None:
+                fig = plt.figure()
+                ax = fig.add_subplot(111, projection='3d')
+            X1, X2 = np.meshgrid(X[:, 0], X[:, 1])
+            y = self.derivatives[target](torch.Tensor(np.array([X1.reshape(-1), X2.reshape(-1)])).T.to(self.device)).detach().cpu().numpy()
+            ax.plot_surface(X1, X2, y.reshape(100, 100), label=target)
+            ax.set_xlabel(self.state_variables[0])
+            ax.set_ylabel(self.state_variables[1])
+            ax.set_zlabel(target)
+            ax.set_title(f"{target} vs {self.state_variables[0]}, {self.state_variables[1]}")
+            ax.legend()

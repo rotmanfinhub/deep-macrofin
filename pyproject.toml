@@ -17,7 +17,9 @@ dependencies = [
   'pandas',
   'torch',
   'sympy',
-  'pyDOE'
+  'pyDOE',
+  'tqdm',
+  'matplotlib'
 ]
 classifiers = [
   "Operating System :: Microsoft :: Windows",

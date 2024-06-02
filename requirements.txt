@@ -3,3 +3,5 @@ pandas
 torch
 sympy
 pyDOE
+tqdm
+matplotlib
