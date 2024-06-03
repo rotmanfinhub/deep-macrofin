@@ -5,7 +5,7 @@ import torch
 from deepMacroFin.evaluations.formula import Formula
 
 
-class TestFormulaEvaluation(unittest.TestCase):
+class TestFormulaLatexEvaluation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.LOCAL_DICT = {}

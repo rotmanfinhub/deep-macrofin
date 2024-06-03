@@ -92,10 +92,12 @@ class Formula:
     def __init__(self, formula_str: str, evaluation_method: Union[EvaluationMethod, str], latex_var_mapping: Dict[str, str] = {}):
         '''
         Inputs:
-            formula_str: the string version of the formula. If the provided formula_str is supposed to be a latex string, it must be $ enclosed and in the regular form, e.g. formula_str=r"$x^2*y$", and all multiplication symbols must be explicitly provided as * in the equation.
-            evaluation_method: Enum, select from `eval`, `sympy`, `ast`, 
-            corresponding to the four methods below. For now, only consider eval.
-            latex_var_mapping: only used if the formula_str is in latex form, the keys should be the latex expression, and the values should be the corresponding python variable name. All strings with single slash in latex must be defined as a raw string. All spaces in the key must match exactly as in the input formula_str. e.g. latex_var_map = {
+        - formula_str: the string version of the formula. If the provided formula_str is supposed to be a latex string, it must be $ enclosed and in the regular form, e.g. formula_str=r"$x^2*y$", and all multiplication symbols must be explicitly provided as * in the equation.
+        - evaluation_method: Enum, select from `eval`, `sympy`, `ast`, 
+        corresponding to the four methods below. For now, only consider eval.
+        - latex_var_mapping: only used if the formula_str is in latex form, the keys should be the latex expression, and the values should be the corresponding python variable name. 
+        All strings with single slash in latex must be defined as a raw string. 
+        All spaces in the key must match exactly as in the input formula_str. e.g. latex_var_map = {
                 r"\eta_t": "eta",
                 r"\rho^i": "rhoi",
                 r"\mu^{n h}_t": "munh",
