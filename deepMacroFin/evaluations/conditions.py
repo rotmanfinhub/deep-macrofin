@@ -49,62 +49,62 @@ class BaseConditions:
         self.rhs_state = rhs_state
 
         if comparator == Comparator.EQ:
-            self.eval = lambda available_functions: self.eval_eq(available_functions, self.lhs_state, self.rhs_state)
+            self.eval = self.eval_eq
         elif comparator == Comparator.LT:
-            self.eval = lambda available_functions: self.eval_lt(available_functions, self.lhs_state, self.rhs_state)
+            self.eval = self.eval_lt
         elif comparator == Comparator.LEQ:
-            self.eval = lambda available_functions: self.eval_leq(available_functions, self.lhs_state, self.rhs_state)
+            self.eval = self.eval_leq
         elif comparator == Comparator.GT:
-            self.eval = lambda available_functions: self.eval_gt(available_functions, self.lhs_state, self.rhs_state)
+            self.eval = self.eval_gt
         elif comparator == Comparator.GEQ:
-            self.eval = lambda available_functions: self.eval_geq(available_functions, self.lhs_state, self.rhs_state)
+            self.eval = self.eval_geq
     
-    def eval_eq(self, available_functions: Dict[str, Callable], lhs_variables: Dict[str, torch.Tensor], rhs_variables: Dict[str, torch.Tensor]):
+    def eval_eq(self, available_functions: Dict[str, Callable]):
         '''
         The condition is LHS=RHS.
         Compute the MSE between LHS and RHS
         '''
-        lhs_eval = self.lhs.eval(available_functions, lhs_variables)
-        rhs_eval = self.rhs.eval(available_functions, rhs_variables)
+        lhs_eval = self.lhs.eval(available_functions, self.lhs_state)
+        rhs_eval = self.rhs.eval(available_functions, self.rhs_state)
         return torch.mean(torch.square(lhs_eval - rhs_eval))
 
-    def eval_lt(self, available_functions: Dict[str, Callable], lhs_variables: Dict[str, torch.Tensor], rhs_variables: Dict[str, torch.Tensor]):
+    def eval_lt(self, available_functions: Dict[str, Callable]):
         '''
         The condition is LHS<RHS.
         Evaluate ReLU(LHS-RHS+eps), it will only contribute to loss when LHS>RHS-eps
         '''
-        lhs_eval = self.lhs.eval(available_functions, lhs_variables)
-        rhs_eval = self.rhs.eval(available_functions, rhs_variables)
+        lhs_eval = self.lhs.eval(available_functions, self.lhs_state)
+        rhs_eval = self.rhs.eval(available_functions, self.rhs_state)
         relu_res = F.relu(lhs_eval - rhs_eval + 1e-8)
         return torch.mean(torch.square(relu_res))
 
-    def eval_leq(self, available_functions: Dict[str, Callable], lhs_variables: Dict[str, torch.Tensor], rhs_variables: Dict[str, torch.Tensor]):
+    def eval_leq(self, available_functions: Dict[str, Callable]):
         '''
         The condition is LHS<=RHS.
         Evaluate ReLU(LHS-RHS), it will only contribute to loss when LHS>RHS
         '''
-        lhs_eval = self.lhs.eval(available_functions, lhs_variables)
-        rhs_eval = self.rhs.eval(available_functions, rhs_variables)
+        lhs_eval = self.lhs.eval(available_functions, self.lhs_state)
+        rhs_eval = self.rhs.eval(available_functions, self.rhs_state)
         relu_res = F.relu(lhs_eval - rhs_eval)
         return torch.mean(torch.square(relu_res))
     
-    def eval_gt(self, available_functions: Dict[str, Callable], lhs_variables: Dict[str, torch.Tensor], rhs_variables: Dict[str, torch.Tensor]):
+    def eval_gt(self, available_functions: Dict[str, Callable]):
         '''
         The condition is LHS>RHS.
         Evaluate ReLU(RHS-LHS+eps), it will only contribute to loss when RHS>LHS-eps
         '''
-        lhs_eval = self.lhs.eval(available_functions, lhs_variables)
-        rhs_eval = self.rhs.eval(available_functions, rhs_variables)
+        lhs_eval = self.lhs.eval(available_functions, self.lhs_state)
+        rhs_eval = self.rhs.eval(available_functions, self.rhs_state)
         relu_res = F.relu(rhs_eval - lhs_eval + 1e-8)
         return torch.mean(torch.square(relu_res))
 
-    def eval_geq(self, available_functions: Dict[str, Callable], lhs_variables: Dict[str, torch.Tensor], rhs_variables: Dict[str, torch.Tensor]):
+    def eval_geq(self, available_functions: Dict[str, Callable]):
         '''
         The condition is LHS>=RHS.
         Evaluate ReLU(RHS-LHS), it will only contribute to loss when RHS>LHS
         '''
-        lhs_eval = self.lhs.eval(available_functions, lhs_variables)
-        rhs_eval = self.rhs.eval(available_functions, rhs_variables)
+        lhs_eval = self.lhs.eval(available_functions, self.lhs_state)
+        rhs_eval = self.rhs.eval(available_functions, self.rhs_state)
         relu_res = F.relu(rhs_eval - lhs_eval)
         return torch.mean(torch.square(relu_res))
 
