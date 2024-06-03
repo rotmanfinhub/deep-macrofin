@@ -406,6 +406,7 @@ class PDEModel:
         print("{0:=^80}".format("Training"))
         self.set_all_model_training()
         start_time = time.time()
+        set_seeds(0)
         for epoch in tqdm(range(self.num_epochs)):
             epoch_start_time = time.time()
             
