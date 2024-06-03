@@ -123,6 +123,7 @@ class LearnableVar(nn.Module):
         Save all the configurations and weights to a dictionary.
         '''
         dict_to_save = {
+            "name": self.name,
             "model": self.state_dict(),
             "model_config": self.config,
             "system_rng": random.getstate(),
@@ -176,3 +177,6 @@ class LearnableVar(nn.Module):
             ax.set_zlabel(target)
             ax.set_title(f"{target} vs {self.state_variables[0]}, {self.state_variables[1]}")
             ax.legend()
+
+    def get_num_params(self):
+        return sum(p.numel() for p in self.parameters())

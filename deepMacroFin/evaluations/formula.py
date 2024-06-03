@@ -14,6 +14,9 @@ class EvaluationMethod(str, Enum):
 LEFT_BRACKETS = r"\\left[\[\{(]"
 RIGHT_BRACKETS = r"\\right[\]\})]"
 DERIVATIVE_PATTERN = r"\\frac{\s*\\partial\^?(\d*)\s*(.*?)}{(.*?)}"
+DERIVATIVE_LOWER_PATTERN = r"\\partial\s*"
+DERIVATIVE_PATTERN2 = r"\\frac{\s*d\^?(\d*)\s*(.*?)}{(.*?)}" # not used
+DERIVATIVE_LOWER_PATTERN2 = r"d\s*"
 FRACTION_PATTERN = r"\\frac{((?!.*\\frac).*?)}{((?!.*\\frac).*?)}" # make sure no additional fraction is within each group, so we parse from inner most fraction to outer fractions.
 POWER_PATTERN = r"\^(\w+|\{(.*?)\})"
 
@@ -36,7 +39,7 @@ def latex_parsing_fractions(formula_str: str):
     '''
     def derivative_match(match: re.Match):
         function_name = match.group(2)
-        variables = re.split(r"\\partial\s*", match.group(3))
+        variables = re.split(DERIVATIVE_LOWER_PATTERN, match.group(3))
         for i, var in enumerate(variables):
             if "^" in var:
                 # higher order of a single variable

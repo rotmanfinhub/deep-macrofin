@@ -48,6 +48,8 @@ class BaseConditions:
         self.lhs_state = lhs_state
         self.rhs_state = rhs_state
 
+        self.comparator = comparator
+
         if comparator == Comparator.EQ:
             self.eval = self.eval_eq
         elif comparator == Comparator.LT:
@@ -107,6 +109,23 @@ class BaseConditions:
         rhs_eval = self.rhs.eval(available_functions, self.rhs_state)
         relu_res = F.relu(rhs_eval - lhs_eval)
         return torch.mean(torch.square(relu_res))
+    
+    def __str__(self):
+        cond_str = f"{self.label}: "
+        cond_str += self.lhs.formula_str + self.comparator + self.rhs.formula_str
+        lhs_state_value_str = ""
+        for k, v in self.lhs_state.items():
+            lhs_state_value_str += k + "=" + str(v.tolist())
+        if len(lhs_state_value_str) > 0:
+            cond_str += " with LHS evaluated at " + lhs_state_value_str
+
+        rhs_state_value_str = ""
+        for k, v in self.rhs_state.items():
+            rhs_state_value_str += k + "=" + str(v.tolist())
+        if len(rhs_state_value_str) > 0:
+            cond_str += " and RHS evaluated at " + rhs_state_value_str
+        return cond_str
+
 
 class MinMaxConditions:
 
