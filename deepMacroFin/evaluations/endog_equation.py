@@ -39,6 +39,6 @@ class EndogEquation:
     def __str__(self):
         str_repr = f"{self.label}: \n"
         str_repr += f"Raw input: {self.eq};\n" 
-        str_repr += f"Parsed: {self.lhs.formula_str}={self.rhs.formula_str}\n"
-        str_repr += "-" * 80
+        str_repr += f"Parsed: {self.lhs.formula_str}={self.rhs.formula_str}"
+        # str_repr += "-" * 80
         return str_repr

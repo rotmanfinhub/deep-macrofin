@@ -67,6 +67,7 @@ class PDEModel:
         # label to value mapping, used to store all variable values and loss.
         self.variable_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include all local variables/params + current values, initially, all values in this dictionary can be zero
         self.loss_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include loss equation (constraints, endogenous equations, HJB equations) labels + corresponding loss values, initially, all values in this dictionary can be zero.
+        self.loss_weight_dict: Dict[str, float] = OrderedDict() # should include loss equation labels + corresponding weight
         self.device = "cpu"
 
     def check_name_used(self, name):
@@ -75,7 +76,8 @@ class PDEModel:
                            self.endog_vars, 
                            self.local_function_dict, 
                            self.variable_val_dict,
-                           self.loss_val_dict]:
+                           self.loss_val_dict,
+                           self.loss_weight_dict]:
             assert name not in self_dicts, f"Name: {name} is used"
 
     def check_label_used(self, label):
@@ -84,7 +86,8 @@ class PDEModel:
                            self.endog_vars, 
                            self.local_function_dict, 
                            self.variable_val_dict,
-                           self.loss_val_dict]:
+                           self.loss_val_dict,
+                           self.loss_weight_dict]:
             assert label not in self_dicts, f"Label: {label} is used"
 
     def set_state(self, names: List[str], constraints: Dict[str, List] = {}):
@@ -165,7 +168,8 @@ class PDEModel:
                             lhs: str, lhs_state: Dict[str, torch.Tensor], 
                             comparator: Comparator, 
                             rhs: str, rhs_state: Dict[str, torch.Tensor], 
-                            label: str):
+                            label: str,
+                            weight: float=1.0):
         '''
         Add boundary/initial condition for a specific agent
 
@@ -187,6 +191,7 @@ class PDEModel:
                                                        rhs, rhs_state,
                                                        label, self.latex_var_mapping)
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
+        self.loss_weight_dict[label] = weight
 
     def add_endog(self, name: str, 
                   config: Dict[str, Any] = DEFAULT_LEARNABLE_VAR_CONFIG,
@@ -222,10 +227,11 @@ class PDEModel:
             self.add_endog(name, configs.get(name, DEFAULT_LEARNABLE_VAR_CONFIG))
     
     def add_endog_condition(self, name: str, 
-                            lhs, lhs_state: Dict[str, torch.Tensor], 
-                            comparator, 
-                            rhs, rhs_state: Dict[str, torch.Tensor], 
-                            label):
+                            lhs: str, lhs_state: Dict[str, torch.Tensor], 
+                            comparator: Comparator, 
+                            rhs: str, rhs_state: Dict[str, torch.Tensor], 
+                            label: str,
+                            weight=1.0):
         '''
         Add boundary/initial condition for a specific endogenous var
 
@@ -247,6 +253,7 @@ class PDEModel:
                                                        rhs, rhs_state,
                                                        label, self.latex_var_mapping)
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
+        self.loss_weight_dict[label] = weight
 
     def add_equation(self, eq: str, label: str=None):
         '''
@@ -254,7 +261,7 @@ class PDEModel:
         '''
         pass
 
-    def add_endog_equation(self, eq: str, label: str=None):
+    def add_endog_equation(self, eq: str, label: str=None, weight=1.0):
         '''
         Add an equation for loss computation based on endogenous variable
         '''
@@ -264,8 +271,9 @@ class PDEModel:
         self.check_label_used(label)
         self.endog_equations[label] = EndogEquation(eq, label, self.latex_var_mapping)
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
+        self.loss_weight_dict[label] = weight
 
-    def add_constraint(self, lhs, comparator: Comparator, rhs, label=None):
+    def add_constraint(self, lhs, comparator: Comparator, rhs, label=None, weight=1.0):
         '''
         comparator should be one of "=", ">", ">=", "<", "<=", we can use enum for this.
 
@@ -273,7 +281,7 @@ class PDEModel:
         '''
         pass
 
-    def add_system(self, system: System, label=None):
+    def add_system(self, system: System, label=None, weight=1.0):
         '''
         Decide in a later stage. 
         It should be some multiplication of loss functions 
@@ -336,8 +344,8 @@ class PDEModel:
 
         self.loss_fn()
         total_loss = 0
-        for loss in self.loss_val_dict.values():
-            total_loss += loss
+        for loss_label, loss in self.loss_val_dict.items():
+            total_loss += self.loss_weight_dict[loss_label] * loss
         
         total_loss.backward()
         self.optimizer.step()
@@ -369,8 +377,8 @@ class PDEModel:
 
         self.loss_fn()
         total_loss = 0
-        for loss in self.loss_val_dict.values():
-            total_loss += loss
+        for loss_label, loss in self.loss_val_dict.items():
+            total_loss += self.loss_weight_dict[loss_label] * loss
 
         loss_dict = self.loss_val_dict.copy()
         loss_dict["total_loss"] = total_loss
@@ -563,6 +571,7 @@ class PDEModel:
             "latex_var_mapping": self.latex_var_mapping,
             "state_variables": self.state_variables,
             "state_variable_constraints": self.state_variable_constraints,
+            "loss_weight_dict": self.loss_weight_dict,
         }
 
         for agent in self.agents:
@@ -613,13 +622,15 @@ class PDEModel:
             str_repr += str(agent_model) + "\n"
             num_param = agent_model.get_num_params()
             total_param_count += num_param
-            str_repr += f"Num parameters: {num_param}\n\n"
+            str_repr += f"Num parameters: {num_param}\n"
             str_repr += "-" * 80 + "\n"
         str_repr += "\n"
 
         str_repr += "{0:=^80}\n".format("Agent Conditions")
         for agent_cond_name, agent_cond in self.agent_conditions.items():
             str_repr += str(agent_cond) + "\n"
+            str_repr += f"Loss weight: {self.loss_weight_dict[agent_cond_name]}\n"
+            str_repr += "-" * 80 + "\n"
         str_repr += "\n"
 
         str_repr += "{0:=^80}\n".format("Endogenous Variables")
@@ -628,13 +639,15 @@ class PDEModel:
             str_repr += str(endog_var) + "\n"
             num_param = endog_var.get_num_params()
             total_param_count += num_param
-            str_repr += f"Num parameters: {num_param}\n\n"
+            str_repr += f"Num parameters: {num_param}\n"
             str_repr += "-" * 80 + "\n"
         str_repr += "\n"
 
         str_repr += "{0:=^80}\n".format("Endogenous Variables Conditions")
         for endog_var_cond_name, endog_var_cond in self.endog_var_conditions.items():
             str_repr += str(endog_var_cond) + "\n"
+            str_repr += f"Loss weight: {self.loss_weight_dict[endog_var_cond_name]}\n"
+            str_repr += "-" * 80 + "\n"
         str_repr += "\n"
 
         str_repr += "{0:=^80}\n".format("Equations")
@@ -645,21 +658,29 @@ class PDEModel:
         str_repr += "{0:=^80}\n".format("Endogenous Equations")
         for eq_label, eq in self.endog_equations.items():
             str_repr += str(eq) + "\n"
+            str_repr += f"Loss weight: {self.loss_weight_dict[eq_label]}\n"
+            str_repr += "-" * 80 + "\n"
         str_repr += "\n"
 
         str_repr += "{0:=^80}\n".format("Constraints")
         for constraint_label, constraint in self.constraints.items():
             str_repr += str(constraint) + "\n"
+            str_repr += f"Loss weight: {self.loss_weight_dict[constraint_label]}\n"
+            str_repr += "-" * 80 + "\n"
         str_repr += "\n"
 
         str_repr += "{0:=^80}\n".format("HJB Equations")
         for hjb_label, hjb_eq in self.hjb_equations.items():
             str_repr += str(hjb_eq) + "\n"
+            str_repr += f"Loss weight: {self.loss_weight_dict[hjb_label]}\n"
+            str_repr += "-" * 80 + "\n"
         str_repr += "\n"
 
         str_repr += "{0:=^80}\n".format("Systems")
         for system_label, sys in self.systems.items():
             str_repr += str(sys) + "\n"
+            str_repr += f"System loss weight: {self.loss_weight_dict[system_label]}\n"
+            str_repr += "-" * 80 + "\n"
         str_repr += "\n"
 
         return str_repr
