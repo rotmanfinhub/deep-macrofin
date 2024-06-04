@@ -3,6 +3,8 @@ from enum import Enum
 
 import torch.nn as nn
 
+from .kan import KAN
+
 
 class LearnableModelType(str, Enum):
     Agent="Agent"
@@ -44,3 +46,12 @@ def get_MLP_layers(config):
         layers["positive_act"] = nn.Softplus()
     
     return nn.Sequential(layers)
+
+def get_KAN(config):
+    base_fun = activation_function_mapping.get(config["base_fun_type"], nn.SiLU)()
+    width = config["width"]
+    device = config["device"]
+
+    return KAN(width=width,
+               base_fun=base_fun,
+               device=device)

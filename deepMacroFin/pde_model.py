@@ -459,6 +459,82 @@ class PDEModel:
         print(f"loss :: {formatted_loss}")
         return loss_dict
 
+    def train_model_kan(self, model_dir="./", filename=None, full_log=False):
+        '''
+        Currently, I don't want to give too many configurations for KAN as an initial testing step
+        '''
+        all_params = []
+        for agent_name, agent in self.agents.items():
+            all_params += list(agent.parameters())
+        for endog_var_name, endog_var in self.endog_vars.items():
+            all_params += list(endog_var.parameters())
+
+        self.optimizer = LBFGS(all_params, lr=self.lr, history_size=10, line_search_fn="strong_wolfe", tolerance_grad=1e-32, tolerance_change=1e-32, tolerance_ys=1e-32)
+
+        os.makedirs(model_dir, exist_ok=True)
+        if filename is None:
+            filename = filename = self.name
+        if "." in filename:
+            file_prefix = filename.split(".")[0]
+        else:
+            file_prefix = filename
+        
+        log_fn = os.path.join(model_dir, f"{file_prefix}-{self.num_epochs}-log.txt")
+        log_file = open(log_fn, "w", encoding="utf-8")
+        print(str(self), file=log_file)
+        self.validate_model_setup(model_dir)
+        print("{0:=^80}".format("Training"))
+        self.set_all_model_training()
+        start_time = time.time()
+        set_seeds(0)
+        for epoch in tqdm(range(self.num_epochs)):
+            epoch_start_time = time.time()
+
+            def closure(model: PDEModel):
+                model.optimizer.zero_grad()
+                SV = np.random.uniform(low=model.state_variable_constraints["sv_low"], 
+                         high=model.state_variable_constraints["sv_high"], 
+                         size=(model.batch_size, len(model.state_variables)))
+                SV = torch.Tensor(SV)
+                for i, sv_name in enumerate(model.state_variables):
+                    model.variable_val_dict[sv_name] = SV[:, i:i+1]
+
+                # properly update variables, including agent, endogenous variables, their derivatives
+                for func_name in model.local_function_dict:
+                    model.variable_val_dict[func_name] = model.local_function_dict[func_name](SV)
+
+                # properly update variables, using equations
+                for eq_name in model.equations:
+                    lhs = model.equations[eq_name].lhs
+                    model.variable_val_dict[lhs] = model.equations[eq_name].eval({}, model.variable_val_dict)
+
+                model.loss_fn()
+                total_loss = 0
+                for loss_label, loss in model.loss_val_dict.items():
+                    total_loss += model.loss_weight_dict[loss_label] * loss
+                
+                total_loss.backward()
+                return total_loss
+
+            self.optimizer.step(lambda : closure(self))
+
+            loss_dict = self.loss_val_dict.copy()
+            total_loss = 0
+            for loss_label, loss in loss_dict.items():
+                total_loss += self.loss_weight_dict[loss_label] * loss
+            loss_dict["total_loss"] = total_loss
+
+            if full_log:
+                formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
+            else:
+                formatted_train_loss = "%.4f" % loss_dict["total_loss"]
+            print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
+        print(f"training finished, total time :: {time.time() - start_time}")
+        print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
+        log_file.close()
+        self.save_model(model_dir, filename)
+        return loss_dict
+        
 
     def validate_model_setup(self, model_dir="./"):
         '''

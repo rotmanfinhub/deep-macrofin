@@ -64,6 +64,13 @@ class LearnableVar(nn.Module):
         if "derivative_order" not in config:
             config["derivative_order"] = config["input_size"]
 
+        if config["layer_type"] == LayerType.KAN:
+            config = self.check_inputs_KAN(config)
+        return config
+    
+    def check_inputs_KAN(self, config):
+        config["width"] = config["hidden_units"]
+        config["base_fun_type"] = config["activation_type"]
         return config
     
     def build_network(self):
@@ -71,6 +78,8 @@ class LearnableVar(nn.Module):
             self.model = self.config["hardcode_function"]
         elif self.config["layer_type"] == LayerType.MLP:
             self.model = get_MLP_layers(self.config)
+        elif self.config["layer_type"] == LayerType.KAN:
+            self.model = get_KAN(self.config)
         else:
             required_model_type = self.config["layer_type"]
             raise NotImplementedError(f"Model type: {required_model_type} is not implemented")
