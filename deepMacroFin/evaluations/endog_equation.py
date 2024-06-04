@@ -4,7 +4,7 @@ from typing import Callable, Dict, List, Union
 
 import torch
 
-from .formula import Formula
+from .formula import EvaluationMethod, Formula
 
 
 class EndogEquation:
@@ -17,15 +17,28 @@ class EndogEquation:
 
     The formula classes should be able to parse the equation.
     '''
-    def __init__(self, eq, label, latex_var_mapping: Dict[str, str] = {}):
+    def __init__(self, eq: str, label: str, latex_var_mapping: Dict[str, str] = {}):
         '''
-            Parse the equation LHS and RHS of `eq` separately,
+        Parse the equation LHS and RHS of `eq` separately,
         '''
-        pass 
-        
+        assert "=" in eq, f"The endogenous equation ({self.eq}) does not contain =."
+        self.eq = eq.replace("==", "=")
+        self.label = label
+        eq_splitted = self.eq.split("=")
+        self.lhs = Formula(eq_splitted[0], EvaluationMethod.Eval, latex_var_mapping)
+        self.rhs = Formula(eq_splitted[1], EvaluationMethod.Eval, latex_var_mapping)
 
     def eval(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor]):
         '''
-            evaluate LHS and RHS, compute MSE between them, return the value
+        evaluate LHS and RHS, compute MSE between them, return the value
         '''
-        pass
+        lhs_eval = self.lhs.eval(available_functions, variables)
+        rhs_eval = self.rhs.eval(available_functions, variables)
+        return torch.mean(torch.square(lhs_eval - rhs_eval))
+    
+    def __str__(self):
+        str_repr = f"{self.label}: \n"
+        str_repr += f"Raw input: {self.eq};\n" 
+        str_repr += f"Parsed: {self.lhs.formula_str}={self.rhs.formula_str}"
+        # str_repr += "-" * 80
+        return str_repr
