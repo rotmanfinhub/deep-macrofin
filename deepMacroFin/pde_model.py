@@ -129,13 +129,18 @@ class PDEModel:
         self.variable_val_dict.update(params)
 
     def add_agent(self, name: str, 
-                  config: Dict[str, Any] = DEFAULT_LEARNABLE_VAR_CONFIG):
+                  config: Dict[str, Any] = DEFAULT_LEARNABLE_VAR_CONFIG,
+                  overwrite=False):
         '''
         Add a single agent, with relevant config of neural network representation. 
         If called before states are set, should raise an error.
+
+        Input:
+        - overwrite: overwrite the previous agent with the same name, used for loading, default: False
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
-        self.check_name_used(name)
+        if not overwrite:
+            self.check_name_used(name)
         agent_config = deepcopy(DEFAULT_LEARNABLE_VAR_CONFIG)
         agent_config.update(config)
 
@@ -184,13 +189,18 @@ class PDEModel:
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
 
     def add_endog(self, name: str, 
-                  config: Dict[str, Any] = DEFAULT_LEARNABLE_VAR_CONFIG):
+                  config: Dict[str, Any] = DEFAULT_LEARNABLE_VAR_CONFIG,
+                  overwrite=False):
         '''
         Add a single unknown endogenous variable, with relevant config of NN. 
         If called before states are set, should raise an error.
+
+        Input:
+        - overwrite: overwrite the previous agent with the same name, used for loading, default: False
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
-        self.check_name_used(name)
+        if not overwrite:
+            self.check_name_used(name)
         endog_var_config = deepcopy(DEFAULT_LEARNABLE_VAR_CONFIG)
         endog_var_config.update(config)
 
@@ -576,13 +586,13 @@ class PDEModel:
             if k.startswith("agent") and k.endswith("dict"):
                 agent_name = v["name"]
                 agent_config = v["model_config"]
-                self.add_agent(agent_name, agent_config)
+                self.add_agent(agent_name, agent_config, overwrite=True)
                 self.agents[agent_name].from_dict(v)
 
             if k.startswith("endog_var") and k.endswith("dict"):
                 endog_var_name = v["name"]
                 endog_var_config = v["model_config"]
-                self.add_endogs(endog_var_name, endog_var_config)
+                self.add_endog(endog_var_name, endog_var_config, overwrite=True)
                 self.endog_vars[endog_var_name].from_dict(v)
         print("Model loaded")
 
