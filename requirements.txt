@@ -5,3 +5,4 @@ sympy
 pyDOE
 tqdm
 matplotlib
+scikit-learn
