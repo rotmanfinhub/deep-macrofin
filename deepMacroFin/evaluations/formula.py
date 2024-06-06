@@ -128,6 +128,7 @@ class Formula:
         '''
         # Create a local context with available functions and variables
         local_context = {"__builtins__": None}
+        local_context.update(torch.__dict__)
         local_context.update(available_functions)
         local_context.update(variables)
 
