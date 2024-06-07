@@ -42,7 +42,8 @@ class PDEModel:
         latex_var_mapping should include all possible latex to python name conversions. Otherwise latex parsing will fail. Can be omitted if all the input equations/formula are not in latex form. For details, check `Formula` class defined in `evaluations/formula.py`
         '''
         self.name = name
-        self.config = config
+        self.config = DEFAULT_CONFIG.copy()
+        self.config.update(config)
         self.batch_size = config.get("batch_size", 100)
         self.num_epochs = config.get("num_epochs", 500)
         self.lr = config.get("lr", 1e-3)
