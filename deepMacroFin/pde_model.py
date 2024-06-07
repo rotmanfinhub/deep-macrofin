@@ -491,7 +491,8 @@ class PDEModel:
         self.set_all_model_training()
         start_time = time.time()
         set_seeds(0)
-        for epoch in tqdm(range(self.num_epochs)):
+        pbar = tqdm(range(self.num_epochs))
+        for epoch in pbar:
             epoch_start_time = time.time()
 
             def closure(model: PDEModel):
@@ -532,6 +533,8 @@ class PDEModel:
                 formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
             else:
                 formatted_train_loss = "%.4f" % loss_dict["total_loss"]
+            if epoch % 10 == 0:
+                pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
             print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
         print(f"training finished, total time :: {time.time() - start_time}")
         print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
