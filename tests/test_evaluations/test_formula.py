@@ -57,6 +57,26 @@ class TestFormulaEvaluation(unittest.TestCase):
         expected_result = torch.tensor([0.4142])
         self.assertTrue(torch.allclose(result, expected_result, atol=1e-4), f"Expected {expected_result}, got {result}") # allow some tolerance
 
+    def test_elementary_function(self):
+        formula_str = "sin(X) + cos(Y)"
+        formula = Formula(formula_str, 'eval')
+        result = formula.eval(self.LOCAL_DICT, self.variables)
+        expected_result = torch.sin(self.variables["X"]) + torch.cos(self.variables["Y"])
+        self.assertTrue(torch.allclose(result, expected_result, atol=1e-4), f"Expected {expected_result}, got {result}") # allow some tolerance
+
+    def test_elementary_function2(self):
+        formula_str = "exp(X) * Y"
+        formula = Formula(formula_str, 'eval')
+        result = formula.eval(self.LOCAL_DICT, self.variables)
+        expected_result = torch.exp(self.variables["X"]) * self.variables["Y"]
+        self.assertTrue(torch.allclose(result, expected_result, atol=1e-4), f"Expected {expected_result}, got {result}") # allow some tolerance
+
+    def test_elementary_function2(self):
+        formula_str = "log(X) + exp(Y)"
+        formula = Formula(formula_str, 'eval')
+        result = formula.eval(self.LOCAL_DICT, self.variables)
+        expected_result = torch.log(self.variables["X"]) + torch.exp(self.variables["Y"])
+        self.assertTrue(torch.allclose(result, expected_result, atol=1e-4), f"Expected {expected_result}, got {result}") # allow some tolerance
 
 if __name__ == '__main__':
     unittest.main()

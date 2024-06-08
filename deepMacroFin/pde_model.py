@@ -42,7 +42,8 @@ class PDEModel:
         latex_var_mapping should include all possible latex to python name conversions. Otherwise latex parsing will fail. Can be omitted if all the input equations/formula are not in latex form. For details, check `Formula` class defined in `evaluations/formula.py`
         '''
         self.name = name
-        self.config = config
+        self.config = DEFAULT_CONFIG.copy()
+        self.config.update(config)
         self.batch_size = config.get("batch_size", 100)
         self.num_epochs = config.get("num_epochs", 500)
         self.lr = config.get("lr", 1e-3)
@@ -259,7 +260,13 @@ class PDEModel:
         '''
         Add an equation to define a new variable. 
         '''
-        pass
+        if label is None:
+            label = len(self.equations) + 1
+        label = f"eq_{label}"
+        self.check_label_used(label)
+        new_eq = Equation(eq, label, self.latex_var_mapping)
+        self.equations[label] = new_eq
+        self.variable_val_dict[new_eq.lhs] = torch.zeros((self.batch_size, 1), device=self.device)
 
     def add_endog_equation(self, eq: str, label: str=None, weight=1.0):
         '''
@@ -279,15 +286,30 @@ class PDEModel:
 
         Use Constraint class to properly convert it to a loss function.
         '''
-        pass
+        if label is None:
+            label = len(self.constraints) + 1
+        label = f"constraint_{label}"
+        self.check_label_used(label)
+        self.constraints[label] = Constraint(lhs, comparator, rhs, label, self.latex_var_mapping)
+        self.loss_val_dict[label] = torch.zeros(1, device=self.device)
+        self.loss_weight_dict[label] = weight
 
-    def add_system(self, system: System, label=None, weight=1.0):
+
+    def add_system(self, system: System, weight=1.0):
         '''
         Decide in a later stage. 
         It should be some multiplication of loss functions 
         e.g. \prod ReLU(constraints to trigger the system) * loss induced by the system.
         '''
-        pass
+        if system.label is None:
+            system.label = len(self.systems) + 1
+        label = f"system_{system.label}"
+        self.check_label_used(label)
+        system.set_device(self.device)
+        self.systems[label] = system
+        self.loss_val_dict[label] = torch.zeros(1, device=self.device)
+        self.loss_weight_dict[label] = weight
+
     
     def loss_fn(self):
         '''
@@ -425,7 +447,8 @@ class PDEModel:
         self.set_all_model_training()
         start_time = time.time()
         set_seeds(0)
-        for epoch in tqdm(range(self.num_epochs)):
+        pbar = tqdm(range(self.num_epochs))
+        for epoch in pbar:
             epoch_start_time = time.time()
             
             loss_dict = self.train_step()
@@ -435,6 +458,8 @@ class PDEModel:
             else:
                 formatted_train_loss = "%.4f" % loss_dict["total_loss"]
             # print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}")
+            if epoch % 100 == 0:
+                pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
             print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
         print(f"training finished, total time :: {time.time() - start_time}")
         print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
@@ -487,7 +512,8 @@ class PDEModel:
         self.set_all_model_training()
         start_time = time.time()
         set_seeds(0)
-        for epoch in tqdm(range(self.num_epochs)):
+        pbar = tqdm(range(self.num_epochs))
+        for epoch in pbar:
             epoch_start_time = time.time()
 
             def closure(model: PDEModel):
@@ -528,6 +554,8 @@ class PDEModel:
                 formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
             else:
                 formatted_train_loss = "%.4f" % loss_dict["total_loss"]
+            if epoch % 10 == 0:
+                pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
             print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
         print(f"training finished, total time :: {time.time() - start_time}")
         print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
