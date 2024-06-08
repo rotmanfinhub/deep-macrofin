@@ -294,6 +294,18 @@ class PDEModel:
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
         self.loss_weight_dict[label] = weight
 
+    def add_hjb_equation(self, eq: str, label: str=None, weight=1.0):
+        '''
+        Add an equation for loss computation based on an HJB equation (residual form)
+        '''
+        if label is None:
+            label = len(self.hjb_equations) + 1
+        label = f"hjbeq_{label}"
+        self.check_label_used(label)
+        self.hjb_equations[label] = HJBEquation(eq, label, self.latex_var_mapping)
+        self.loss_val_dict[label] = torch.zeros(1, device=self.device)
+        self.loss_weight_dict[label] = weight
+
 
     def add_system(self, system: System, weight=1.0):
         '''
