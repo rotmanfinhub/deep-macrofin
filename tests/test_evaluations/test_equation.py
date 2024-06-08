@@ -1,6 +1,9 @@
 import unittest
+
 import torch
-from deepMacroFin.evaluations import Equation, Constraint, Comparator, HJBEquation
+
+from deepMacroFin.evaluations import Equation, HJBEquation
+
 
 class TestEquationClasses(unittest.TestCase):
 
@@ -20,45 +23,33 @@ class TestEquationClasses(unittest.TestCase):
     def test_equation(self):
         equation = Equation("x = y", "Test Equation")
         result = equation.eval(self.available_functions, self.variables)
-        expected_result = torch.mean(torch.square(self.variables['x'] - self.variables['y']))
+        expected_result = self.variables['y']
+        self.assertTrue(torch.allclose(result, expected_result))
+
+    def test_equation2(self):
+        equation = Equation("x = y + z", "Test Equation")
+        result = equation.eval(self.available_functions, self.variables)
+        expected_result = self.variables['y'] + self.variables['z']
         self.assertTrue(torch.allclose(result, expected_result))
 
     def test_hjb_equation(self):
-        hjb_equation = HJBEquation("x = y", "Test HJB Equation")
+        hjb_equation = HJBEquation("x - y", "Test HJB Equation")
         result = hjb_equation.eval(self.available_functions, self.variables)
         expected_result = torch.mean(torch.square(self.variables['x'] - self.variables['y']))
         self.assertTrue(torch.allclose(result, expected_result))
 
     def test_hjb_equation_complex_1(self):
-        hjb_equation = HJBEquation("x + y = sin(z)", "Test HJB Equation Complex 1")
+        hjb_equation = HJBEquation("x + y - sin(z)", "Test HJB Equation Complex 1")
         result = hjb_equation.eval(self.available_functions, self.variables)
         expected_result = torch.mean(
             torch.square(self.variables['x'] + self.variables['y'] - torch.sin(self.variables['z'])))
         self.assertTrue(torch.allclose(result, expected_result))
 
     def test_hjb_equation_complex_2(self):
-        hjb_equation = HJBEquation("exp(x) = y * z", "Test HJB Equation Complex 2")
+        hjb_equation = HJBEquation("exp(x) - y * z", "Test HJB Equation Complex 2")
         result = hjb_equation.eval(self.available_functions, self.variables)
         expected_result = torch.mean(
             torch.square(torch.exp(self.variables['x']) - self.variables['y'] * self.variables['z']))
-        self.assertTrue(torch.allclose(result, expected_result))
-
-    def test_constraint_equal(self):
-        constraint = Constraint("x", Comparator.EQ, "y", "Test Constraint Equal")
-        result = constraint.eval(self.available_functions, self.variables)
-        expected_result = torch.mean(torch.square(self.variables['x'] - self.variables['y']))
-        self.assertTrue(torch.allclose(result, expected_result))
-
-    def test_constraint_greater(self):
-        constraint = Constraint("x", Comparator.GT, "y", "Test Constraint Greater")
-        result = constraint.eval(self.available_functions, self.variables)
-        expected_result = torch.mean(torch.relu(self.variables['y'] - self.variables['x']))
-        self.assertTrue(torch.allclose(result, expected_result))
-
-    def test_constraint_less(self):
-        constraint = Constraint("x", Comparator.LT, "y", "Test Constraint Less")
-        result = constraint.eval(self.available_functions, self.variables)
-        expected_result = torch.mean(torch.relu(self.variables['x'] - self.variables['y']))
         self.assertTrue(torch.allclose(result, expected_result))
 
 

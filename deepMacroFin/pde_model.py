@@ -260,7 +260,13 @@ class PDEModel:
         '''
         Add an equation to define a new variable. 
         '''
-        pass
+        if label is None:
+            label = len(self.equations) + 1
+        label = f"eq_{label}"
+        self.check_label_used(label)
+        new_eq = Equation(eq, label, self.latex_var_mapping)
+        self.equations[label] = new_eq
+        self.variable_val_dict[new_eq.lhs] = torch.zeros((self.batch_size, 1), device=self.device)
 
     def add_endog_equation(self, eq: str, label: str=None, weight=1.0):
         '''
@@ -280,15 +286,30 @@ class PDEModel:
 
         Use Constraint class to properly convert it to a loss function.
         '''
-        pass
+        if label is None:
+            label = len(self.constraints) + 1
+        label = f"constraint_{label}"
+        self.check_label_used(label)
+        self.constraints[label] = Constraint(lhs, comparator, rhs, label, self.latex_var_mapping)
+        self.loss_val_dict[label] = torch.zeros(1, device=self.device)
+        self.loss_weight_dict[label] = weight
 
-    def add_system(self, system: System, label=None, weight=1.0):
+
+    def add_system(self, system: System, weight=1.0):
         '''
         Decide in a later stage. 
         It should be some multiplication of loss functions 
         e.g. \prod ReLU(constraints to trigger the system) * loss induced by the system.
         '''
-        pass
+        if system.label is None:
+            system.label = len(self.systems) + 1
+        label = f"system_{system.label}"
+        self.check_label_used(label)
+        system.set_device(self.device)
+        self.systems[label] = system
+        self.loss_val_dict[label] = torch.zeros(1, device=self.device)
+        self.loss_weight_dict[label] = weight
+
     
     def loss_fn(self):
         '''

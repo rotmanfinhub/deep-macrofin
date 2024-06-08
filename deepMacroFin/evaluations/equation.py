@@ -3,14 +3,8 @@ from enum import Enum
 from typing import Callable, Dict, List, Union
 
 import torch
-from .formula import Formula
-from .endog_equation import EndogEquation
 
-
-class EvaluationMethod(str, Enum):
-    Eval = "eval"
-    Sympy = "sympy"
-    AST = "ast"
+from .formula import EvaluationMethod, Formula
 
 
 class Equation:
@@ -23,7 +17,6 @@ class Equation:
     def __init__(self, eq: str, label: str, latex_var_mapping: Dict[str, str] = {}):
         '''
         Parse the equation LHS and RHS of `eq` separately,
-        firstly make sure non-latex version can be parsed correctly.
         '''
         assert "=" in eq, f"The equation ({eq}) does not contain '='."
         self.label = label
@@ -34,14 +27,13 @@ class Equation:
 
     def eval(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor]):
         '''
-        Evaluate LHS and RHS, compute MSE between them, return the value
+        Return the value of RHS, which will be assigned to LHS variable
         '''
-        lhs_eval = self.lhs.eval(available_functions, variables)
         rhs_eval = self.rhs.eval(available_functions, variables)
-        return torch.mean(torch.square(lhs_eval - rhs_eval))
+        return rhs_eval
 
     def __str__(self):
         str_repr = f"{self.label}: \n"
-        str_repr += f"Raw input: {self.eq};\n"
+        str_repr += f"Raw input: {self.eq}\n"
         str_repr += f"Parsed: {self.lhs.formula_str}={self.rhs.formula_str}"
         return str_repr

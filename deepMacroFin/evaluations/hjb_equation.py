@@ -3,13 +3,8 @@ from enum import Enum
 from typing import Callable, Dict, List, Union
 
 import torch
-from .formula import Formula
 
-
-class EvaluationMethod(str, Enum):
-    Eval = "eval"
-    Sympy = "sympy"
-    AST = "ast"
+from .formula import EvaluationMethod, Formula
 
 
 class HJBEquation:
@@ -25,25 +20,20 @@ class HJBEquation:
     def __init__(self, eq: str, label: str, latex_var_mapping: Dict[str, str] = {}):
         '''
         Parse the equation LHS and RHS of `eq` separately,
-        firstly make sure non-latex version can be parsed correctly.
         '''
-        assert "=" in eq, f"The equation ({eq}) does not contain '='."
         self.label = label
-        self.eq = eq.replace("==", "=")  # Ensure single equals for assignment
-        eq_splitted = self.eq.split("=")
-        self.lhs = Formula(eq_splitted[0], EvaluationMethod.Eval, latex_var_mapping)
-        self.rhs = Formula(eq_splitted[1], EvaluationMethod.Eval, latex_var_mapping)
+        self.eq = eq
+        self.parsed_eq = Formula(eq, EvaluationMethod.Eval, latex_var_mapping)
 
     def eval(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor]):
         '''
         Evaluate the function, compute MSE with 0, return the value
         '''
-        lhs_eval = self.lhs.eval(available_functions, variables)
-        rhs_eval = self.rhs.eval(available_functions, variables)
-        return torch.mean(torch.square(lhs_eval - rhs_eval))
+        eq_eval = self.parsed_eq.eval(available_functions, variables)
+        return torch.mean(torch.square(eq_eval))
 
     def __str__(self):
         str_repr = f"{self.label}: \n"
         str_repr += f"Raw input: {self.eq};\n"
-        str_repr += f"Parsed: {self.lhs.formula_str}={self.rhs.formula_str}"
+        str_repr += f"Parsed: {self.parsed_eq.formula_str}"
         return str_repr
