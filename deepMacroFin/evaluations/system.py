@@ -125,7 +125,8 @@ class System:
 
 
     def __str__(self):
-        str_repr = "Activation Constraints:\n"
+        str_repr = f"{self.label}: \n"
+        str_repr += "Activation Constraints:\n"
         for constraint in self.activation_constraints:
             str_repr += str(constraint) + "\n"
         str_repr += "{0:=^40}\n".format("Equations")
