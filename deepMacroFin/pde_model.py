@@ -148,7 +148,7 @@ class PDEModel:
         agent_config = deepcopy(DEFAULT_LEARNABLE_VAR_CONFIG)
         agent_config.update(config)
 
-        self.device = config["device"]
+        self.device = agent_config["device"]
 
         new_agent = Agent(name, self.state_variables, agent_config)
         self.agents[name] = new_agent
@@ -210,7 +210,7 @@ class PDEModel:
         endog_var_config = deepcopy(DEFAULT_LEARNABLE_VAR_CONFIG)
         endog_var_config.update(config)
 
-        self.device = config["device"]
+        self.device = endog_var_config["device"]
 
         new_endog_var = EndogVar(name, self.state_variables, endog_var_config)
         self.endog_vars[name] = new_endog_var
