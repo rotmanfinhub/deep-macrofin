@@ -376,7 +376,7 @@ class PDEModel:
 
         # properly update variables, using equations
         for eq_name in self.equations:
-            lhs = self.equations[eq_name].lhs
+            lhs = self.equations[eq_name].lhs.formula_str
             self.variable_val_dict[lhs] = self.equations[eq_name].eval({}, self.variable_val_dict)
 
         self.loss_fn()
@@ -409,7 +409,7 @@ class PDEModel:
 
         # properly update variables, using equations
         for eq_name in self.equations:
-            lhs = self.equations[eq_name].lhs
+            lhs = self.equations[eq_name].lhs.formula_str
             self.variable_val_dict[lhs] = self.equations[eq_name].eval({}, self.variable_val_dict)
 
         self.loss_fn()
@@ -546,7 +546,7 @@ class PDEModel:
 
                 # properly update variables, using equations
                 for eq_name in model.equations:
-                    lhs = model.equations[eq_name].lhs
+                    lhs = model.equations[eq_name].lhs.formula_str
                     model.variable_val_dict[lhs] = model.equations[eq_name].eval({}, model.variable_val_dict)
 
                 model.loss_fn()
