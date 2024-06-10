@@ -111,7 +111,7 @@ class Formula:
                 "c_t^h": "ch",
             }
         '''
-        self.formula_str = formula_str
+        self.formula_str = formula_str.strip()
         if "$" in formula_str:
             self.formula_str = latex_parsing(formula_str, latex_var_mapping)
         self.evaluation_method = evaluation_method

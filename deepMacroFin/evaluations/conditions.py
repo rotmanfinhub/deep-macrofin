@@ -115,13 +115,19 @@ class BaseConditions:
         cond_str += self.lhs.formula_str + self.comparator + self.rhs.formula_str
         lhs_state_value_str = ""
         for k, v in self.lhs_state.items():
-            lhs_state_value_str += k + "=" + str(v.tolist())
+            if isinstance(v, torch.Tensor):
+                lhs_state_value_str += k + "=" + str(v.tolist())
+            else:
+                lhs_state_value_str += k + "=" + str(v)
         if len(lhs_state_value_str) > 0:
             cond_str += " with LHS evaluated at " + lhs_state_value_str
 
         rhs_state_value_str = ""
         for k, v in self.rhs_state.items():
-            rhs_state_value_str += k + "=" + str(v.tolist())
+            if isinstance(v, torch.Tensor):
+                rhs_state_value_str += k + "=" + str(v.tolist())
+            else:
+                rhs_state_value_str += k + "=" + str(v)
         if len(rhs_state_value_str) > 0:
             cond_str += " and RHS evaluated at " + rhs_state_value_str
         return cond_str

@@ -66,6 +66,7 @@ class PDEModel:
         self.local_function_dict: Dict[str, Callable] = OrderedDict() # should include all functions available from agents and endogenous vars (direct evaluation and derivatives)
 
         # label to value mapping, used to store all variable values and loss.
+        self.params: Dict[str, torch.Tensor] = OrderedDict()
         self.variable_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include all local variables/params + current values, initially, all values in this dictionary can be zero
         self.loss_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include loss equation (constraints, endogenous equations, HJB equations) labels + corresponding loss values, initially, all values in this dictionary can be zero.
         self.loss_weight_dict: Dict[str, float] = OrderedDict() # should include loss equation labels + corresponding weight
@@ -122,6 +123,7 @@ class PDEModel:
         Add a single parameter (constant in the PDE system) with name and value.
         '''
         self.check_name_used(name)
+        self.params[name] = value
         self.variable_val_dict[name] = value
 
     def add_params(self, params: Dict[str, Any]):
@@ -130,6 +132,7 @@ class PDEModel:
         '''
         for name in params:
             self.check_name_used(name)
+        self.params.update(params)
         self.variable_val_dict.update(params)
 
     def add_agent(self, name: str, 
@@ -148,7 +151,7 @@ class PDEModel:
         agent_config = deepcopy(DEFAULT_LEARNABLE_VAR_CONFIG)
         agent_config.update(config)
 
-        self.device = config["device"]
+        self.device = agent_config["device"]
 
         new_agent = Agent(name, self.state_variables, agent_config)
         self.agents[name] = new_agent
@@ -210,7 +213,7 @@ class PDEModel:
         endog_var_config = deepcopy(DEFAULT_LEARNABLE_VAR_CONFIG)
         endog_var_config.update(config)
 
-        self.device = config["device"]
+        self.device = endog_var_config["device"]
 
         new_endog_var = EndogVar(name, self.state_variables, endog_var_config)
         self.endog_vars[name] = new_endog_var
@@ -219,7 +222,7 @@ class PDEModel:
             self.variable_val_dict[func_name] = torch.zeros((self.batch_size, 1), device=self.device)
 
     def add_endogs(self, names: List[str], 
-                   configs: Dict[str, Dict[str, Any]]):
+                   configs: Dict[str, Dict[str, Any]] = {}):
         '''
         Add multiple endogenous variables at the same time, each with different config.
         '''
@@ -266,7 +269,7 @@ class PDEModel:
         self.check_label_used(label)
         new_eq = Equation(eq, label, self.latex_var_mapping)
         self.equations[label] = new_eq
-        self.variable_val_dict[new_eq.lhs] = torch.zeros((self.batch_size, 1), device=self.device)
+        self.variable_val_dict[new_eq.lhs.formula_str] = torch.zeros((self.batch_size, 1), device=self.device)
 
     def add_endog_equation(self, eq: str, label: str=None, weight=1.0):
         '''
@@ -627,7 +630,7 @@ class PDEModel:
         
         for label in self.equations:
             try:
-                self.endog_equations[label].eval({}, self.variable_val_dict)
+                self.equations[label].eval({}, self.variable_val_dict)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append([label, str(e)])
@@ -725,7 +728,8 @@ class PDEModel:
         total_param_count = 0
         str_repr = "{0:=^80}\n".format(f"Summary of Model {self.name}")
         str_repr += "Config: " + json.dumps(self.config, indent=True) + "\n"
-        str_repr += "Latex Variable Mapping: " + json.dumps(self.latex_var_mapping, indent=True) + "\n\n"
+        str_repr += "Latex Variable Mapping:\n" + json.dumps(self.latex_var_mapping, indent=True) + "\n"
+        str_repr += "User Defined Parameters:\n" + json.dumps(self.params, indent=True) + "\n\n"
 
         str_repr += "{0:=^80}\n".format("State Variables")
         for sv in self.state_variables:
