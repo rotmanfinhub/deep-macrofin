@@ -58,7 +58,7 @@ class System:
         self.check_label_used(label)
         new_eq = Equation(eq, label, self.latex_var_mapping)
         self.equations[label] = new_eq
-        self.variable_val_dict[new_eq.lhs] = torch.zeros((self.batch_size, 1), device=self.device)
+        self.variable_val_dict[new_eq.lhs.formula_str] = torch.zeros(1, device=self.device)
 
     def add_endog_equation(self, eq: str, label: str=None, weight=1.0):
         '''
@@ -109,9 +109,10 @@ class System:
 
         # properly update variables, using equations
         for eq_name in self.equations:
-            lhs = self.equations[eq_name].lhs
-            self.variable_val_dict[lhs] = self.equations[eq_name].eval(available_functions, variables_)
-            variables_[lhs] = self.variable_val_dict[lhs]
+            lhs = self.equations[eq_name].lhs.formula_str
+            res = self.equations[eq_name].eval(available_functions, variables_)
+            variables_[lhs] = res
+            self.variable_val_dict[lhs] = res
 
         # the loss will only be computed for a specific portion for the endogenous equations.
         for label in self.endog_equations:
