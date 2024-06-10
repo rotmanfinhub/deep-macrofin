@@ -66,8 +66,6 @@ class Constraint:
         '''
         The condition is LHS<RHS.
         Evaluate ReLU(LHS-RHS+eps), it will only contribute to loss when LHS>RHS-eps
-
-        reduce: whether or not compute the MSE, if False, return lhs_eval - rhs_eval
         '''
         lhs_eval = self.lhs.eval(available_functions, variables)
         rhs_eval = self.rhs.eval(available_functions, variables)
@@ -78,8 +76,6 @@ class Constraint:
         '''
         The condition is LHS<=RHS.
         Evaluate ReLU(LHS-RHS), it will only contribute to loss when LHS>RHS
-
-        reduce: whether or not compute the MSE, if False, return lhs_eval - rhs_eval
         '''
         lhs_eval = self.lhs.eval(available_functions, variables)
         rhs_eval = self.rhs.eval(available_functions, variables)
@@ -90,8 +86,6 @@ class Constraint:
         '''
         The condition is LHS>RHS.
         Evaluate ReLU(RHS-LHS+eps), it will only contribute to loss when RHS>LHS-eps
-
-        reduce: whether or not compute the MSE, if False, return lhs_eval - rhs_eval
         '''
         lhs_eval = self.lhs.eval(available_functions, variables)
         rhs_eval = self.rhs.eval(available_functions, variables)
@@ -102,8 +96,6 @@ class Constraint:
         '''
         The condition is LHS>=RHS.
         Evaluate ReLU(RHS-LHS), it will only contribute to loss when RHS>LHS
-
-        reduce: whether or not compute the MSE, if False, return lhs_eval - rhs_eval
         '''
         lhs_eval = self.lhs.eval(available_functions, variables)
         rhs_eval = self.rhs.eval(available_functions, variables)
