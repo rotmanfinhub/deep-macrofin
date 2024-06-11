@@ -113,6 +113,9 @@ class System:
             res = self.equations[eq_name].eval(available_functions, variables_)
             variables_[lhs] = res
             self.variable_val_dict[lhs] = res
+            if lhs in variables:
+                variables[lhs][mask.squeeze(-1).to(torch.bool)] = res[mask.squeeze(-1).to(torch.bool)]
+
 
         # the loss will only be computed for a specific portion for the endogenous equations.
         for label in self.endog_equations:

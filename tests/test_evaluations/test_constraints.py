@@ -2,7 +2,7 @@ import unittest
 
 import torch
 
-from deepMacroFin.evaluations import Comparator, Constraint
+from deep_macrofin.evaluations import Comparator, Constraint
 
 
 class TestConstraints(unittest.TestCase):

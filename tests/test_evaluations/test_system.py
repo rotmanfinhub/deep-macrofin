@@ -2,7 +2,7 @@ import unittest
 
 import torch
 
-from deepMacroFin.evaluations import Comparator, Constraint, System, EndogEquation
+from deep_macrofin.evaluations import Comparator, Constraint, System, EndogEquation
 
 class TestSystems(unittest.TestCase):
     def setUp(self):

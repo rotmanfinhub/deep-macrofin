@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from deepMacroFin.models import EndogVar
+from deep_macrofin.models import EndogVar
 
 
 def test_init():

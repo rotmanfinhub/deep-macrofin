@@ -3,7 +3,7 @@ import unittest
 import torch
 import torch.nn as nn
 
-from deepMacroFin.evaluations import EndogEquation
+from deep_macrofin.evaluations import EndogEquation
 
 class TestConditions(unittest.TestCase):
     @classmethod
