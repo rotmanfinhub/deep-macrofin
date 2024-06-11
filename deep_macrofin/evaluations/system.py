@@ -16,7 +16,7 @@ class System:
     '''
     def __init__(self, 
                  activation_constraints: List[Constraint], 
-                 label: str, 
+                 label: str=None, 
                  latex_var_mapping: Dict[str, str] = {}):
         
         self.activation_constraints = activation_constraints
