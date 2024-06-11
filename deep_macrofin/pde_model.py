@@ -160,7 +160,7 @@ class PDEModel:
             self.variable_val_dict[func_name] = torch.zeros((self.batch_size, 1), device=self.device)
     
     def add_agents(self, names: List[str], 
-                   configs: Dict[str, Dict[str, Any]]):
+                   configs: Dict[str, Dict[str, Any]]={}):
         '''
         Add multiple agents at the same time, each with different configurations.
         '''
