@@ -160,7 +160,7 @@ class PDEModel:
             self.variable_val_dict[func_name] = torch.zeros((self.batch_size, 1), device=self.device)
     
     def add_agents(self, names: List[str], 
-                   configs: Dict[str, Dict[str, Any]]):
+                   configs: Dict[str, Dict[str, Any]]={}):
         '''
         Add multiple agents at the same time, each with different configurations.
         '''
@@ -172,7 +172,7 @@ class PDEModel:
                             lhs: str, lhs_state: Dict[str, torch.Tensor], 
                             comparator: Comparator, 
                             rhs: str, rhs_state: Dict[str, torch.Tensor], 
-                            label: str,
+                            label: str=None,
                             weight: float=1.0):
         '''
         Add boundary/initial condition for a specific agent
@@ -187,6 +187,8 @@ class PDEModel:
         - label: label for the condition
         '''
         assert name in self.agents, f"Agent {name} does not exist"
+        if label is None:
+            label = len(self.agent_conditions) + 1
         label = f"agent_{name}_cond_{label}"
         self.check_label_used(label)
         self.agent_conditions[label] = AgentConditions(name, 
@@ -234,7 +236,7 @@ class PDEModel:
                             lhs: str, lhs_state: Dict[str, torch.Tensor], 
                             comparator: Comparator, 
                             rhs: str, rhs_state: Dict[str, torch.Tensor], 
-                            label: str,
+                            label: str=None,
                             weight=1.0):
         '''
         Add boundary/initial condition for a specific endogenous var
@@ -249,6 +251,8 @@ class PDEModel:
         - label: label for the condition
         '''
         assert name in self.endog_vars, f"Endogenous variable {name} does not exist"
+        if label is None:
+            label = len(self.endog_var_conditions) + 1
         label = f"endogvar_{name}_cond_{label}"
         self.check_label_used(label)
         self.endog_var_conditions[label] = EndogVarConditions(name, 
@@ -669,7 +673,7 @@ class PDEModel:
             os.makedirs(model_dir, exist_ok=True)
             with open(os.path.join(model_dir, f"{self.name}-errors.txt"), "w", encoding="utf-8") as f:
                 f.write("Error Log:\n")
-                f.writelines([f"{e[0]} : {e[1]}" for e in errors])
+                f.writelines([f"{e[0]} : {e[1]}\n" for e in errors])
             print(json.dumps(errors, indent=True))
             raise Exception(f"Errors when validating model setup, please check {self.name}-errors.txt for details.")
 

@@ -3,7 +3,7 @@ import unittest
 import torch
 import torch.nn as nn
 
-from deepMacroFin.evaluations import AgentConditions, Comparator, EndogVarConditions
+from deep_macrofin.evaluations import AgentConditions, Comparator, EndogVarConditions
 
 class TestConditions(unittest.TestCase):
     @classmethod

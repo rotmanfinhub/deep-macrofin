@@ -2,7 +2,7 @@ import unittest
 
 import torch
 
-from deepMacroFin.evaluations import Equation, HJBEquation
+from deep_macrofin.evaluations import Equation, HJBEquation
 
 
 class TestEquationClasses(unittest.TestCase):

@@ -3,7 +3,7 @@ import unittest
 import torch
 import torch.nn as nn
 
-from deepMacroFin.models import Agent, LayerType, LearnableModelType
+from deep_macrofin.models import Agent, LayerType, LearnableModelType
 
 
 class TestAgentInitialization(unittest.TestCase):

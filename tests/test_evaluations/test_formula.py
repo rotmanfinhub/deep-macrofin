@@ -2,7 +2,7 @@ import unittest
 
 import torch
 
-from deepMacroFin.evaluations.formula import Formula
+from deep_macrofin.evaluations.formula import Formula
 
 
 class TestFormulaEvaluation(unittest.TestCase):
