@@ -92,7 +92,7 @@ class System:
                 mask *= torch.where(constraint_eval <= 0, 1, 0)
             elif constraint.comparator == Comparator.GT:
                 # satisfied when constraint_eval > 0
-                smask *= torch.where(constraint_eval > 0, 1, 0)
+                mask *= torch.where(constraint_eval > 0, 1, 0)
             elif constraint.comparator == Comparator.GEQ:
                 # satisfied when constraint_eval >= 0
                 mask *= torch.where(constraint_eval >= 0, 1, 0)

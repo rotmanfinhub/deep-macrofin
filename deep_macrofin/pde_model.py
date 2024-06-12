@@ -357,9 +357,8 @@ class PDEModel:
 
     def add_system(self, system: System, weight=1.0):
         '''
-        Decide in a later stage. 
-        It should be some multiplication of loss functions 
-        e.g. \prod ReLU(constraints to trigger the system) * loss induced by the system.
+        Add a pre-compiled system, which should consist of activation constraint and 
+        associated equation(new variable def)/endogenous equation (loss)
         '''
         if system.label is None:
             system.label = len(self.systems) + 1
@@ -427,7 +426,7 @@ class PDEModel:
         self.loss_fn()
         total_loss = 0
         for loss_label, loss in self.loss_val_dict.items():
-            total_loss += self.loss_weight_dict[loss_label] * loss
+            total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
         
         total_loss.backward()
         self.optimizer.step()
@@ -460,7 +459,7 @@ class PDEModel:
         self.loss_fn()
         total_loss = 0
         for loss_label, loss in self.loss_val_dict.items():
-            total_loss += self.loss_weight_dict[loss_label] * loss
+            total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
 
         loss_dict = self.loss_val_dict.copy()
         loss_dict["total_loss"] = total_loss
@@ -520,7 +519,7 @@ class PDEModel:
             else:
                 formatted_train_loss = "%.4f" % loss_dict["total_loss"]
             
-            if loss_dict["total_loss"].item() < min_loss:
+            if loss_dict["total_loss"].item() < min_loss and all([not v.isnan() for v in loss_dict.values()]):
                 min_loss = loss_dict["total_loss"].item()
                 self.save_model(model_dir, f"{file_prefix}_best.pt")
             # maybe reload the best model when loss is nan.
@@ -534,9 +533,9 @@ class PDEModel:
         print(f"training finished, total time :: {time.time() - start_time}")
         print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
         log_file.close()
-        if loss_dict["total_loss"].item() < min_loss:
+        if loss_dict["total_loss"].item() < min_loss and all([not v.isnan() for v in loss_dict.values()]):
             self.save_model(model_dir, f"{file_prefix}_best.pt")
-        print(f"Best model saved to {model_dir}/{file_prefix}_best.pt")
+        print(f"Best model saved to {model_dir}/{file_prefix}_best.pt if valid")
         self.save_model(model_dir, filename, verbose=True)
         pd.DataFrame(epoch_loss_dict).to_csv(f"{model_dir}/{file_prefix}_loss.csv", index=False)
 
@@ -613,7 +612,7 @@ class PDEModel:
                 model.loss_fn()
                 total_loss = 0
                 for loss_label, loss in model.loss_val_dict.items():
-                    total_loss += model.loss_weight_dict[loss_label] * loss
+                    total_loss += model.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
                 
                 total_loss.backward()
                 return total_loss
@@ -623,7 +622,7 @@ class PDEModel:
             loss_dict = self.loss_val_dict.copy()
             total_loss = 0
             for loss_label, loss in loss_dict.items():
-                total_loss += self.loss_weight_dict[loss_label] * loss
+                total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
             loss_dict["total_loss"] = total_loss
 
             if loss_dict["total_loss"].item() < min_loss:
