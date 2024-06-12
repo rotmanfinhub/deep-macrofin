@@ -1,10 +1,11 @@
 import json
 import os
 import time
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from copy import deepcopy
 from typing import Any, Dict, List
 
+import pandas as pd
 import torch
 from tqdm import tqdm
 
@@ -31,13 +32,16 @@ class PDEModel:
         Initialize a model with the provided name and config. 
         The config should include the basic training configs, 
 
-        The optimizer is default to Adam
+        The optimizer is default to AdamW
 
         DEFAULT_CONFIG={
             "batch_size": 100,
             "num_epochs": 1000,
-            "lr": 1e-3
+            "lr": 1e-3,
+            "loss_log_interval": 100,
         }
+
+        loss_log_interval: the interval at which loss should be reported/recorded
 
         latex_var_mapping should include all possible latex to python name conversions. Otherwise latex parsing will fail. Can be omitted if all the input equations/formula are not in latex form. For details, check `Formula` class defined in `evaluations/formula.py`
         '''
@@ -45,8 +49,9 @@ class PDEModel:
         self.config = DEFAULT_CONFIG.copy()
         self.config.update(config)
         self.batch_size = config.get("batch_size", 100)
-        self.num_epochs = config.get("num_epochs", 500)
+        self.num_epochs = config.get("num_epochs", 1000)
         self.lr = config.get("lr", 1e-3)
+        self.loss_log_interval = config.get("loss_log_interval", 100)
         self.latex_var_mapping = latex_var_mapping
         
         self.state_variables = []
@@ -144,6 +149,15 @@ class PDEModel:
 
         Input:
         - overwrite: overwrite the previous agent with the same name, used for loading, default: False
+
+        Config: specifies number of layers/hidden units of the neural network.
+            - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
+            - hidden_units: **List[int]**, number of units in each layer
+            - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
+            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - positive: **bool**, apply softplus to the output to be always positive if true, default: false
+            - hardcode_function: a lambda function for hardcoded forwarding function.
+            - derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         if not overwrite:
@@ -163,6 +177,15 @@ class PDEModel:
                    configs: Dict[str, Dict[str, Any]]={}):
         '''
         Add multiple agents at the same time, each with different configurations.
+
+        Config: specifies number of layers/hidden units of the neural network.
+            - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
+            - hidden_units: **List[int]**, number of units in each layer
+            - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
+            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - positive: **bool**, apply softplus to the output to be always positive if true, default: false
+            - hardcode_function: a lambda function for hardcoded forwarding function.
+            - derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         for name in names:
@@ -208,6 +231,15 @@ class PDEModel:
 
         Input:
         - overwrite: overwrite the previous agent with the same name, used for loading, default: False
+
+        Config: specifies number of layers/hidden units of the neural network.
+            - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
+            - hidden_units: **List[int]**, number of units in each layer
+            - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
+            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - positive: **bool**, apply softplus to the output to be always positive if true, default: false
+            - hardcode_function: a lambda function for hardcoded forwarding function.
+            - derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         if not overwrite:
@@ -227,6 +259,15 @@ class PDEModel:
                    configs: Dict[str, Dict[str, Any]] = {}):
         '''
         Add multiple endogenous variables at the same time, each with different config.
+
+        Config: specifies number of layers/hidden units of the neural network.
+            - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
+            - hidden_units: **List[int]**, number of units in each layer
+            - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
+            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - positive: **bool**, apply softplus to the output to be always positive if true, default: false
+            - hardcode_function: a lambda function for hardcoded forwarding function.
+            - derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         for name in names:
@@ -442,6 +483,8 @@ class PDEModel:
         The entire loop of training
         '''
 
+        min_loss = torch.inf
+        epoch_loss_dict = defaultdict(list)
         all_params = []
         for agent_name, agent in self.agents.items():
             all_params += list(agent.parameters())
@@ -476,14 +519,26 @@ class PDEModel:
                 formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
             else:
                 formatted_train_loss = "%.4f" % loss_dict["total_loss"]
-            # print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}")
-            if epoch % 100 == 0:
+            
+            if loss_dict["total_loss"].item() < min_loss:
+                min_loss = loss_dict["total_loss"].item()
+                self.save_model(model_dir, f"{file_prefix}_best.pt")
+            # maybe reload the best model when loss is nan.
+
+            if epoch % self.loss_log_interval == 0:
+                epoch_loss_dict["epoch"].append(epoch)
+                for k, v in loss_dict.items():
+                    epoch_loss_dict[k].append(v.item())
                 pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
             print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
         print(f"training finished, total time :: {time.time() - start_time}")
         print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
         log_file.close()
-        self.save_model(model_dir, filename)
+        if loss_dict["total_loss"].item() < min_loss:
+            self.save_model(model_dir, f"{file_prefix}_best.pt")
+        print(f"Best model saved to {model_dir}/{file_prefix}_best.pt")
+        self.save_model(model_dir, filename, verbose=True)
+        pd.DataFrame(epoch_loss_dict).to_csv(f"{model_dir}/{file_prefix}_loss.csv", index=False)
 
         return loss_dict
     
@@ -507,6 +562,8 @@ class PDEModel:
         '''
         Currently, I don't want to give too many configurations for KAN as an initial testing step
         '''
+        min_loss = torch.inf
+        epoch_loss_dict = defaultdict(list)
         all_params = []
         for agent_name, agent in self.agents.items():
             all_params += list(agent.parameters())
@@ -569,17 +626,28 @@ class PDEModel:
                 total_loss += self.loss_weight_dict[loss_label] * loss
             loss_dict["total_loss"] = total_loss
 
+            if loss_dict["total_loss"].item() < min_loss:
+                min_loss = loss_dict["total_loss"].item()
+                self.save_model(model_dir, f"{file_prefix}_best.pt")
+
             if full_log:
                 formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
             else:
                 formatted_train_loss = "%.4f" % loss_dict["total_loss"]
-            if epoch % 10 == 0:
+            if epoch % self.loss_log_interval == 0:
+                epoch_loss_dict["epoch"].append(epoch)
+                for k, v in loss_dict.items():
+                    epoch_loss_dict[k].append(v.item())
                 pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
             print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
         print(f"training finished, total time :: {time.time() - start_time}")
         print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
         log_file.close()
-        self.save_model(model_dir, filename)
+        if loss_dict["total_loss"].item() < min_loss:
+            self.save_model(model_dir, f"{file_prefix}_best.pt")
+        print(f"Best model saved to {model_dir}/{file_prefix}_best.pt")
+        self.save_model(model_dir, filename, verbose=True)
+        pd.DataFrame(epoch_loss_dict).to_csv(f"{model_dir}/{file_prefix}_loss.csv", index=False)
         return loss_dict
         
 
@@ -677,7 +745,7 @@ class PDEModel:
             print(json.dumps(errors, indent=True))
             raise Exception(f"Errors when validating model setup, please check {self.name}-errors.txt for details.")
 
-    def save_model(self, model_dir: str = "./", filename: str=None):
+    def save_model(self, model_dir: str = "./", filename: str=None, verbose=False):
         '''
         Save all the agents, endogenous variables (pytorch model and configurations), 
         and all other configurations of the PDE model.
@@ -705,7 +773,8 @@ class PDEModel:
 
         os.makedirs(model_dir, exist_ok=True)
         torch.save(dict_to_save, f"{model_dir}/{filename}")
-        print(f"Model saved to {model_dir}/{filename}")
+        if verbose:
+            print(f"Model saved to {model_dir}/{filename}")
     
     def load_model(self, dict_to_load: Dict[str, Any]):
         '''
