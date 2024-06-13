@@ -503,6 +503,8 @@ class PDEModel:
             self.optimizer = torch.optim.AdamW(all_params, self.lr)
         elif self.optimizer_type == OptimizerType.LBFGS:
             self.optimizer = torch.optim.LBFGS(all_params, self.lr)
+        else:
+            raise NotImplementedError("Unsupported optimizer type")
 
         os.makedirs(model_dir, exist_ok=True)
         if filename is None:
