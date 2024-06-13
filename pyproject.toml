@@ -22,7 +22,8 @@ dependencies = [
   'sympy',
   'pyDOE',
   'tqdm',
-  'matplotlib'
+  'matplotlib',
+  'scikit-learn'
 ]
 classifiers = [
   "Operating System :: Microsoft :: Windows",
