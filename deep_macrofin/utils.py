@@ -37,6 +37,7 @@ def plot_loss_df(fn: str=None, loss_df: pd.DataFrame=None, losses_to_plot: list=
     for loss in losses_to_plot:
         ax.plot(epochs, loss_df[loss], label=loss)
     
+    ax.set_yscale('log')
     ax.set_xlabel("epoch")
     ax.set_ylabel("Loss")
     ax.legend()
