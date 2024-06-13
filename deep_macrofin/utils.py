@@ -1,11 +1,18 @@
 import random
-import pandas as pd
+from enum import Enum
+
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import torch
 
 from .models import ActivationType, LayerType
 
+
+class OptimizerType(str, Enum):
+    Adam = "Adam"
+    AdamW = "AdamW"
+    LBFGS = "LBFGS"
 
 def set_seeds(seed):
     random.seed(seed)
@@ -51,6 +58,7 @@ DEFAULT_CONFIG = {
     "num_epochs": 1000,
     "lr": 1e-3,
     "loss_log_interval": 100,
+    "optimizer_type": OptimizerType.AdamW,
 }
 
 DEFAULT_LEARNABLE_VAR_CONFIG = {
