@@ -596,14 +596,20 @@ class PDEModel:
                 y = self.agents[agent_name].forward(sv)
                 assert y.shape[0] == self.batch_size and y.shape[1] == 1
             except Exception as e:
-                errors.append([agent_name, str(e)])
+                errors.append({
+                    "label": agent_name, 
+                    "error": str(e)
+                })
 
         for endog_var_name in self.endog_vars:
             try:
                 y = self.endog_vars[endog_var_name].forward(sv)
                 assert y.shape[0] == self.batch_size and y.shape[1] == 1
             except Exception as e:
-                errors.append([endog_var_name, str(e)])
+                errors.append({
+                    "label": endog_var_name,
+                    "error": str(e),
+                })
 
         for label in self.agent_conditions:
             try:
@@ -611,21 +617,36 @@ class PDEModel:
             except Exception as e:
                 if e is not ZeroDivisionError:
                     # it's fine to have zero division. All other errors should be raised
-                    errors.append([label, str(e) + " Please use SV as the hard coded state variable inputs, in lhs or rhs"])
+                    errors.append({
+                        "label": label,
+                        "repr": self.agent_conditions[label].lhs.formula_str + self.agent_conditions[label].comparator + self.agent_conditions[label].rhs.formula_str,
+                        "error": str(e),
+                        "info": " Please use SV as the hard coded state variable inputs, in lhs or rhs"
+                    })
         
         for label in self.endog_var_conditions:
             try:
                 self.endog_var_conditions[label].eval(self.local_function_dict)
             except Exception as e:
                 if e is not ZeroDivisionError:
-                    errors.append([label, str(e) + " Please use SV as the hard coded state variable inputs, in lhs or rhs"])
+                    errors.append({
+                        "label": label,
+                        "repr": self.endog_var_conditions[label].lhs.formula_str + self.endog_var_conditions[label].comparator + self.endog_var_conditions[label].rhs.formula_str,
+                        "error": str(e),
+                        "info": " Please use SV as the hard coded state variable inputs, in lhs or rhs"
+                    })
         
         for label in self.equations:
             try:
                 self.equations[label].eval({}, self.variable_val_dict)
             except Exception as e:
                 if e is not ZeroDivisionError:
-                    errors.append([label, str(e)])
+                    errors.append({
+                        "label": label,
+                        "raw": self.equations[label].eq,
+                        "parsed": f"{self.equations[label].lhs.formula_str}={self.equations[label].rhs.formula_str}",
+                        "error": str(e)
+                    })
 
 
         for label in self.endog_equations:
@@ -633,21 +654,35 @@ class PDEModel:
                 self.endog_equations[label].eval({}, self.variable_val_dict)
             except Exception as e:
                 if e is not ZeroDivisionError:
-                    errors.append([label, str(e)])
+                    errors.append({
+                        "label": label,
+                        "raw": self.endog_equations[label].eq,
+                        "parsed": f"{self.endog_equations[label].lhs.formula_str}={self.endog_equations[label].rhs.formula_str}",
+                        "error": str(e)
+                    })
 
         for label in self.constraints:
             try:
                 self.constraints[label].eval({}, self.variable_val_dict)
             except Exception as e:
                 if e is not ZeroDivisionError:
-                    errors.append([label, str(e)])
+                    errors.append({
+                        "label": label,
+                        "parsed": self.constraints[label].lhs.formula_str + self.constraints[label].comparator + self.constraints[label].rhs.formula_str,
+                        "error": str(e)
+                    })
 
         for label in self.hjb_equations:
             try:
                 self.hjb_equations[label].eval({}, self.variable_val_dict)
             except Exception as e:
                 if e is not ZeroDivisionError:
-                    errors.append([label, str(e)])
+                    errors.append({
+                        "label": label,
+                        "raw": self.hjb_equations[label].eq,
+                        "parsed": self.hjb_equations[label].parsed_eq.formula_str,
+                        "error": str(e)
+                    })
 
         for label in self.systems:
             try:
@@ -655,13 +690,17 @@ class PDEModel:
             except Exception as e:
                 if e is not ZeroDivisionError:
                     # it's fine to have zero division. All other errors should be raised
-                    errors.append([label, str(e)])
+                    errors.append({
+                        "label": label,
+                        "repr": str(self.systems[label]),
+                        "error": str(e)
+                    })
 
         if len(errors) > 0:
             os.makedirs(model_dir, exist_ok=True)
             with open(os.path.join(model_dir, f"{self.name}-errors.txt"), "w", encoding="utf-8") as f:
                 f.write("Error Log:\n")
-                f.writelines([f"{e[0]} : {e[1]}\n" for e in errors])
+                f.write(json.dumps(errors, indent=True))
             print(json.dumps(errors, indent=True))
             raise Exception(f"Errors when validating model setup, please check {self.name}-errors.txt for details.")
 
