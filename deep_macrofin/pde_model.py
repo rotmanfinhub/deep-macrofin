@@ -1,10 +1,11 @@
 import json
 import os
 import time
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from copy import deepcopy
 from typing import Any, Dict, List
 
+import pandas as pd
 import torch
 from tqdm import tqdm
 
@@ -31,13 +32,17 @@ class PDEModel:
         Initialize a model with the provided name and config. 
         The config should include the basic training configs, 
 
-        The optimizer is default to Adam
+        The optimizer is default to AdamW
 
         DEFAULT_CONFIG={
             "batch_size": 100,
             "num_epochs": 1000,
-            "lr": 1e-3
+            "lr": 1e-3,
+            "loss_log_interval": 100,
+            "optimizer_type": OptimizerType.AdamW,
         }
+
+        loss_log_interval: the interval at which loss should be reported/recorded
 
         latex_var_mapping should include all possible latex to python name conversions. Otherwise latex parsing will fail. Can be omitted if all the input equations/formula are not in latex form. For details, check `Formula` class defined in `evaluations/formula.py`
         '''
@@ -45,8 +50,10 @@ class PDEModel:
         self.config = DEFAULT_CONFIG.copy()
         self.config.update(config)
         self.batch_size = config.get("batch_size", 100)
-        self.num_epochs = config.get("num_epochs", 500)
+        self.num_epochs = config.get("num_epochs", 1000)
         self.lr = config.get("lr", 1e-3)
+        self.loss_log_interval = config.get("loss_log_interval", 100)
+        self.optimizer_type = config.get("optimizer_type", OptimizerType.AdamW)
         self.latex_var_mapping = latex_var_mapping
         
         self.state_variables = []
@@ -144,6 +151,15 @@ class PDEModel:
 
         Input:
         - overwrite: overwrite the previous agent with the same name, used for loading, default: False
+
+        Config: specifies number of layers/hidden units of the neural network.
+            - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
+            - hidden_units: **List[int]**, number of units in each layer
+            - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
+            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - positive: **bool**, apply softplus to the output to be always positive if true, default: false
+            - hardcode_function: a lambda function for hardcoded forwarding function.
+            - derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         if not overwrite:
@@ -163,6 +179,15 @@ class PDEModel:
                    configs: Dict[str, Dict[str, Any]]={}):
         '''
         Add multiple agents at the same time, each with different configurations.
+
+        Config: specifies number of layers/hidden units of the neural network.
+            - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
+            - hidden_units: **List[int]**, number of units in each layer
+            - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
+            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - positive: **bool**, apply softplus to the output to be always positive if true, default: false
+            - hardcode_function: a lambda function for hardcoded forwarding function.
+            - derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         for name in names:
@@ -208,6 +233,15 @@ class PDEModel:
 
         Input:
         - overwrite: overwrite the previous agent with the same name, used for loading, default: False
+
+        Config: specifies number of layers/hidden units of the neural network.
+            - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
+            - hidden_units: **List[int]**, number of units in each layer
+            - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
+            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - positive: **bool**, apply softplus to the output to be always positive if true, default: false
+            - hardcode_function: a lambda function for hardcoded forwarding function.
+            - derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         if not overwrite:
@@ -227,6 +261,15 @@ class PDEModel:
                    configs: Dict[str, Dict[str, Any]] = {}):
         '''
         Add multiple endogenous variables at the same time, each with different config.
+
+        Config: specifies number of layers/hidden units of the neural network.
+            - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
+            - hidden_units: **List[int]**, number of units in each layer
+            - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
+            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - positive: **bool**, apply softplus to the output to be always positive if true, default: false
+            - hardcode_function: a lambda function for hardcoded forwarding function.
+            - derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         for name in names:
@@ -316,9 +359,8 @@ class PDEModel:
 
     def add_system(self, system: System, weight=1.0):
         '''
-        Decide in a later stage. 
-        It should be some multiplication of loss functions 
-        e.g. \prod ReLU(constraints to trigger the system) * loss induced by the system.
+        Add a pre-compiled system, which should consist of activation constraint and 
+        associated equation(new variable def)/endogenous equation (loss)
         '''
         if system.label is None:
             system.label = len(self.systems) + 1
@@ -329,6 +371,26 @@ class PDEModel:
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
         self.loss_weight_dict[label] = weight
 
+    def update_variables(self):
+        '''
+        Randomly sample the state variables, 
+        update the agent/endogenous variables and variables defined by users using equations
+        '''
+        SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
+                         high=self.state_variable_constraints["sv_high"], 
+                         size=(self.batch_size, len(self.state_variables)))
+        SV = torch.Tensor(SV)
+        for i, sv_name in enumerate(self.state_variables):
+            self.variable_val_dict[sv_name] = SV[:, i:i+1]
+
+        # properly update variables, including agent, endogenous variables, their derivatives
+        for func_name in self.local_function_dict:
+            self.variable_val_dict[func_name] = self.local_function_dict[func_name](SV)
+
+        # properly update variables, using equations
+        for eq_name in self.equations:
+            lhs = self.equations[eq_name].lhs.formula_str
+            self.variable_val_dict[lhs] = self.equations[eq_name].eval({}, self.variable_val_dict)
     
     def loss_fn(self):
         '''
@@ -360,36 +422,26 @@ class PDEModel:
 
         for label in self.systems:
             self.loss_val_dict[label] = self.systems[label].eval({}, self.variable_val_dict)
+
+    def closure(self):
+        self.optimizer.zero_grad()
+        self.update_variables()
+        self.loss_fn()
+        total_loss = 0
+        for loss_label, loss in self.loss_val_dict.items():
+            total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
         
+        total_loss.backward()
+        return total_loss
 
     def train_step(self):
         '''
         initialize random state variable with proper constraints, compute loss and update parameters
         '''
-        self.optimizer.zero_grad()
-        SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
-                         high=self.state_variable_constraints["sv_high"], 
-                         size=(self.batch_size, len(self.state_variables)))
-        SV = torch.Tensor(SV)
-        for i, sv_name in enumerate(self.state_variables):
-            self.variable_val_dict[sv_name] = SV[:, i:i+1]
-
-        # properly update variables, including agent, endogenous variables, their derivatives
-        for func_name in self.local_function_dict:
-            self.variable_val_dict[func_name] = self.local_function_dict[func_name](SV)
-
-        # properly update variables, using equations
-        for eq_name in self.equations:
-            lhs = self.equations[eq_name].lhs.formula_str
-            self.variable_val_dict[lhs] = self.equations[eq_name].eval({}, self.variable_val_dict)
-
-        self.loss_fn()
+        self.optimizer.step(self.closure)
         total_loss = 0
         for loss_label, loss in self.loss_val_dict.items():
-            total_loss += self.loss_weight_dict[loss_label] * loss
-        
-        total_loss.backward()
-        self.optimizer.step()
+            total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
 
         loss_dict = self.loss_val_dict.copy()
         loss_dict["total_loss"] = total_loss
@@ -400,26 +452,11 @@ class PDEModel:
         '''
         initialize random state variable with proper constraints, compute loss
         '''
-        SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
-                         high=self.state_variable_constraints["sv_high"], 
-                         size=(self.batch_size, len(self.state_variables)))
-        SV = torch.Tensor(SV)
-        for i, sv_name in enumerate(self.state_variables):
-            self.variable_val_dict[sv_name] = SV[:, i:i+1]
-
-        # properly update variables, including agent, endogenous variables, their derivatives
-        for func_name in self.local_function_dict:
-            self.variable_val_dict[func_name] = self.local_function_dict[func_name](SV)
-
-        # properly update variables, using equations
-        for eq_name in self.equations:
-            lhs = self.equations[eq_name].lhs.formula_str
-            self.variable_val_dict[lhs] = self.equations[eq_name].eval({}, self.variable_val_dict)
-
+        self.update_variables()
         self.loss_fn()
         total_loss = 0
         for loss_label, loss in self.loss_val_dict.items():
-            total_loss += self.loss_weight_dict[loss_label] * loss
+            total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
 
         loss_dict = self.loss_val_dict.copy()
         loss_dict["total_loss"] = total_loss
@@ -442,13 +479,32 @@ class PDEModel:
         The entire loop of training
         '''
 
+        min_loss = torch.inf
+        epoch_loss_dict = defaultdict(list)
         all_params = []
+        
+        model_has_kan = False
         for agent_name, agent in self.agents.items():
             all_params += list(agent.parameters())
+            if agent.config["layer_type"] == LayerType.KAN:
+                model_has_kan = True
         for endog_var_name, endog_var in self.endog_vars.items():
             all_params += list(endog_var.parameters())
+            if endog_var.config["layer_type"] == LayerType.KAN:
+                model_has_kan = True
         
-        self.optimizer = torch.optim.AdamW(all_params, self.lr)
+        if model_has_kan:
+            # KAN can only be trained with LBFGS, 
+            # as long as there is one model with KAN, we must route to the default LBFGS
+            self.optimizer = LBFGS(all_params, lr=self.lr, history_size=10, line_search_fn="strong_wolfe", tolerance_grad=1e-32, tolerance_change=1e-32, tolerance_ys=1e-32)
+        elif self.optimizer_type == OptimizerType.Adam:
+            self.optimizer = torch.optim.Adam(all_params, self.lr)
+        elif self.optimizer_type == OptimizerType.AdamW:
+            self.optimizer = torch.optim.AdamW(all_params, self.lr)
+        elif self.optimizer_type == OptimizerType.LBFGS:
+            self.optimizer = torch.optim.LBFGS(all_params, self.lr)
+        else:
+            raise NotImplementedError("Unsupported optimizer type")
 
         os.makedirs(model_dir, exist_ok=True)
         if filename is None:
@@ -476,14 +532,26 @@ class PDEModel:
                 formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
             else:
                 formatted_train_loss = "%.4f" % loss_dict["total_loss"]
-            # print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}")
-            if epoch % 100 == 0:
+            
+            if loss_dict["total_loss"].item() < min_loss and all([not v.isnan() for v in loss_dict.values()]):
+                min_loss = loss_dict["total_loss"].item()
+                self.save_model(model_dir, f"{file_prefix}_best.pt")
+            # maybe reload the best model when loss is nan.
+
+            if epoch % self.loss_log_interval == 0:
+                epoch_loss_dict["epoch"].append(epoch)
+                for k, v in loss_dict.items():
+                    epoch_loss_dict[k].append(v.item())
                 pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
             print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
         print(f"training finished, total time :: {time.time() - start_time}")
         print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
         log_file.close()
-        self.save_model(model_dir, filename)
+        if loss_dict["total_loss"].item() < min_loss and all([not v.isnan() for v in loss_dict.values()]):
+            self.save_model(model_dir, f"{file_prefix}_best.pt")
+        print(f"Best model saved to {model_dir}/{file_prefix}_best.pt if valid")
+        self.save_model(model_dir, filename, verbose=True)
+        pd.DataFrame(epoch_loss_dict).to_csv(f"{model_dir}/{file_prefix}_loss.csv", index=False)
 
         return loss_dict
     
@@ -502,86 +570,6 @@ class PDEModel:
             formatted_loss = "%.4f" % loss_dict["total_loss"]
         print(f"loss :: {formatted_loss}")
         return loss_dict
-
-    def train_model_kan(self, model_dir="./", filename=None, full_log=False):
-        '''
-        Currently, I don't want to give too many configurations for KAN as an initial testing step
-        '''
-        all_params = []
-        for agent_name, agent in self.agents.items():
-            all_params += list(agent.parameters())
-        for endog_var_name, endog_var in self.endog_vars.items():
-            all_params += list(endog_var.parameters())
-
-        self.optimizer = LBFGS(all_params, lr=self.lr, history_size=10, line_search_fn="strong_wolfe", tolerance_grad=1e-32, tolerance_change=1e-32, tolerance_ys=1e-32)
-
-        os.makedirs(model_dir, exist_ok=True)
-        if filename is None:
-            filename = filename = self.name
-        if "." in filename:
-            file_prefix = filename.split(".")[0]
-        else:
-            file_prefix = filename
-        
-        log_fn = os.path.join(model_dir, f"{file_prefix}-{self.num_epochs}-log.txt")
-        log_file = open(log_fn, "w", encoding="utf-8")
-        print(str(self), file=log_file)
-        self.validate_model_setup(model_dir)
-        print("{0:=^80}".format("Training"))
-        self.set_all_model_training()
-        start_time = time.time()
-        set_seeds(0)
-        pbar = tqdm(range(self.num_epochs))
-        for epoch in pbar:
-            epoch_start_time = time.time()
-
-            def closure(model: PDEModel):
-                model.optimizer.zero_grad()
-                SV = np.random.uniform(low=model.state_variable_constraints["sv_low"], 
-                         high=model.state_variable_constraints["sv_high"], 
-                         size=(model.batch_size, len(model.state_variables)))
-                SV = torch.Tensor(SV)
-                for i, sv_name in enumerate(model.state_variables):
-                    model.variable_val_dict[sv_name] = SV[:, i:i+1]
-
-                # properly update variables, including agent, endogenous variables, their derivatives
-                for func_name in model.local_function_dict:
-                    model.variable_val_dict[func_name] = model.local_function_dict[func_name](SV)
-
-                # properly update variables, using equations
-                for eq_name in model.equations:
-                    lhs = model.equations[eq_name].lhs.formula_str
-                    model.variable_val_dict[lhs] = model.equations[eq_name].eval({}, model.variable_val_dict)
-
-                model.loss_fn()
-                total_loss = 0
-                for loss_label, loss in model.loss_val_dict.items():
-                    total_loss += model.loss_weight_dict[loss_label] * loss
-                
-                total_loss.backward()
-                return total_loss
-
-            self.optimizer.step(lambda : closure(self))
-
-            loss_dict = self.loss_val_dict.copy()
-            total_loss = 0
-            for loss_label, loss in loss_dict.items():
-                total_loss += self.loss_weight_dict[loss_label] * loss
-            loss_dict["total_loss"] = total_loss
-
-            if full_log:
-                formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
-            else:
-                formatted_train_loss = "%.4f" % loss_dict["total_loss"]
-            if epoch % 10 == 0:
-                pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
-            print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
-        print(f"training finished, total time :: {time.time() - start_time}")
-        print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
-        log_file.close()
-        self.save_model(model_dir, filename)
-        return loss_dict
-        
 
     def validate_model_setup(self, model_dir="./"):
         '''
@@ -608,14 +596,20 @@ class PDEModel:
                 y = self.agents[agent_name].forward(sv)
                 assert y.shape[0] == self.batch_size and y.shape[1] == 1
             except Exception as e:
-                errors.append([agent_name, str(e)])
+                errors.append({
+                    "label": agent_name, 
+                    "error": str(e)
+                })
 
         for endog_var_name in self.endog_vars:
             try:
                 y = self.endog_vars[endog_var_name].forward(sv)
                 assert y.shape[0] == self.batch_size and y.shape[1] == 1
             except Exception as e:
-                errors.append([endog_var_name, str(e)])
+                errors.append({
+                    "label": endog_var_name,
+                    "error": str(e),
+                })
 
         for label in self.agent_conditions:
             try:
@@ -623,21 +617,36 @@ class PDEModel:
             except Exception as e:
                 if e is not ZeroDivisionError:
                     # it's fine to have zero division. All other errors should be raised
-                    errors.append([label, str(e) + " Please use SV as the hard coded state variable inputs, in lhs or rhs"])
+                    errors.append({
+                        "label": label,
+                        "repr": self.agent_conditions[label].lhs.formula_str + self.agent_conditions[label].comparator + self.agent_conditions[label].rhs.formula_str,
+                        "error": str(e),
+                        "info": " Please use SV as the hard coded state variable inputs, in lhs or rhs"
+                    })
         
         for label in self.endog_var_conditions:
             try:
                 self.endog_var_conditions[label].eval(self.local_function_dict)
             except Exception as e:
                 if e is not ZeroDivisionError:
-                    errors.append([label, str(e) + " Please use SV as the hard coded state variable inputs, in lhs or rhs"])
+                    errors.append({
+                        "label": label,
+                        "repr": self.endog_var_conditions[label].lhs.formula_str + self.endog_var_conditions[label].comparator + self.endog_var_conditions[label].rhs.formula_str,
+                        "error": str(e),
+                        "info": " Please use SV as the hard coded state variable inputs, in lhs or rhs"
+                    })
         
         for label in self.equations:
             try:
                 self.equations[label].eval({}, self.variable_val_dict)
             except Exception as e:
                 if e is not ZeroDivisionError:
-                    errors.append([label, str(e)])
+                    errors.append({
+                        "label": label,
+                        "raw": self.equations[label].eq,
+                        "parsed": f"{self.equations[label].lhs.formula_str}={self.equations[label].rhs.formula_str}",
+                        "error": str(e)
+                    })
 
 
         for label in self.endog_equations:
@@ -645,21 +654,35 @@ class PDEModel:
                 self.endog_equations[label].eval({}, self.variable_val_dict)
             except Exception as e:
                 if e is not ZeroDivisionError:
-                    errors.append([label, str(e)])
+                    errors.append({
+                        "label": label,
+                        "raw": self.endog_equations[label].eq,
+                        "parsed": f"{self.endog_equations[label].lhs.formula_str}={self.endog_equations[label].rhs.formula_str}",
+                        "error": str(e)
+                    })
 
         for label in self.constraints:
             try:
                 self.constraints[label].eval({}, self.variable_val_dict)
             except Exception as e:
                 if e is not ZeroDivisionError:
-                    errors.append([label, str(e)])
+                    errors.append({
+                        "label": label,
+                        "parsed": self.constraints[label].lhs.formula_str + self.constraints[label].comparator + self.constraints[label].rhs.formula_str,
+                        "error": str(e)
+                    })
 
         for label in self.hjb_equations:
             try:
                 self.hjb_equations[label].eval({}, self.variable_val_dict)
             except Exception as e:
                 if e is not ZeroDivisionError:
-                    errors.append([label, str(e)])
+                    errors.append({
+                        "label": label,
+                        "raw": self.hjb_equations[label].eq,
+                        "parsed": self.hjb_equations[label].parsed_eq.formula_str,
+                        "error": str(e)
+                    })
 
         for label in self.systems:
             try:
@@ -667,17 +690,21 @@ class PDEModel:
             except Exception as e:
                 if e is not ZeroDivisionError:
                     # it's fine to have zero division. All other errors should be raised
-                    errors.append([label, str(e)])
+                    errors.append({
+                        "label": label,
+                        "repr": str(self.systems[label]),
+                        "error": str(e)
+                    })
 
         if len(errors) > 0:
             os.makedirs(model_dir, exist_ok=True)
             with open(os.path.join(model_dir, f"{self.name}-errors.txt"), "w", encoding="utf-8") as f:
                 f.write("Error Log:\n")
-                f.writelines([f"{e[0]} : {e[1]}\n" for e in errors])
+                f.write(json.dumps(errors, indent=True))
             print(json.dumps(errors, indent=True))
             raise Exception(f"Errors when validating model setup, please check {self.name}-errors.txt for details.")
 
-    def save_model(self, model_dir: str = "./", filename: str=None):
+    def save_model(self, model_dir: str = "./", filename: str=None, verbose=False):
         '''
         Save all the agents, endogenous variables (pytorch model and configurations), 
         and all other configurations of the PDE model.
@@ -705,7 +732,8 @@ class PDEModel:
 
         os.makedirs(model_dir, exist_ok=True)
         torch.save(dict_to_save, f"{model_dir}/{filename}")
-        print(f"Model saved to {model_dir}/{filename}")
+        if verbose:
+            print(f"Model saved to {model_dir}/{filename}")
     
     def load_model(self, dict_to_load: Dict[str, Any]):
         '''
