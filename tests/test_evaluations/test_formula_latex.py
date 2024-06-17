@@ -43,6 +43,9 @@ class TestFormulaLatexEvaluation(unittest.TestCase):
             "zetai": torch.rand_like(torch.tensor([0.0])),
             "muxii": torch.rand_like(torch.tensor([0.0])),
             "sigqa": torch.rand_like(torch.tensor([0.0])),
+
+            "kappa": 1000,
+            "iota": torch.rand_like(torch.tensor([0.0]))
         }
         cls.latex_var_mapping = {
             "q_t^a": "qa",
@@ -77,7 +80,10 @@ class TestFormulaLatexEvaluation(unittest.TestCase):
             r"\rho^i": "rhoi",
             r"\zeta^i": "zetai",
             r"\mu^{\xi i}": "muxii",
-            r"\sigma^{a}": "siga"
+            r"\sigma^{a}": "siga",
+
+            r"\kappa": "kappa",
+            r"\iota_t^a": "iota",
         }
 
     def test_simple_addition(self):
@@ -226,6 +232,20 @@ class TestFormulaLatexEvaluation(unittest.TestCase):
         + self.variables["muxii"] + self.variables["muni"] - self.variables["gammai"] / 2 * self.variables["signia"] ** 2 \
         - self.variables["gammai"] / 2 * self.variables["sigxia"] ** 2 \
         + (1 - self.variables["gammai"]) * self.variables["sigxia"] * self.variables["signia"]
+        self.assertTrue(torch.allclose(result, expected_result), f"Expected {expected_result}, got {result}")
+
+    def test_latex_formula13(self):
+        formula_str = r'$\frac{1}{\kappa} * \log(1+\kappa * \iota_t^a)$'
+        formula = Formula(formula_str, 'eval', self.latex_var_mapping)
+        result = formula.eval(self.LOCAL_DICT, self.variables)
+        expected_result = 1 / self.variables["kappa"] * torch.log(1 + self.variables["kappa"] * self.variables["iota"])
+        self.assertTrue(torch.allclose(result, expected_result), f"Expected {expected_result}, got {result}")
+
+    def test_latex_formula14(self):
+        formula_str = r'$\frac{1}{\kappa} * \exp(\iota_t^a)$'
+        formula = Formula(formula_str, 'eval', self.latex_var_mapping)
+        result = formula.eval(self.LOCAL_DICT, self.variables)
+        expected_result = 1 / self.variables["kappa"] * torch.exp(self.variables["iota"])
         self.assertTrue(torch.allclose(result, expected_result), f"Expected {expected_result}, got {result}")
 
 if __name__ == '__main__':

@@ -11,7 +11,7 @@ from .model_utils import *
 
 
 class LearnableVar(nn.Module):
-    def __init__(self, name, state_variables: List[str], config: Dict[str, Any]):
+    def __init__(self, name: str, state_variables: List[str], config: Dict[str, Any]):
         '''
         Build a neural network representation of a learnable variable.
 
@@ -45,7 +45,7 @@ class LearnableVar(nn.Module):
         self.get_all_derivatives()
         self.to(self.device)
 
-    def check_inputs(self, config):
+    def check_inputs(self, config: Dict[str, Any]):
         if "device" not in config:
             config["device"] = "cuda" if torch.cuda.is_available() else "cpu"
         
@@ -68,7 +68,7 @@ class LearnableVar(nn.Module):
             config = self.check_inputs_KAN(config)
         return config
     
-    def check_inputs_KAN(self, config):
+    def check_inputs_KAN(self, config: Dict[str, Any]):
         config["width"] = config["hidden_units"]
         config["base_fun_type"] = config["activation_type"]
         return config
