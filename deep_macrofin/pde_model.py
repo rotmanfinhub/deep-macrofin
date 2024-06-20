@@ -79,7 +79,7 @@ class PDEModel:
         self.loss_weight_dict: Dict[str, float] = OrderedDict() # should include loss equation labels + corresponding weight
         self.device = "cpu"
 
-    def check_name_used(self, name):
+    def check_name_used(self, name: str):
         for self_dicts in [self.state_variables,
                            self.agents, 
                            self.endog_vars, 
@@ -89,7 +89,7 @@ class PDEModel:
                            self.loss_weight_dict]:
             assert name not in self_dicts, f"Name: {name} is used"
 
-    def check_label_used(self, label):
+    def check_label_used(self, label: str):
         for self_dicts in [self.state_variables,
                            self.agents, 
                            self.endog_vars, 
@@ -125,7 +125,7 @@ class PDEModel:
         for name in self.state_variables:
             self.variable_val_dict[name] = torch.zeros((self.batch_size, 1))
 
-    def add_param(self, name, value):
+    def add_param(self, name: str, value: torch.Tensor):
         '''
         Add a single parameter (constant in the PDE system) with name and value.
         '''
@@ -330,7 +330,7 @@ class PDEModel:
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
         self.loss_weight_dict[label] = weight
 
-    def add_constraint(self, lhs, comparator: Comparator, rhs, label=None, weight=1.0):
+    def add_constraint(self, lhs: str, comparator: Comparator, rhs: str, label: str=None, weight=1.0):
         '''
         comparator should be one of "=", ">", ">=", "<", "<=", we can use enum for this.
 
@@ -474,7 +474,7 @@ class PDEModel:
         for endog_var_name in self.endog_vars:
             self.endog_vars[endog_var_name].eval()
     
-    def train_model(self, model_dir="./", filename=None, full_log=False):
+    def train_model(self, model_dir: str="./", filename: str=None, full_log=False):
         '''
         The entire loop of training
         '''
@@ -533,7 +533,7 @@ class PDEModel:
             else:
                 formatted_train_loss = "%.4f" % loss_dict["total_loss"]
             
-            if loss_dict["total_loss"].item() < min_loss and all([not v.isnan() for v in loss_dict.values()]):
+            if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
                 min_loss = loss_dict["total_loss"].item()
                 self.save_model(model_dir, f"{file_prefix}_best.pt")
             # maybe reload the best model when loss is nan.
@@ -547,7 +547,7 @@ class PDEModel:
         print(f"training finished, total time :: {time.time() - start_time}")
         print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
         log_file.close()
-        if loss_dict["total_loss"].item() < min_loss and all([not v.isnan() for v in loss_dict.values()]):
+        if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
             self.save_model(model_dir, f"{file_prefix}_best.pt")
         print(f"Best model saved to {model_dir}/{file_prefix}_best.pt if valid")
         self.save_model(model_dir, filename, verbose=True)

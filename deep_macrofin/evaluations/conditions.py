@@ -22,10 +22,10 @@ class BaseConditions:
     Parse to a loss function
     '''
     def __init__(self, 
-                 lhs, lhs_state: Dict[str, torch.Tensor], 
+                 lhs: str, lhs_state: Dict[str, torch.Tensor], 
                  comparator: Comparator, 
-                 rhs, rhs_state: Dict[str, torch.Tensor], 
-                 label, latex_var_mapping: Dict[str, str] = {}):
+                 rhs: str, rhs_state: Dict[str, torch.Tensor], 
+                 label: str, latex_var_mapping: Dict[str, str] = {}):
         '''
         Inputs:
         - lhs: the string expression for lhs formula, latex expression not supported, should be functions of specific format agent_name(SV), endog_name(SV), or simply a constant value

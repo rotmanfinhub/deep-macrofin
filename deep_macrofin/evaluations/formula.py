@@ -61,6 +61,11 @@ def latex_parsing_fractions(formula_str: str):
         formula_str = re.sub(FRACTION_PATTERN, fraction_match, formula_str)
     return formula_str
 
+def latex_parsing_functions(formula_str: str):
+    formula_str = formula_str.replace(r"\log", "log")
+    formula_str = formula_str.replace(r"\exp", "exp")
+    return formula_str
+
 def latex_parsing(formula_str: str, latex_var_mapping: Dict[str, str] = {}):
     '''
     Experimental: Parse a formula in latex form to a string that can be evaluated in python
@@ -80,6 +85,7 @@ def latex_parsing(formula_str: str, latex_var_mapping: Dict[str, str] = {}):
     formula_str = latex_parsing_brackets(formula_str)
     formula_str = latex_parsing_fractions(formula_str)
     formula_str = latex_parsing_powers(formula_str)
+    formula_str = latex_parsing_functions(formula_str)
     return formula_str
 
 
@@ -114,6 +120,7 @@ class Formula:
         self.formula_str = formula_str.strip()
         if "$" in formula_str:
             self.formula_str = latex_parsing(formula_str, latex_var_mapping)
+            self.formula_str = self.formula_str.strip() # to avoid additional spaces
         self.evaluation_method = evaluation_method
 
         if self.evaluation_method == EvaluationMethod.Eval:
