@@ -61,9 +61,9 @@ class TestPDESystem(unittest.TestCase):
     def test_validation(self):
         self.pde_sys.validate_model_setup()
         self.assertTrue(True)
-        # with pytest.raises(Exception):
-        #     self.pde_sys.add_equation("p = a + 1")
-        #     self.pde_sys.validate_model_setup()
+        with self.assertRaises(Exception):
+            self.pde_sys.add_equation("p = a + 1")
+            self.pde_sys.validate_model_setup()
 
     def test_forward_agent(self):
         # perform one step
