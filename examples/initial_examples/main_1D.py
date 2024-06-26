@@ -31,7 +31,7 @@ import json
 # Save everything in a dictionary, for clarity
 params = {
     "gammai": 1.0,
-    "gammah":2.0,
+    "gammah": 2.0,
     "rhoi": 0.05,
     "rhoh": 0.05,
     "siga" : 0.2, #\sigma^{a}
@@ -74,9 +74,10 @@ class Training_Sampler():
     def sample(self,N):
         ''' Construct share by renormalization
         '''
-        a = lhs(self.params['n_pop'], N) +0.02
-        eta = a/np.sum(a, axis=1, keepdims=True)*np.ones((1,params['n_pop'])) # renormalization
-        return eta[:,:-1]
+        # a = lhs(self.params['n_pop'], N) +0.02
+        # eta = a/np.sum(a, axis=1, keepdims=True)*np.ones((1,params['n_pop'])) # renormalization
+        # return eta[:,:-1]
+        return np.random.uniform(0., 1., (N, 1))
 
 class Training_pde():
 
@@ -128,7 +129,7 @@ class Training_pde():
         signia = wia*(self.params['siga']+sigqaa) # sigma in budget constraint dymanic
         signha = wha*(self.params['siga']+sigqaa)
         sigxia = xi_e/xi*sigea*e # eq 22
-        sigxha = xi_e/xh*sigea*e # eq 23
+        sigxha = xh_e/xh*sigea*e # eq 23
         signa = e*signia + (1-e)*signha # definition line 36
 
         muqa = qa_e/qa*mue*e + 1/2*qa_ee/qa*( sigea**2 )*e**2  # eq 24
@@ -209,12 +210,15 @@ wlgm = 1
 epochs = 50
 epochs_sub1 = 2002
 loss_data_count = 0
-fo = open('loss_fun.csv', "w")
+model_dir = "models/model1_gammah_2"
+plot_dir = f"{model_dir}/plots/"
+output_dir = f"{model_dir}/output/"
+os.makedirs(plot_dir, exist_ok=True)
+os.makedirs(output_dir, exist_ok=True)
+fo = open(f'{model_dir}/loss_fun.csv', "w")
 string = "loss_data_count, loss_val, q_val"
 fo.write( (string+'\n') )
 fo.flush()
-os.makedirs("plots", exist_ok=True)
-os.makedirs("output", exist_ok=True)
 
 min_loss = float('Inf')
 for epoch_sub in range(1,epochs_sub1):
@@ -300,18 +304,18 @@ for epoch_sub in range(1,epochs_sub1):
                 xi_e  = TP.get_derivs_1order(xi,e)[:,0].unsqueeze(1) 
                 xi_ee  = TP.get_derivs_1order(xi_e,e)[:,0].unsqueeze(1) 
                 
-                xi_e  = TP.get_derivs_1order(xh,e)[:,0].unsqueeze(1) 
-                xi_ee  = TP.get_derivs_1order(xi_e,e)[:,0].unsqueeze(1) 
+                xh_e  = TP.get_derivs_1order(xh,e)[:,0].unsqueeze(1) 
+                xh_ee  = TP.get_derivs_1order(xh_e,e)[:,0].unsqueeze(1) 
                 
                 sigqaa = qa_e/qa*sigea*e 
                 signia = wia*(params['siga']+sigqaa)
                 signha = wha*(params['siga']+sigqaa)
                 sigxia = xi_e/xi*sigea*e 
-                sigxha = xi_e/xh*sigea*e 
+                sigxha = xh_e/xh*sigea*e 
 
                 
                 muqa = qa_e/qa*mue*e + 1/2*qa_ee/qa*( sigea**2 )*e**2 
-                rka  = params['aa']/qa + params['mua'] + Phi_a + muqa + sigqaa*params['siga'] 
+                rka  = (params['aa'] - iota_a)/qa + params['mua'] + Phi_a + muqa + sigqaa*params['siga'] 
                 r = rka  - params['gammah']*wha*((params['siga'] + sigqaa) )**2\
                                + (1-params['gammah'])*sigxha*((params['siga'] + sigqaa))
                 muni = r - ci + wia*(rka- r) 
@@ -332,8 +336,8 @@ for epoch_sub in range(1,epochs_sub1):
                 data = pd.DataFrame(data)
                 data.columns=['eta','ci','sr_a','rp_a','qa','wia','sigqaa','r','mue','sigea',\
                               'muqa','muni','munh','muqk','sigxia','sigxha','rka','wha']
-                data.to_csv('./output/output_' + str(params['gammai']) +'_' + str(params['muO'])  + '.csv')
-                with open('./output/params_' + str(params['gammai']) +'_' + str(params['muO'])  + '.txt', 'w') as file:
+                data.to_csv(f'{output_dir}/output_' + str(params['gammah']) +'_' + str(params['muO'])  + '.csv')
+                with open(f'{output_dir}/params_' + str(params['gammah']) +'_' + str(params['muO'])  + '.txt', 'w') as file:
                      file.write(json.dumps(params))
                 
 
@@ -364,7 +368,7 @@ for epoch_sub in range(1,epochs_sub1):
             ax[3,1].set_ylabel('wha')
             ax[3,1].set_xlabel("eta")
 
-            name = './plots/'+ 'plot_train_' + str(loss_data_count)+'_1.png'
+            name = plot_dir + 'plot_train_' + str(loss_data_count)+'_1.png'
             plt.tight_layout()
             plt.savefig(name,bbox_inches='tight',dpi=300)
             plt.close('all')
@@ -392,13 +396,13 @@ for epoch_sub in range(1,epochs_sub1):
             ax[1,3].set_ylabel(r'$\eta \mu^{\eta}$')
             ax[1,3].set_xlabel(r'$\eta$')
 
-            name = './plots/'+ 'plot_train_' + str(loss_data_count)+'_2.png'
+            name = plot_dir + 'plot_train_' + str(loss_data_count)+'_2.png'
             plt.tight_layout()
             plt.savefig(name,bbox_inches='tight',dpi=300)
             plt.close('all')
             
 
-            fo = open('loss_fun.csv', "a")
+            fo = open(f'{model_dir}/loss_fun.csv', "a")
             string = "%.4e,%.4e" % (np.log(loss_data_count), np.log(loss_val))
             fo.write( (string+'\n') )
             fo.flush()
