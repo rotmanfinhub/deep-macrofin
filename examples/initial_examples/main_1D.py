@@ -20,9 +20,9 @@ import pandas as pd
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 import glob
 import os
-files = glob.glob('./plot*')
-for f in files:
-    os.remove(f)
+# files = glob.glob('./plot*')
+# for f in files:
+#     os.remove(f)
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 import json
@@ -31,12 +31,12 @@ import json
 # Save everything in a dictionary, for clarity
 params = {
     "gammai": 1.0,
-    "gammah":1.0,
+    "gammah": 2.0,
     "rhoi": 0.05,
     "rhoh": 0.05,
     "siga" : 0.2, #\sigma^{a}
     "mua":0.04,
-    "muO":0.03,
+    "muO":0.04,
     "n_pop": 2,
     "zetai":1.00005,
     "zetah":1.00005,
@@ -74,9 +74,10 @@ class Training_Sampler():
     def sample(self,N):
         ''' Construct share by renormalization
         '''
-        a = lhs(self.params['n_pop'], N) +0.02
-        eta = a/np.sum(a, axis=1, keepdims=True)*np.ones((1,params['n_pop'])) # renormalization
-        return eta[:,:-1]
+        # a = lhs(self.params['n_pop'], N) +0.02
+        # eta = a/np.sum(a, axis=1, keepdims=True)*np.ones((1,params['n_pop'])) # renormalization
+        # return eta[:,:-1]
+        return np.random.uniform(0., 1., (N, 1))
 
 class Training_pde():
 
@@ -128,11 +129,11 @@ class Training_pde():
         signia = wia*(self.params['siga']+sigqaa) # sigma in budget constraint dymanic
         signha = wha*(self.params['siga']+sigqaa)
         sigxia = xi_e/xi*sigea*e # eq 22
-        sigxha = xi_e/xh*sigea*e # eq 23
+        sigxha = xh_e/xh*sigea*e # eq 23
         signa = e*signia + (1-e)*signha # definition line 36
 
         muqa = qa_e/qa*mue*e + 1/2*qa_ee/qa*( sigea**2 )*e**2  # eq 24
-        rka  = self.params['aa']/qa + self.params['mua'] + Phi_a + muqa + sigqaa*self.params['siga'] # eq 3, the bracket before dt, missing iota_t^a in the first term? used for w^{ha}
+        rka  = (self.params['aa'] - iota_a)/qa + self.params['mua'] + Phi_a + muqa + sigqaa*self.params['siga'] # eq 3, the bracket before dt, missing iota_t^a in the first term? used for w^{ha}
         r = rka  - self.params['gammah']*wha*((self.params['siga'] + sigqaa) )**2\
                        + (1-self.params['gammah'])*sigxha*((self.params['siga'] + sigqaa)) # eq 15
         muni = r - ci + wia*(rka- r) # \mu^{nj} in eq 5
@@ -142,11 +143,11 @@ class Training_pde():
         muxi = (xi_e * mue *e  + 0.5*(xi_ee*(sigea**2 )*e**2 ))/xi # eq 25
         muxh = (xh_e * mue *e  + 0.5*(xh_ee*(sigea**2 )*e**2 ))/xh # eq 26
         # the following lineari and linearh are the rewritten HJB equations (eq 33) missing muxi and muhi respectively
-        lineari = self.params['rhoi']/(1-1/self.params['zetai']) * (ci**(1-1/self.params['zetai'])-1) + muxi + muni-\
+        lineari = self.params['rhoi']/(1-1/self.params['zetai']) * ((ci/xi)**(1-1/self.params['zetai'])-1) + muxi + muni-\
                     self.params['gammai']/2*(signia**2) - self.params['gammai']/2*(sigxia**2) +\
                     (1-self.params['gammai'])* (sigxia*signia)
                     
-        linearh = self.params['rhoh']/(1-1/self.params['zetah']) * (ch**(1-1/self.params['zetah'])-1) + muxh + munh-\
+        linearh = self.params['rhoh']/(1-1/self.params['zetah']) * ((ch/xh)**(1-1/self.params['zetah'])-1) + muxh + munh-\
                     self.params['gammah']/2*(signha**2) - self.params['gammah']/2*(sigxha**2) +\
                     (1-self.params['gammah'])* (sigxha*signha)
                      
@@ -165,16 +166,16 @@ class Training_pde():
         eq3 = sigea - (1-e)*(signia - signha) # eq 28
         eq4 = torch.zeros_like(e) 
         eq5 = torch.zeros_like(e) 
-        eq6 = (rka_hat-r) -self.params['gammai']*wia*  ((self.params['siga'] + sigqaa))**2 + (1-self.params['gammai'])*sigxia*(self.params['siga'] + sigqaa) # eq 29
-        eq7 = (rka-r) -self.params['gammah']*wha*  ((self.params['siga'] + sigqaa))**2 + (1-self.params['gammah'])*sigxha*(self.params['siga'] + sigqaa) # eq 30
+        eq6 = (rka_hat-r) -self.params['gammai']*wia*  ((self.params['siga'] + sigqaa))**2 - (1-self.params['gammai'])*sigxia*(self.params['siga'] + sigqaa) # eq 29
+        eq7 = (rka-r) -self.params['gammah']*wha*  ((self.params['siga'] + sigqaa))**2 - (1-self.params['gammah'])*sigxha*(self.params['siga'] + sigqaa) # eq 30
         eq8 = wia*e + wha*(1-e) - 1 # eq 31
         eq9 = torch.zeros_like(e) 
-        eq10 = (ci*e + ch*(1-e))*qa - self.params['aa'] -iota_a # eq 32
+        eq10 = (ci*e + ch*(1-e))*qa - (self.params['aa'] -iota_a) # eq 32
         eq11 = torch.zeros_like(e) 
     
-        hjb_i = (muxi + lineari)
+        hjb_i = (lineari)
 
-        hjb_h = (muxh + linearh)
+        hjb_h = (linearh)
         
         return eq1,eq2,eq3,eq4,eq5,eq6,eq7,eq8,eq9,eq10,eq11,hjb_i,hjb_h
 
@@ -207,13 +208,17 @@ para_xi         = list(Xi.parameters())  + list(Xh.parameters())+list(Wha.parame
 optimizer_xi    = optim.Adam(para_xi, lr=0.001)
 wlgm = 1
 epochs = 50
-epochs_sub1 = 20002
+epochs_sub1 = 2002
 loss_data_count = 0
-fo = open('loss_fun.csv', "w")
+model_dir = "models/model1_gammah_2"
+plot_dir = f"{model_dir}/plots/"
+output_dir = f"{model_dir}/output/"
+os.makedirs(plot_dir, exist_ok=True)
+os.makedirs(output_dir, exist_ok=True)
+fo = open(f'{model_dir}/loss_fun.csv', "w")
 string = "loss_data_count, loss_val, q_val"
 fo.write( (string+'\n') )
 fo.flush()
-
 
 min_loss = float('Inf')
 for epoch_sub in range(1,epochs_sub1):
@@ -299,18 +304,18 @@ for epoch_sub in range(1,epochs_sub1):
                 xi_e  = TP.get_derivs_1order(xi,e)[:,0].unsqueeze(1) 
                 xi_ee  = TP.get_derivs_1order(xi_e,e)[:,0].unsqueeze(1) 
                 
-                xi_e  = TP.get_derivs_1order(xh,e)[:,0].unsqueeze(1) 
-                xi_ee  = TP.get_derivs_1order(xi_e,e)[:,0].unsqueeze(1) 
+                xh_e  = TP.get_derivs_1order(xh,e)[:,0].unsqueeze(1) 
+                xh_ee  = TP.get_derivs_1order(xh_e,e)[:,0].unsqueeze(1) 
                 
                 sigqaa = qa_e/qa*sigea*e 
                 signia = wia*(params['siga']+sigqaa)
                 signha = wha*(params['siga']+sigqaa)
                 sigxia = xi_e/xi*sigea*e 
-                sigxha = xi_e/xh*sigea*e 
+                sigxha = xh_e/xh*sigea*e 
 
                 
                 muqa = qa_e/qa*mue*e + 1/2*qa_ee/qa*( sigea**2 )*e**2 
-                rka  = params['aa']/qa + params['mua'] + Phi_a + muqa + sigqaa*params['siga'] 
+                rka  = (params['aa'] - iota_a)/qa + params['mua'] + Phi_a + muqa + sigqaa*params['siga'] 
                 r = rka  - params['gammah']*wha*((params['siga'] + sigqaa) )**2\
                                + (1-params['gammah'])*sigxha*((params['siga'] + sigqaa))
                 muni = r - ci + wia*(rka- r) 
@@ -331,12 +336,43 @@ for epoch_sub in range(1,epochs_sub1):
                 data = pd.DataFrame(data)
                 data.columns=['eta','ci','sr_a','rp_a','qa','wia','sigqaa','r','mue','sigea',\
                               'muqa','muni','munh','muqk','sigxia','sigxha','rka','wha']
-                data.to_csv('./output/output_' + str(params['gammai']) +'_' + str(params['muO'])  + '.csv')
-                with open('./output/params_' + str(params['gammai']) +'_' + str(params['muO'])  + '.txt', 'w') as file:
+                data.to_csv(f'{output_dir}/output_' + str(params['gammah']) +'_' + str(params['muO'])  + '.csv')
+                with open(f'{output_dir}/params_' + str(params['gammah']) +'_' + str(params['muO'])  + '.txt', 'w') as file:
                      file.write(json.dumps(params))
                 
 
             eta_plt = eta_grid
+            fig, ax = plt.subplots(4, 2, figsize=(12, 24))
+            ax[0,0].plot(eta_plt,xi.detach().cpu().numpy())
+            ax[0,0].set_ylabel('xii')
+            ax[0,0].set_xlabel("eta")
+            ax[0,1].plot(eta_plt,xh.detach().cpu().numpy())
+            ax[0,1].set_ylabel('xih')
+            ax[0,1].set_xlabel("eta")
+
+            ax[1,0].plot(eta_plt,mue.detach().cpu().numpy())
+            ax[1,0].set_ylabel(r'$\mu^{\eta}$')
+            ax[1,0].set_xlabel("eta")
+            ax[1,1].plot(eta_plt,sigea.detach().cpu().numpy())
+            ax[1,1].set_ylabel(r'$\sigma^{\eta}$')
+            ax[1,1].set_xlabel("eta")
+        
+            ax[2,0].plot(eta_plt,qa.detach().cpu().numpy())
+            ax[2,0].set_ylabel('qa')
+            ax[2,0].set_xlabel("eta")
+
+            ax[3,0].plot(eta_plt,wia.detach().cpu().numpy())
+            ax[3,0].set_ylabel('wia')
+            ax[3,0].set_xlabel("eta")
+            ax[3,1].plot(eta_plt,wha.detach().cpu().numpy())
+            ax[3,1].set_ylabel('wha')
+            ax[3,1].set_xlabel("eta")
+
+            name = plot_dir + 'plot_train_' + str(loss_data_count)+'_1.png'
+            plt.tight_layout()
+            plt.savefig(name,bbox_inches='tight',dpi=300)
+            plt.close('all')
+
             fig, ax = plt.subplots(2,4,figsize=(16,9), num=0)
             ax[0,0].plot(eta_plt,rka.detach().cpu().numpy())
             ax[0,0].set_ylabel('rka')
@@ -359,12 +395,14 @@ for epoch_sub in range(1,epochs_sub1):
             ax[1,3].plot(eta_plt,eta_plt.reshape(-1,1)*mue.detach().cpu().numpy())
             ax[1,3].set_ylabel(r'$\eta \mu^{\eta}$')
             ax[1,3].set_xlabel(r'$\eta$')
-            name = './plots'+ 'plot_trainint_' + str(loss_data_count)+'.png'
+
+            name = plot_dir + 'plot_train_' + str(loss_data_count)+'_2.png'
+            plt.tight_layout()
             plt.savefig(name,bbox_inches='tight',dpi=300)
             plt.close('all')
             
 
-            fo = open('loss_fun.csv', "a")
+            fo = open(f'{model_dir}/loss_fun.csv', "a")
             string = "%.4e,%.4e" % (np.log(loss_data_count), np.log(loss_val))
             fo.write( (string+'\n') )
             fo.flush()
