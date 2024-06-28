@@ -379,7 +379,7 @@ class PDEModel:
         SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
                          high=self.state_variable_constraints["sv_high"], 
                          size=(self.batch_size, len(self.state_variables)))
-        SV = torch.Tensor(SV)
+        SV = torch.Tensor(SV).to(self.device)
         for i, sv_name in enumerate(self.state_variables):
             self.variable_val_dict[sv_name] = SV[:, i:i+1]
 
