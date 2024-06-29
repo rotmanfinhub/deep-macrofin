@@ -4,7 +4,7 @@
 ## Start developing
 
 ### Code
-All the code are undr [`ecomodels`](./ecomodels/), and the tests are under [`tests`](./tests/)
+All the code are under [`ecomodels`](./ecomodels/), and the tests are under [`tests`](./tests/)
 
 To run the code and tests locally
 
