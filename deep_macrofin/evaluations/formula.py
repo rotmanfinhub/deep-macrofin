@@ -19,6 +19,15 @@ DERIVATIVE_PATTERN2 = r"\\frac{\s*d\^?(\d*)\s*(.*?)}{(.*?)}" # not used
 DERIVATIVE_LOWER_PATTERN2 = r"d\s*"
 FRACTION_PATTERN = r"\\frac{((?!.*\\frac).*?)}{((?!.*\\frac).*?)}" # make sure no additional fraction is within each group, so we parse from inner most fraction to outer fractions.
 POWER_PATTERN = r"\^(\w+|\{(.*?)\})"
+SQRT_PATTERN = r"\\sqrt\{(.*?)\}" # make sure no additional \{ is within the bracket
+
+def latex_parsing_sqrt(formula_str: str):
+    def sqrt_match(match: re.Match):
+        # Remove the curly braces if they exist
+        group = match.group(1).strip('{}')
+        return 'sqrt(' + group + ')'
+    formula_str = re.sub(SQRT_PATTERN, sqrt_match, formula_str)
+    return formula_str
 
 def latex_parsing_brackets(formula_str: str):
     formula_str = re.sub(LEFT_BRACKETS, "(", formula_str)
@@ -64,6 +73,9 @@ def latex_parsing_fractions(formula_str: str):
 def latex_parsing_functions(formula_str: str):
     formula_str = formula_str.replace(r"\log", "log")
     formula_str = formula_str.replace(r"\exp", "exp")
+    formula_str = formula_str.replace(r"\sin", "sin")
+    formula_str = formula_str.replace(r"\cos", "cos")
+    formula_str = formula_str.replace(r"\tan", "tan")
     return formula_str
 
 def latex_parsing(formula_str: str, latex_var_mapping: Dict[str, str] = {}):
@@ -85,6 +97,7 @@ def latex_parsing(formula_str: str, latex_var_mapping: Dict[str, str] = {}):
     formula_str = latex_parsing_brackets(formula_str)
     formula_str = latex_parsing_fractions(formula_str)
     formula_str = latex_parsing_powers(formula_str)
+    formula_str = latex_parsing_sqrt(formula_str)
     formula_str = latex_parsing_functions(formula_str)
     return formula_str
 
@@ -124,6 +137,8 @@ class Formula:
         self.evaluation_method = evaluation_method
 
         if self.evaluation_method == EvaluationMethod.Eval:
+            self.local_context = {"__builtins__": None}
+            self.local_context.update(torch.__dict__)
             self.eval = self.eval_str
         else:
             raise NotImplementedError(f"{evaluation_method} is not implemented")
@@ -134,13 +149,11 @@ class Formula:
         This evaluates the function by simple string parsing
         '''
         # Create a local context with available functions and variables
-        local_context = {"__builtins__": None}
-        local_context.update(torch.__dict__)
-        local_context.update(available_functions)
-        local_context.update(variables)
+        self.local_context.update(available_functions)
+        self.local_context.update(variables)
 
         # Directly evaluate the formula string in the context of available functions and variables
-        result = eval(self.formula_str, {"__builtins__": None}, local_context)
+        result = eval(self.formula_str, {"__builtins__": None}, self.local_context)
         return result
 
     def try_eval(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor]):
@@ -196,3 +209,6 @@ if __name__ == "__main__":
     
     ltx7 = r'\frac{\partial q_t^a}{\partial \eta_t} * \sigma^{\eta a}_t * \eta_t'
     print(latex_parsing(ltx7, latex_var_map))
+
+    ltx8 = r'(\frac{\sqrt{3}}{3} * R_b - \frac{\sqrt{3}}{3} * R_c)'
+    print(latex_parsing(ltx8, latex_var_map))

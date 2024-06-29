@@ -45,7 +45,10 @@ class TestFormulaLatexEvaluation(unittest.TestCase):
             "sigqa": torch.rand_like(torch.tensor([0.0])),
 
             "kappa": 1000,
-            "iota": torch.rand_like(torch.tensor([0.0]))
+            "iota": torch.rand_like(torch.tensor([0.0])),
+
+            "R_b": torch.rand_like(torch.tensor([0.0])),
+            "R_c": torch.rand_like(torch.tensor([0.0])),
         }
         cls.latex_var_mapping = {
             "q_t^a": "qa",
@@ -246,6 +249,21 @@ class TestFormulaLatexEvaluation(unittest.TestCase):
         formula = Formula(formula_str, 'eval', self.latex_var_mapping)
         result = formula.eval(self.LOCAL_DICT, self.variables)
         expected_result = 1 / self.variables["kappa"] * torch.exp(self.variables["iota"])
+        self.assertTrue(torch.allclose(result, expected_result), f"Expected {expected_result}, got {result}")
+
+
+    def test_latex_formula15(self):
+        formula_str = r'$(\frac{\sqrt{3}}{3} * R_b - \frac{\sqrt{3}}{3} * R_c)$'
+        formula = Formula(formula_str, 'eval', self.latex_var_mapping)
+        result = formula.eval(self.LOCAL_DICT, self.variables)
+        expected_result = torch.sqrt(3) / 3 * self.variables["R_b"] - torch.sqrt(3) / 3 * self.variables["R_c"]
+        self.assertTrue(torch.allclose(result, expected_result), f"Expected {expected_result}, got {result}")
+
+    def test_latex_formula15(self):
+        formula_str = r'$cos(3 * X) - \sin(2 * X)$'
+        formula = Formula(formula_str, 'eval', self.latex_var_mapping)
+        result = formula.eval(self.LOCAL_DICT, self.variables)
+        expected_result = torch.cos(3 * self.variables["X"]) - torch.sin(2 * self.variables["X"])
         self.assertTrue(torch.allclose(result, expected_result), f"Expected {expected_result}, got {result}")
 
 if __name__ == '__main__':
