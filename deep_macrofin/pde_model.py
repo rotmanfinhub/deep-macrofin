@@ -1,3 +1,4 @@
+import atexit
 import json
 import os
 import time
@@ -154,7 +155,7 @@ class PDEModel:
 
         Config: specifies number of layers/hidden units of the neural network.
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
-            - hidden_units: **List[int]**, number of units in each layer
+            - hidden_units: **List[int]**, number of units in each layer, default: [30,30,30,30]
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
             - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false
@@ -182,7 +183,7 @@ class PDEModel:
 
         Config: specifies number of layers/hidden units of the neural network.
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
-            - hidden_units: **List[int]**, number of units in each layer
+            - hidden_units: **List[int]**, number of units in each layer, default: [30,30,30,30]
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
             - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false
@@ -236,7 +237,7 @@ class PDEModel:
 
         Config: specifies number of layers/hidden units of the neural network.
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
-            - hidden_units: **List[int]**, number of units in each layer
+            - hidden_units: **List[int]**, number of units in each layer, default: [30,30,30,30]
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
             - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false
@@ -264,7 +265,7 @@ class PDEModel:
 
         Config: specifies number of layers/hidden units of the neural network.
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
-            - hidden_units: **List[int]**, number of units in each layer
+            - hidden_units: **List[int]**, number of units in each layer, default: [30,30,30,30]
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
             - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false
@@ -516,6 +517,12 @@ class PDEModel:
         
         log_fn = os.path.join(model_dir, f"{file_prefix}-{self.num_epochs}-log.txt")
         log_file = open(log_fn, "w", encoding="utf-8")
+
+        @atexit.register
+        def cleanup_file():
+            # make sure the log file is properly closed even after exception
+            log_file.close()
+
         print(str(self), file=log_file)
         self.validate_model_setup(model_dir)
         print("{0:=^80}".format("Training"))
