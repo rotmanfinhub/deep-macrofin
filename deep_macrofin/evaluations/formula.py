@@ -103,6 +103,7 @@ def latex_parsing(formula_str: str, latex_var_mapping: Dict[str, str] = {}):
 
 torch_func_dict = {
     "pi": torch.pi,
+    "sqrt": torch.sqrt,
     "log": torch.log,
     "exp": torch.exp,
     "sinh": torch.sinh,
@@ -152,7 +153,7 @@ class Formula:
 
         if self.evaluation_method == EvaluationMethod.Eval:
             self.local_context = {"__builtins__": None}
-            self.local_context.update(torch_func_dict)
+            self.local_context.update(torch.__dict__)
             self.eval = self.eval_str
         else:
             raise NotImplementedError(f"{evaluation_method} is not implemented")
