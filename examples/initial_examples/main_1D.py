@@ -26,6 +26,14 @@ import os
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 import json
+import random
+
+def set_seeds(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 
 ## Economic Parameters
 # Save everything in a dictionary, for clarity
@@ -166,8 +174,10 @@ class Training_pde():
         eq3 = sigea - (1-e)*(signia - signha) # eq 28
         eq4 = torch.zeros_like(e) 
         eq5 = torch.zeros_like(e) 
-        eq6 = (rka_hat-r) -self.params['gammai']*wia*  ((self.params['siga'] + sigqaa))**2 - (1-self.params['gammai'])*sigxia*(self.params['siga'] + sigqaa) # eq 29
-        eq7 = (rka-r) -self.params['gammah']*wha*  ((self.params['siga'] + sigqaa))**2 - (1-self.params['gammah'])*sigxha*(self.params['siga'] + sigqaa) # eq 30
+        eq6 = (rka_hat-r) -self.params['gammai']*wia*  ((self.params['siga'] + sigqaa))**2 + (1-self.params['gammai'])*sigxia*(self.params['siga'] + sigqaa) # eq 29
+        # eq6 = torch.zeros_like(e)
+        # eq7 = (rka-r) -self.params['gammah']*wha*  ((self.params['siga'] + sigqaa))**2 - (1-self.params['gammah'])*sigxha*(self.params['siga'] + sigqaa) # eq 30
+        eq7 = torch.zeros_like(e)
         eq8 = wia*e + wha*(1-e) - 1 # eq 31
         eq9 = torch.zeros_like(e) 
         eq10 = (ci*e + ch*(1-e))*qa - (self.params['aa'] -iota_a) # eq 32
@@ -182,6 +192,7 @@ class Training_pde():
 nn_width = params['nn_width']
 nn_num_layers = params['nn_num_layers']
 
+set_seeds(0)
 TP  = Training_pde(params)
 TS  = Training_Sampler(params)
 Xi      = Net1(nn_width,nn_num_layers,True).to(device) 
@@ -208,9 +219,9 @@ para_xi         = list(Xi.parameters())  + list(Xh.parameters())+list(Wha.parame
 optimizer_xi    = optim.Adam(para_xi, lr=0.001)
 wlgm = 1
 epochs = 50
-epochs_sub1 = 2002
+epochs_sub1 = 10002
 loss_data_count = 0
-model_dir = "models/model1_gammah_2"
+model_dir = "models/model1_gammai_1_gammah_2_new_base"
 plot_dir = f"{model_dir}/plots/"
 output_dir = f"{model_dir}/output/"
 os.makedirs(plot_dir, exist_ok=True)
@@ -220,6 +231,7 @@ string = "loss_data_count, loss_val, q_val"
 fo.write( (string+'\n') )
 fo.flush()
 
+set_seeds(0)
 min_loss = float('Inf')
 for epoch_sub in range(1,epochs_sub1):
         loss_data_count += 1
@@ -406,3 +418,222 @@ for epoch_sub in range(1,epochs_sub1):
             string = "%.4e,%.4e" % (np.log(loss_data_count), np.log(loss_val))
             fo.write( (string+'\n') )
             fo.flush()
+
+
+print("{0:=^80}".format("Running L-BFGS optimization"))
+Xi.load_state_dict(Best_model_Xi.state_dict())
+Xh.load_state_dict(Best_model_Xh.state_dict())
+Mue.load_state_dict(Best_model_Mue.state_dict())
+Qa.load_state_dict(Best_model_Qa.state_dict())
+Wia.load_state_dict(Best_model_Wia.state_dict())
+Wha.load_state_dict(Best_model_Wha.state_dict())
+Sigea.load_state_dict(Best_model_Sigea.state_dict())
+
+optimizer_lbfgs = torch.optim.LBFGS(para_xi, lr=1)
+epochs_lbfgs = 102
+
+def closure(eta):
+    optimizer_lbfgs.zero_grad()
+    eta=TS.sample(params['batchSize'])
+    eta_tensor = torch.tensor(eta,dtype=torch.float32,device = device)
+    leq1,leq2,leq3,leq4,leq5,leq6,leq7,leq8,leq9,leq10,leq11,lhjb_i,lhjb_h = TP.loss_fun(Xi,Xh,Mue,Sigea,Qa,Wia,Wha,eta_tensor)
+    leq1_ =torch.mean(torch.square(leq1)) 
+    leq2_ =torch.mean(torch.square(leq2))
+    leq3_ =torch.mean(torch.square(leq3))
+    leq4_ =torch.mean(torch.square(leq4))
+    leq5_ =torch.mean(torch.square(leq5))
+    leq6_ =torch.mean(torch.square(leq6))
+    leq7_ =torch.mean(torch.square(leq7))
+    leq8_ =torch.mean(torch.square(leq8))
+    leq9_ =torch.mean(torch.square(leq9))
+    leq10_ =torch.mean(torch.square(leq10))
+    leq11_ =torch.mean(torch.square(leq11))
+    lhjb_i_ = torch.mean(torch.square(lhjb_i))
+    lhjb_h_ = torch.mean(torch.square(lhjb_h))
+    loss = leq1_+leq2_+leq3_+leq4_+leq5_+leq6_+leq7_+leq8_+leq9_+leq10_+leq11_+lhjb_i_+lhjb_h_
+    loss.backward()
+    return loss
+
+set_seeds(0)
+for epoch_sub in range(1, epochs_lbfgs):
+    loss_data_count += 1
+    
+    optimizer_lbfgs.step(lambda: closure(eta))
+
+    leq1,leq2,leq3,leq4,leq5,leq6,leq7,leq8,leq9,leq10,leq11,lhjb_i,lhjb_h = TP.loss_fun(Xi,Xh,Mue,Sigea,Qa,Wia,Wha,eta_tensor)
+    leq1_ =torch.mean(torch.square(leq1)) 
+    leq2_ =torch.mean(torch.square(leq2))
+    leq3_ =torch.mean(torch.square(leq3))
+    leq4_ =torch.mean(torch.square(leq4))
+    leq5_ =torch.mean(torch.square(leq5))
+    leq6_ =torch.mean(torch.square(leq6))
+    leq7_ =torch.mean(torch.square(leq7))
+    leq8_ =torch.mean(torch.square(leq8))
+    leq9_ =torch.mean(torch.square(leq9))
+    leq10_ =torch.mean(torch.square(leq10))
+    leq11_ =torch.mean(torch.square(leq11))
+    lhjb_i_ = torch.mean(torch.square(lhjb_i))
+    lhjb_h_ = torch.mean(torch.square(lhjb_h))
+    loss = leq1_+leq2_+leq3_+leq4_+leq5_+leq6_+leq7_+leq8_+leq9_+leq10_+leq11_+lhjb_i_+lhjb_h_
+    
+    loss_val = loss.item()
+    if (loss_val < min_loss):
+    #if True:
+        min_loss = loss_val
+        Best_model_Xi.load_state_dict(Xi.state_dict())
+        Best_model_Xh.load_state_dict(Xh.state_dict())
+        Best_model_Mue.load_state_dict(Mue.state_dict())
+        Best_model_Qa.load_state_dict(Qa.state_dict())
+        Best_model_Wia.load_state_dict(Wia.state_dict())
+        Best_model_Wha.load_state_dict(Wha.state_dict())
+        Best_model_Sigea.load_state_dict(Sigea.state_dict())
+        print("\n best loss HJB:",min_loss,end="\r")
+        print("HJB Block Loss at epoch number:", epoch_sub,"--")
+        print(leq1_.item(),leq2_.item(),leq3_.item(),leq4_.item(),leq5_.item(),\
+                leq6_.item(),leq7_.item(),leq8_.item(),leq9_.item(),leq10_.item(),lhjb_i_.item(),lhjb_h_.item())
+        
+    if (loss_data_count%100 == 0):
+        if True:
+            
+            eta_grid = np.linspace(params['start_eta'],params['end_eta'],params['neta'])
+            e = torch.tensor(eta_grid.reshape(-1,1),dtype=torch.float32,device = device)
+            
+            #for debugging
+            #z = torch.ones((100,1)) * 0.5
+            #e = torch.linspace(0.01,0.9,100).reshape(-1,1)
+            Xi.load_state_dict(Best_model_Xi.state_dict())
+            Xh.load_state_dict(Best_model_Xh.state_dict())
+            Mue.load_state_dict(Best_model_Mue.state_dict())
+            Qa.load_state_dict(Best_model_Qa.state_dict())
+            Wia.load_state_dict(Best_model_Wia.state_dict())
+            Wha.load_state_dict(Best_model_Wha.state_dict())
+            Sigea.load_state_dict(Best_model_Sigea.state_dict())
+            
+            
+            e.requires_grad_(True)
+            
+            # reevaluate all endogenous variables and associated variables
+            xi   = Xi(e)
+            xh   = Xh(e) 
+            
+            mue = Mue(e)
+            sigea = Sigea(e)
+            qa = Qa(e)
+            wia = Wia(e)
+            wha = Wha(e)
+            iota_a = (qa-1)/params['kappa']
+            Phi_a = 1/params['kappa']*torch.log(1+params['kappa']*iota_a)
+            
+            ci = (params['rhoi']**params['zetai'])*xi**(1 - params['zetai'])
+            ch = (params['rhoh']**params['zetah'])*xh**(1 - params['zetah'])
+
+            # automatic differentiations for qa
+            qa_e   =  TP.get_derivs_1order(qa,e)[:,0].unsqueeze(1) 
+            qa_ee    = TP.get_derivs_1order(qa_e,e)[:,0].unsqueeze(1) 
+
+            # automatic differentiations for xie and xih
+            xi_e  = TP.get_derivs_1order(xi,e)[:,0].unsqueeze(1) 
+            xi_ee  = TP.get_derivs_1order(xi_e,e)[:,0].unsqueeze(1) 
+            
+            xh_e  = TP.get_derivs_1order(xh,e)[:,0].unsqueeze(1) 
+            xh_ee  = TP.get_derivs_1order(xh_e,e)[:,0].unsqueeze(1) 
+            
+            sigqaa = qa_e/qa*sigea*e 
+            signia = wia*(params['siga']+sigqaa)
+            signha = wha*(params['siga']+sigqaa)
+            sigxia = xi_e/xi*sigea*e 
+            sigxha = xh_e/xh*sigea*e 
+
+            
+            muqa = qa_e/qa*mue*e + 1/2*qa_ee/qa*( sigea**2 )*e**2 
+            rka  = (params['aa'] - iota_a)/qa + params['mua'] + Phi_a + muqa + sigqaa*params['siga'] 
+            r = rka  - params['gammah']*wha*((params['siga'] + sigqaa) )**2\
+                            + (1-params['gammah'])*sigxha*((params['siga'] + sigqaa))
+            muni = r - ci + wia*(rka- r) 
+            munh = r - ch + wha*(rka-r) 
+            muqk = (muqa + params['mua'] + Phi_a + params['siga']*sigqaa)  
+            
+            rp_a = rka-r 
+            sig_eta = sigea
+            sr_a = (rp_a )/((params['siga'] +sigqaa)**2)**0.5
+            sig_a = sigqaa
+            qa_np = qa.detach().cpu().numpy().reshape(-1)
+            data = np.hstack([eta_grid.reshape(-1,1),ci.detach().cpu().numpy(),sr_a.detach().cpu().numpy(),rp_a.detach().cpu().numpy(),\
+                                    qa.detach().cpu().numpy(),wia.detach().cpu().numpy(),\
+                                    sigqaa.detach().cpu().numpy(),\
+                                        r.detach().cpu().numpy(),mue.detach().cpu().numpy(),sigea.detach().cpu().numpy(),\
+                                            muqa.detach().cpu().numpy(),muni.detach().cpu().numpy(),munh.detach().cpu().numpy(),muqk.detach().cpu().numpy(),sigxia.detach().cpu().numpy(),\
+                                                sigxha.detach().cpu().numpy(),rka.detach().cpu().numpy(),wha.detach().cpu().numpy()])
+            data = pd.DataFrame(data)
+            data.columns=['eta','ci','sr_a','rp_a','qa','wia','sigqaa','r','mue','sigea',\
+                            'muqa','muni','munh','muqk','sigxia','sigxha','rka','wha']
+            data.to_csv(f'{output_dir}/output_' + str(params['gammah']) +'_' + str(params['muO'])  + '.csv')
+            with open(f'{output_dir}/params_' + str(params['gammah']) +'_' + str(params['muO'])  + '.txt', 'w') as file:
+                    file.write(json.dumps(params))
+            
+
+        eta_plt = eta_grid
+        fig, ax = plt.subplots(4, 2, figsize=(12, 24))
+        ax[0,0].plot(eta_plt,xi.detach().cpu().numpy())
+        ax[0,0].set_ylabel('xii')
+        ax[0,0].set_xlabel("eta")
+        ax[0,1].plot(eta_plt,xh.detach().cpu().numpy())
+        ax[0,1].set_ylabel('xih')
+        ax[0,1].set_xlabel("eta")
+
+        ax[1,0].plot(eta_plt,mue.detach().cpu().numpy())
+        ax[1,0].set_ylabel(r'$\mu^{\eta}$')
+        ax[1,0].set_xlabel("eta")
+        ax[1,1].plot(eta_plt,sigea.detach().cpu().numpy())
+        ax[1,1].set_ylabel(r'$\sigma^{\eta}$')
+        ax[1,1].set_xlabel("eta")
+    
+        ax[2,0].plot(eta_plt,qa.detach().cpu().numpy())
+        ax[2,0].set_ylabel('qa')
+        ax[2,0].set_xlabel("eta")
+
+        ax[3,0].plot(eta_plt,wia.detach().cpu().numpy())
+        ax[3,0].set_ylabel('wia')
+        ax[3,0].set_xlabel("eta")
+        ax[3,1].plot(eta_plt,wha.detach().cpu().numpy())
+        ax[3,1].set_ylabel('wha')
+        ax[3,1].set_xlabel("eta")
+
+        name = plot_dir + 'plot_train_' + str(loss_data_count)+'_1.png'
+        plt.tight_layout()
+        plt.savefig(name,bbox_inches='tight',dpi=300)
+        plt.close('all')
+
+        fig, ax = plt.subplots(2,4,figsize=(16,9), num=0)
+        ax[0,0].plot(eta_plt,rka.detach().cpu().numpy())
+        ax[0,0].set_ylabel('rka')
+        ax[0,0].legend(fontsize=15)
+        ax[0,1].plot(eta_plt,rp_a.detach().cpu().numpy())
+        ax[0,1].set_ylabel('rp_a')
+        ax[0,2].plot(eta_plt,qa.detach().cpu().numpy())
+        ax[0,2].set_ylabel('qa')
+        ax[0,3].plot(eta_plt,r.detach().cpu().numpy())
+        ax[0,3].set_ylabel('r')
+        ax[1,0].plot(eta_plt,wha.detach().cpu().numpy())
+        ax[1,0].set_ylabel('wha')
+        ax[1,0].set_xlabel('$\eta$')
+        ax[1,1].plot(eta_plt,sigqaa.detach().cpu().numpy())
+        ax[1,1].set_ylabel('sigqaa')
+        ax[1,1].set_xlabel(r'$\eta$')
+        ax[1,2].plot(eta_plt,eta_plt.reshape(-1,1)*sigea.detach().cpu().numpy())
+        ax[1,2].set_ylabel(r'$\eta \sigma^{\eta}$')
+        ax[1,2].set_xlabel('$\eta$')
+        ax[1,3].plot(eta_plt,eta_plt.reshape(-1,1)*mue.detach().cpu().numpy())
+        ax[1,3].set_ylabel(r'$\eta \mu^{\eta}$')
+        ax[1,3].set_xlabel(r'$\eta$')
+
+        name = plot_dir + 'plot_train_' + str(loss_data_count)+'_2.png'
+        plt.tight_layout()
+        plt.savefig(name,bbox_inches='tight',dpi=300)
+        plt.close('all')
+        
+
+        fo = open(f'{model_dir}/loss_fun.csv', "a")
+        string = "%.4e,%.4e" % (np.log(loss_data_count), np.log(loss_val))
+        fo.write( (string+'\n') )
+        fo.flush()
