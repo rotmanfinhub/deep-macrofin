@@ -562,6 +562,134 @@ class PDEModel:
 
         return loss_dict
     
+    def update_variables2(self, SV):
+        # properly update variables, including agent, endogenous variables, their derivatives
+        for func_name in self.local_function_dict:
+            self.variable_val_dict[func_name] = self.local_function_dict[func_name](SV)
+
+        # properly update variables, using equations
+        for eq_name in self.equations:
+            lhs = self.equations[eq_name].lhs.formula_str
+            self.variable_val_dict[lhs] = self.equations[eq_name].eval({}, self.variable_val_dict)
+
+    def closure2(self, SV):
+        self.optimizer.zero_grad()
+        self.update_variables2(SV)
+        self.loss_fn()
+        total_loss = 0
+        for loss_label, loss in self.loss_val_dict.items():
+            total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
+        
+        total_loss.backward()
+        return total_loss
+    
+    def train_model_active_learning(self, active_learning_regions: List[List[float]]=[], model_dir: str="./", filename: str=None, full_log=False):
+        '''
+        The entire loop of training
+        active_learning_regions: list of [low, high], describing regions for active learning
+        '''
+        min_loss = torch.inf
+        epoch_loss_dict = defaultdict(list)
+        all_params = []
+        
+        model_has_kan = False
+        for agent_name, agent in self.agents.items():
+            all_params += list(agent.parameters())
+            if agent.config["layer_type"] == LayerType.KAN:
+                model_has_kan = True
+        for endog_var_name, endog_var in self.endog_vars.items():
+            all_params += list(endog_var.parameters())
+            if endog_var.config["layer_type"] == LayerType.KAN:
+                model_has_kan = True
+        
+        if model_has_kan:
+            # KAN can only be trained with LBFGS, 
+            # as long as there is one model with KAN, we must route to the default LBFGS
+            self.optimizer = LBFGS(all_params, lr=self.lr, history_size=10, line_search_fn="strong_wolfe", tolerance_grad=1e-32, tolerance_change=1e-32, tolerance_ys=1e-32)
+        elif self.optimizer_type == OptimizerType.Adam:
+            self.optimizer = torch.optim.Adam(all_params, self.lr)
+        elif self.optimizer_type == OptimizerType.AdamW:
+            self.optimizer = torch.optim.AdamW(all_params, self.lr)
+        elif self.optimizer_type == OptimizerType.LBFGS:
+            self.optimizer = torch.optim.LBFGS(all_params, self.lr)
+        else:
+            raise NotImplementedError("Unsupported optimizer type")
+
+        os.makedirs(model_dir, exist_ok=True)
+        if filename is None:
+            filename = filename = self.name
+        if "." in filename:
+            file_prefix = filename.split(".")[0]
+        else:
+            file_prefix = filename
+        
+        log_fn = os.path.join(model_dir, f"{file_prefix}-{self.num_epochs}-log.txt")
+        log_file = open(log_fn, "w", encoding="utf-8")
+
+        @atexit.register
+        def cleanup_file():
+            # make sure the log file is properly closed even after exception
+            log_file.close()
+
+        print(str(self), file=log_file)
+        self.validate_model_setup(model_dir)
+        print("{0:=^80}".format("Training"))
+        self.set_all_model_training()
+        start_time = time.time()
+        set_seeds(0)
+        pbar = tqdm(range(self.num_epochs))
+
+        active_learning_grids = []
+        for al_region in active_learning_regions:
+            active_learning_grids.append(np.linspace(al_region[0], al_region[1], num=self.batch_size)[:, np.newaxis])
+        active_learning_grids = torch.Tensor(np.concatenate(active_learning_grids)).to(self.device)
+        for epoch in pbar:
+            epoch_start_time = time.time()
+
+            SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
+                         high=self.state_variable_constraints["sv_high"], 
+                         size=(self.batch_size, len(self.state_variables)))
+            SV = torch.Tensor(SV).to(self.device)
+            SV = torch.cat([SV, active_learning_grids])
+            for i, sv_name in enumerate(self.state_variables):
+                self.variable_val_dict[sv_name] = SV[:, i:i+1]
+
+            self.optimizer.step(lambda: self.closure2(SV))
+            total_loss = 0
+            for loss_label, loss in self.loss_val_dict.items():
+                total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
+
+            loss_dict = self.loss_val_dict.copy()
+            loss_dict["total_loss"] = total_loss
+
+            if full_log:
+                formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
+            else:
+                formatted_train_loss = "%.4f" % loss_dict["total_loss"]
+            
+            if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
+                min_loss = loss_dict["total_loss"].item()
+                self.save_model(model_dir, f"{file_prefix}_best.pt")
+            # maybe reload the best model when loss is nan.
+
+            if epoch % self.loss_log_interval == 0:
+                epoch_loss_dict["epoch"].append(epoch)
+                for k, v in loss_dict.items():
+                    epoch_loss_dict[k].append(v.item())
+                pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
+            print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
+        print(f"training finished, total time :: {time.time() - start_time}")
+        print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
+        log_file.close()
+        if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
+            self.save_model(model_dir, f"{file_prefix}_best.pt")
+        print(f"Best model saved to {model_dir}/{file_prefix}_best.pt if valid")
+        self.save_model(model_dir, filename, verbose=True)
+        pd.DataFrame(epoch_loss_dict).to_csv(f"{model_dir}/{file_prefix}_loss.csv", index=False)
+
+        return loss_dict
+
+    
     def eval_model(self, full_log=False):
         '''
         The entire loop of evaluation
