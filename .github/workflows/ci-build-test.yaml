@@ -1,4 +1,4 @@
-name: ci-build
+name: ci-build-test
 on:
   pull_request:
     types: [ opened, reopened, synchronize ]
@@ -26,7 +26,7 @@ jobs:
           pip install --upgrade build
           python3 -m build
       - name: Store the distribution packages
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: python-package-distributions
           path: dist/
@@ -45,7 +45,7 @@ jobs:
 
     steps:
       - name: Download all the dists
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: python-package-distributions
           path: dist/
