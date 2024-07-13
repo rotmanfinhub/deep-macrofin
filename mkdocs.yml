@@ -1,13 +1,13 @@
 site_name: Eco Model Wiki
 site_description: 'Diffusitron Wiki'
 site_author: 'Rotman Finhub'
-site_url: 'https://rotmanfinhub.github.io/continuous-time-eco-models' # the last path should be the same as the reponame for now
+site_url: 'https://rotmanfinhub.github.io/deep-macrofin' # the last path should be the same as the reponame for now
 
 copyright: "Rotman Finhub"
 
 # Repository
 repo_name: 'GitHub'
-repo_url: https://github.com/rotmanfinhub/continuous-time-eco-models" target="_blank
+repo_url: https://github.com/rotmanfinhub/deep-macrofin" target="_blank
 
 theme:
   name: material

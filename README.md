@@ -4,7 +4,7 @@
 ## Start developing
 
 ### Code
-All the code are under [`ecomodels`](./ecomodels/), and the tests are under [`tests`](./tests/)
+All the code are under [`deep_macrofin`](./deep_macrofin/), and the tests are under [`tests`](./tests/)
 
 To run the code and tests locally
 
@@ -23,6 +23,16 @@ To properly run all tests in the `tests/` folder
 pip install -e .
 pytest tests/
 ```
+
+### Examples
+Various examples using the library, with comparisons to DeepXDE and PyMacroFin are included in [`examples`](./examples/)
+
+- [`basic_examples`](./examples/basic_examples/): Solutions to basic ODEs/PDEs, diffusion equation, function approximation and systems of ODEs, with some comparisons to DeepXDE.
+- [`initial_examples`](./examples/initial_examples/): Initial scripts for testing deep neural networks for ODE/PDE solutions, and macromodels.
+- [`kan_examples`](./examples/kan_examples/): Solutions to basic ODEs, using KAN as approximators
+- [`macro_problems`](./examples/macro_problems/): 1D problem in the paper, with various parameters
+- [`paper_example`](./examples/paper_example/): Other examples in the paper, with PyMacroFin and deepXDE comparisons
+- [`pymacrofin_eg`](./examples/pymacrofin_eg/): Examples from PyMacroFin and proposition 2 from Brunnermeier and Sannikov (2014)
 
 ### Docs
 The documentation site is based on [mkdocs](https://www.mkdocs.org/) and [mkdocs-mateiral](https://squidfunk.github.io/mkdocs-material/).
