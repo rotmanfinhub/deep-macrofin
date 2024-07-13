@@ -1,5 +1,5 @@
-site_name: Eco Model Wiki
-site_description: 'Diffusitron Wiki'
+site_name: Deep-MacroFin Wiki
+site_description: 'Deep-MacroFin Wiki'
 site_author: 'Rotman Finhub'
 site_url: 'https://rotmanfinhub.github.io/deep-macrofin' # the last path should be the same as the reponame for now
 
@@ -38,14 +38,49 @@ theme:
     - navigation.sections
     - navigation.tabs
     - navigation.top
+    - content.code.copy
+    - footnotes
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.critic
+  - pymdownx.caret
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.tilde
+  - pymdownx.arithmatex:
+      generic: true
 
 extra_css:
   - assets/css/lightbox.css
   - https://use.fontawesome.com/releases/v6.4.0/css/all.css
+  # - https://unpkg.com/katex@0/dist/katex.min.css
 extra_javascript:
   - https://code.jquery.com/jquery-3.6.0.min.js
   - assets/js/lightbox.js
+  # - assets/js/katex.js
+  # - https://unpkg.com/katex@0/dist/katex.min.js
+  # - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
+  - assets/js/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
 
 # Page tree
 nav:
   - 'Home Page': 'index.md'
+  - 'API':
+    - 'deep_macrofin.models': 'api/models.md'
+    - 'deep_macrofin.evaluations': 'api/evaluations.md'
+    - 'deep_macrofin.pde_model': 'api/pde_model.md'
+    - 'deep_macrofin.utils': 'api/utils.md'
+  - 'Basic Examples':
+    - 'Discontinuous Function Approximation': 'examples/approx/discont.md'
+    - 'A simple ODE': 'examples/odes/basic_ode1.md'
+    - 'Laplace Equation Dirichlet Problem': 'examples/pdes/laplace.md'
+  - 'Economic Problems':
+    - 'Log Utility': 'examples/pymacrofin/log_utility.md'
