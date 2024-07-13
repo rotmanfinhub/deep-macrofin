@@ -39,9 +39,9 @@ theme:
     - navigation.tabs
     - navigation.top
     - content.code.copy
-    - footnotes
 
 markdown_extensions:
+  - footnotes
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
@@ -78,6 +78,7 @@ nav:
     - 'deep_macrofin.evaluations': 'api/evaluations.md'
     - 'deep_macrofin.pde_model': 'api/pde_model.md'
     - 'deep_macrofin.utils': 'api/utils.md'
+  - 'Basic Usage': 'usage.md'
   - 'Basic Examples':
     - 'Discontinuous Function Approximation': 'examples/approx/discont.md'
     - 'A simple ODE': 'examples/odes/basic_ode1.md'
