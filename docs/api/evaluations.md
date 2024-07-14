@@ -8,7 +8,7 @@ class Formula(formula_str: str, evaluation_method: Union[EvaluationMethod, str],
 
 Base class for string evaluations. Given a string representation of a formula, and a set of variables (state, value, prices, etc) in a model, parse the formula to a pytorch function that can be evaluated. 
 
-Latex equation with restricted format is supported for initialization. 
+Latex equation with restricted format is supported for initialization. When Latex is provided, it is first parsed into Python-evaluable strings with Latex-variable mappings provided by the user. For instance, to input the Cauchy-Euler equation: $x^2 y'' + 6xy' + 4y =0$, the user can either type in the raw Python string `x**2*y_xx + 6*x*y_x + 4*y = 0` or the Latex version `$x^2 * \frac{\partial^2 y}{\partial x^2} + 6*x*\frac{\partial y}{\partial x} + 4*y = 0$`. The Latex version will be internally parsed to the raw Python string version for evaluation.
 
 **Parameters**:
 
@@ -21,9 +21,9 @@ Latex equation with restricted format is supported for initialization.
     latex_var_map = {
         r"\eta_t": "eta",
         r"\rho^i": "rhoi",
-        r"\mu^{n h}_t": "munh",
-        r"\sigma^{na}_t": "signa",
-        r"\sigma^{n ia}_t": "signia",
+        r"\mu_t^{n h}": "munh",
+        r"\sigma_t^{na}": "signa",
+        r"\sigma_t^{n ia}": "signia",
         r"\sigma_t^{qa}": "sigqa",
         "c_t^i": "ci",
         "c_t^h": "ch",
