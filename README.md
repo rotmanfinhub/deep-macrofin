@@ -34,6 +34,8 @@ Various examples using the library, with comparisons to DeepXDE and PyMacroFin a
 - [`paper_example`](./examples/paper_example/): Other examples in the paper, with PyMacroFin and deepXDE comparisons
 - [`pymacrofin_eg`](./examples/pymacrofin_eg/): Examples from PyMacroFin and proposition 2 from Brunnermeier and Sannikov (2014)
 
+**Note**:  <a href="https://adriendavernas.com/pymacrofin/index.html" target="_blank">PyMacroFin</a> and <a href="https://github.com/lululxvi/deepxde/tree/master" target="_blank">DeepXDE</a> are used as benchmarks in several example, but the associated packages are not included in this repo's `requirements.txt`. To run the comparisons properly, please install their packages respectively.
+
 ### Docs
 The documentation site is based on [mkdocs](https://www.mkdocs.org/) and [mkdocs-mateiral](https://squidfunk.github.io/mkdocs-material/).
 
