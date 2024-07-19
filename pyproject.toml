@@ -7,16 +7,19 @@ packages = ["deep_macrofin"]
 
 [project]
 name = "deep_macrofin"
-version = "0.0.1"
+version = "0.0.3"
 description = "Deep neural network for solving continuous time economic models"
 readme = "README.md"
 license = {text = "MIT License"}
 authors = [
-  {name="Example Author", email="author@example.com" }
+  {name="Yuntao Wu", email="winstonyt.wu@mail.utoronto.ca" },
+  {name="Jiayuan Guo", email="flora.guo@mail.utoronto.ca" },
+  {name="Zissis Poulos", email="zpoulos@gmail.com" },
+  {name="Goutham Gopalakrishna", email="goutham.gopalakrishna@rotman.utoronto.ca" },
 ]
 requires-python = ">=3.9"
 dependencies = [
-  'numpy',
+  'numpy<2',
   'pandas',
   'torch',
   'sympy',
@@ -37,5 +40,6 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/pypa/sampleproject"
-Issues = "https://github.com/pypa/sampleproject/issues"
+Homepage = "https://github.com/rotmanfinhub/deep-macrofin"
+Issues = "https://github.com/rotmanfinhub/deep-macrofin/issues"
+Documentation = "https://rotmanfinhub.github.io/deep-macrofin"

@@ -123,7 +123,7 @@ class Formula:
     (state, value, prices, etc) in a model, parse the formula to a pytorch 
     function that can be evaluated. 
 
-    Latex equation with restricted format is supported for initialization. Note that exp, log, or similar functions from latex are not yet fully supported.
+    Latex equation with restricted format is supported for initialization. 
     '''
     
     def __init__(self, formula_str: str, evaluation_method: Union[EvaluationMethod, str], latex_var_mapping: Dict[str, str] = {}):

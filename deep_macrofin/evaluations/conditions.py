@@ -16,8 +16,8 @@ class BaseConditions:
     May also be an inequality, but it is very rare.
 
     The difference between a constraint and a condition is:
-    - a constraint can be satisfied at any state
-    - a condition must be satisfied at a specific given state
+    - a constraint must be satisfied at any state
+    - a condition is satisfied at a specific given state
 
     Parse to a loss function
     '''

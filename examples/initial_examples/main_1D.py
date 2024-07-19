@@ -38,8 +38,8 @@ def set_seeds(seed):
 ## Economic Parameters
 # Save everything in a dictionary, for clarity
 params = {
-    "gammai": 1.0,
-    "gammah": 2.0,
+    "gammai": 2.0,
+    "gammah": 5.0,
     "rhoi": 0.05,
     "rhoh": 0.05,
     "siga" : 0.2, #\sigma^{a}
@@ -85,7 +85,7 @@ class Training_Sampler():
         # a = lhs(self.params['n_pop'], N) +0.02
         # eta = a/np.sum(a, axis=1, keepdims=True)*np.ones((1,params['n_pop'])) # renormalization
         # return eta[:,:-1]
-        return np.random.uniform(0., 1., (N, 1))
+        return np.random.uniform(0.01, 0.99, (N, 1))
 
 class Training_pde():
 
@@ -219,9 +219,9 @@ para_xi         = list(Xi.parameters())  + list(Xh.parameters())+list(Wha.parame
 optimizer_xi    = optim.Adam(para_xi, lr=0.001)
 wlgm = 1
 epochs = 50
-epochs_sub1 = 10002
+epochs_sub1 = 4002
 loss_data_count = 0
-model_dir = "models/model1_gammai_1_gammah_2_new_base"
+model_dir = "models/model1_gammai_2_gammah_5"
 plot_dir = f"{model_dir}/plots/"
 output_dir = f"{model_dir}/output/"
 os.makedirs(plot_dir, exist_ok=True)
@@ -282,6 +282,7 @@ for epoch_sub in range(1,epochs_sub1):
                 #for debugging
                 #z = torch.ones((100,1)) * 0.5
                 #e = torch.linspace(0.01,0.9,100).reshape(-1,1)
+                # the following behavior would affect Adam momentum, and therefore changes the training results slightly 
                 Xi.load_state_dict(Best_model_Xi.state_dict())
                 Xh.load_state_dict(Best_model_Xh.state_dict())
                 Mue.load_state_dict(Best_model_Mue.state_dict())

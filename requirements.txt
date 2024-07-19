@@ -6,3 +6,6 @@ pyDOE
 tqdm
 matplotlib
 scikit-learn
+# Install the following for benchmarking
+# PyMacroFin
+# deepxde

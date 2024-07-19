@@ -204,13 +204,14 @@ class PDEModel:
         Add boundary/initial condition for a specific agent
 
         Input:
-        - name: agent name, 
-        - lhs: the string expression for lhs formula, latex expression not supported, should be functions of specific format agent_name(SV), or simply a constant value
-        - lhs_state: the specific value of SV to evaluate lhs at for the agent/endogenous variable
-        - comparator: 
-        - rhs: the string expression for lhs formula, latex expression not supported, should be functions of specific format agent_name(SV), or simply a constant value
-        - rhs_state: the specific value of SV to evaluate rhs at for the agent/endogenous variable, if rhs is a constant, this can be an empty dictionary
-        - label: label for the condition
+        - name: **str**, agent name, 
+        - lhs: **str**, the string expression for lhs formula, latex expression not supported, should be functions of specific format agent_name(SV), or simply a constant value
+        - lhs_state: **Dict[str, torch.Tensor]**, the specific value of SV to evaluate lhs at for the agent/endogenous variable
+        - comparator: **Comparator**
+        - rhs: **str**, the string expression for lhs formula, latex expression not supported, should be functions of specific format agent_name(SV), or simply a constant value
+        - rhs_state: **Dict[str, torch.Tensor]**, the specific value of SV to evaluate rhs at for the agent/endogenous variable, if rhs is a constant, this can be an empty dictionary
+        - label: **str** label for the condition
+        - weight: **float**, weight in total loss computation
         '''
         assert name in self.agents, f"Agent {name} does not exist"
         if label is None:
@@ -286,13 +287,14 @@ class PDEModel:
         Add boundary/initial condition for a specific endogenous var
 
         Input:
-        - name: endogenous variable name
-        - lhs: the string expression for lhs formula, latex expression not supported, should be functions of specific format endog_name(SV), or simply a constant value
-        - lhs_state: the specific value of SV to evaluate lhs at for the agent/endogenous variable
-        - comparator: 
-        - rhs: the string expression for lhs formula, latex expression not supported, should be functions of specific format endog_name(SV), or simply a constant value
-        - rhs_state: the specific value of SV to evaluate rhs at for the agent/endogenous variable, if rhs is a constant, this can be an empty dictionary
-        - label: label for the condition
+        - name: **str**, agent name, 
+        - lhs: **str**, the string expression for lhs formula, latex expression not supported, should be functions of specific format agent_name(SV), or simply a constant value
+        - lhs_state: **Dict[str, torch.Tensor]**, the specific value of SV to evaluate lhs at for the agent/endogenous variable
+        - comparator: **Comparator**
+        - rhs: **str**, the string expression for lhs formula, latex expression not supported, should be functions of specific format agent_name(SV), or simply a constant value
+        - rhs_state: **Dict[str, torch.Tensor]**, the specific value of SV to evaluate rhs at for the agent/endogenous variable, if rhs is a constant, this can be an empty dictionary
+        - label: **str** label for the condition
+        - weight: **float**, weight in total loss computation
         '''
         assert name in self.endog_vars, f"Endogenous variable {name} does not exist"
         if label is None:
