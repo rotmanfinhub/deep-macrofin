@@ -1,5 +1,6 @@
-# deepMacroFin
- Deep neural network for solving continuous time economic models
+# Deep-MacroFin
+
+Deep-MacroFin is a comprehensive deep-learning framework designed to solve partial differential equations, with a particular focus on models in continuous time economics. 
 
 ## Start developing
 

@@ -3,7 +3,7 @@
 The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/develop/examples/basic_examples/basic_odes.ipynb" target="_blank">basic_odes.ipynb</a>.
 
 ## Problem Setup
-$$\frac{dx}{dt} = 2t, x(0)=1$$
+$$\frac{dx}{dt} = 2t, x(0)=1, t\in[-2,2]$$
 
 The solution is $x(t)=t^2+1$
 
@@ -19,7 +19,9 @@ from deep_macrofin import PDEModel
 from deep_macrofin import ActivationType, Comparator, EndogVar, EndogVarConditions, EndogEquation
 ```
 
-2. Define problem.
+2. Define problem.  
+Here, we use the default training configuration, and default setup for learnable endogenous variable.
+
 ```py
 ode1 = PDEModel("ode1") # define PDE model to solve
 ode1.set_state(["t"], {"t": [-2., 2.]}) # set the state variable, which defines the dimensionality of the problem
