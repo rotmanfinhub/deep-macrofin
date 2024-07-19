@@ -1,0 +1,11 @@
+numpy<2
+pandas
+torch
+sympy
+pyDOE
+tqdm
+matplotlib
+scikit-learn
+# Install the following for benchmarking
+# PyMacroFin
+# deepxde
