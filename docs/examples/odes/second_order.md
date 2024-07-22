@@ -1,4 +1,4 @@
-# Second-order ODE
+# Second-Order ODE
 
 The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/basic_examples/basic_odes2.ipynb" target="_blank">basic_odes2.ipynb</a>.
 
