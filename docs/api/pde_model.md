@@ -81,7 +81,7 @@ Add boundary/initial condition for a specific agent with associated weight
 - comparator: **Comparator**
 - rhs: **str**, the string expression for lhs formula, latex expression not supported, should be functions of specific format agent_name(SV), or simply a constant value
 - rhs_state: **Dict[str, torch.Tensor]**, the specific value of SV to evaluate rhs at for the agent/endogenous variable, if rhs is a constant, this can be an empty dictionary
-- label: **str** label for the condition
+- label: **str** label for the condition, by default, it will self-increment `agent_cond_1`, `agent_cond_2`,...
 - weight: **float**, weight in total loss computation
 
 
@@ -126,7 +126,7 @@ Add boundary/initial condition for a specific endogenous variable with associate
 - comparator: **Comparator**
 - rhs: **str**, the string expression for lhs formula, latex expression not supported, should be functions of specific format agent_name(SV), or simply a constant value
 - rhs_state: **Dict[str, torch.Tensor]**, the specific value of SV to evaluate rhs at for the agent/endogenous variable, if rhs is a constant, this can be an empty dictionary
-- label: **str** label for the condition
+- label: **str** label for the condition, by default, it will self-increment `endog_cond_1`, `endog_cond_2`,...
 - weight: **float**, weight in total loss computation
 
 
