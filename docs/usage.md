@@ -274,6 +274,159 @@ After the model is defined, `train_model` ([API](./api/pde_model.md#train_model)
 
 `train_model` will print out the full model configurations and save the best and final models. Losses will be logged every `loss_log_interval` epochs during training in a csv file for plotting. Examples can be found in [Basic Examples](./examples/approx/discont.md).
 
+### Print the Model
+For easier debugging on the model setup and equation typing, `print(pde_model)` prints out a detailed configuration of the model. The following is a sample print out of [log utility problem](./examples/pymacrofin/log_utility.md). The same summary is logged in the log file for each model. 
+
+```
+=====================Summary of Model BruSan14_log_utility======================
+Config: {
+ "batch_size": 100,
+ "num_epochs": 100,
+ "lr": 0.001,
+ "loss_log_interval": 10,
+ "optimizer_type": "Adam"
+}
+Latex Variable Mapping:
+{
+ "\\sigma_t^q": "sigq",
+ "\\sigma_t^\\theta": "sigtheta",
+ "\\sigma_t^\\eta": "sige",
+ "\\mu_t^\\eta": "mue",
+ "\\mu_t^q": "muq",
+ "\\mu_t^\\theta": "mutheta",
+ "\\rho": "rho",
+ "\\underline{a}": "ah",
+ "\\underline{\\delta}": "deltah",
+ "\\delta": "deltae",
+ "\\sigma": "sig",
+ "\\kappa": "kappa",
+ "\\eta": "e",
+ "\\theta": "theta",
+ "\\psi": "psi",
+ "\\iota": "iota",
+ "\\Phi": "phi"
+}
+User Defined Parameters:
+{
+ "sig": 0.1,
+ "deltae": 0.05,
+ "deltah": 0.05,
+ "rho": 0.06,
+ "r": 0.05,
+ "a": 0.11,
+ "ah": 0.07,
+ "kappa": 2
+}
+
+================================State Variables=================================
+e: [0.0, 1.0]
+
+=====================================Agents=====================================
+
+================================Agent Conditions================================
+
+==============================Endogenous Variables==============================
+Endogenous Variable Name: q
+EndogVar(
+  (model): Sequential(
+    (linear_0): Linear(in_features=1, out_features=30, bias=True)
+    (activation_0): Tanh()
+    (linear_1): Linear(in_features=30, out_features=30, bias=True)
+    (activation_1): Tanh()
+    (linear_2): Linear(in_features=30, out_features=30, bias=True)
+    (activation_2): Tanh()
+    (linear_3): Linear(in_features=30, out_features=30, bias=True)
+    (activation_3): Tanh()
+    (final_layer): Linear(in_features=30, out_features=1, bias=True)
+    (positive_act): Softplus(beta=1.0, threshold=20.0)
+  )
+)
+Num parameters: 2881
+--------------------------------------------------------------------------------
+Endogenous Variable Name: psi
+EndogVar(
+  (model): Sequential(
+    (linear_0): Linear(in_features=1, out_features=30, bias=True)
+    (activation_0): Tanh()
+    (linear_1): Linear(in_features=30, out_features=30, bias=True)
+    (activation_1): Tanh()
+    (linear_2): Linear(in_features=30, out_features=30, bias=True)
+    (activation_2): Tanh()
+    (linear_3): Linear(in_features=30, out_features=30, bias=True)
+    (activation_3): Tanh()
+    (final_layer): Linear(in_features=30, out_features=1, bias=True)
+    (positive_act): Softplus(beta=1.0, threshold=20.0)
+  )
+)
+Num parameters: 2881
+--------------------------------------------------------------------------------
+
+========================Endogenous Variables Conditions=========================
+endogvar_q_cond_q_min: q(SV)=(2*ah*kappa + (kappa*r)**2 + 1)**0.5 - kappa*r with LHS evaluated at SV=[[0.0]] and RHS evaluated at sig=0.1deltae=0.05deltah=0.05rho=0.06r=0.05a=0.11ah=0.07kappa=2
+Loss weight: 1.0
+--------------------------------------------------------------------------------
+
+===================================Equations====================================
+eq_1: 
+Raw input: $\iota = \frac{q^2-1}{ 2 * \kappa}$
+Parsed: iota=(q**(2)-1)/( 2 * kappa)
+eq_2: 
+Raw input: $\sigma_t^q = \frac{\sigma}{1 - \frac{1}{q} * \frac{\partial q}{\partial \eta} * (\psi - \eta)} - \sigma$
+Parsed: sigq=(sig)/(1 - (1)/(q) * q_e * (psi - e)) - sig
+eq_3: 
+Raw input: $\sigma_t^\eta = \frac{\psi - \eta}{\eta} * (\sigma + \sigma_t^q)$
+Parsed: sige=(psi - e)/(e) * (sig + sigq)
+eq_4: 
+Raw input: $\mu_t^\eta = (\sigma_t^\eta)^2 + \frac{a - \iota}{q} + (1-\psi) * (\underline{\delta} - \delta) - \rho$
+Parsed: mue=(sige)**(2) + (a - iota)/(q) + (1-psi) * (deltah - deltae) - rho
+
+==============================Endogenous Equations==============================
+endogeq_1: 
+Raw input: $(\sigma + \sigma_t^q) ^2 * (\psi / \eta - (1-\psi) / (1-\eta)) = \frac{a - \underline{a}}{q} + \underline{\delta} - \delta$
+Parsed: (sig + sigq) **(2) * (psi / e - (1-psi) / (1-e))=(a - ah)/(q) + deltah - deltae
+Loss weight: 1.0
+--------------------------------------------------------------------------------
+
+==================================Constraints===================================
+constraint_1: psi<=1
+Loss weight: 1.0
+--------------------------------------------------------------------------------
+
+=================================HJB Equations==================================
+
+====================================Systems=====================================
+non-opt: 
+Activation Constraints:
+non-opt: psi<1
+===============Equations================
+
+==========Endogenous Equations==========
+system_non-opt_endogeq_1: 
+Raw input: $(r*(1-\eta) + \rho * \eta) * q = \psi * a + (1-\psi) * \underline{a} - \iota$
+Parsed: (r*(1-e) + rho * e) * q=psi * a + (1-psi) * ah - iota
+Loss weight: 1.0
+----------------------------------------
+
+System loss weight: 1.0
+--------------------------------------------------------------------------------
+opt: 
+Activation Constraints:
+opt: psi>=1
+===============Equations================
+
+==========Endogenous Equations==========
+system_opt_endogeq_1: 
+Raw input: $(r*(1-\eta) + \rho * \eta) * q = a - \iota$
+Parsed: (r*(1-e) + rho * e) * q=a - iota
+Loss weight: 1.0
+----------------------------------------
+
+System loss weight: 1.0
+--------------------------------------------------------------------------------
+```
+
+When errors are found in equation validation before training begins, the system will save an error log.
+
 ## Plot
 Once the models are trained, there are several values that can be plotted. However, plottings are only supported for 1D and 2D models.
 

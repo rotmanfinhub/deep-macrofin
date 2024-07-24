@@ -14,6 +14,12 @@ class OptimizerType(str, Enum):
     AdamW = "AdamW"
     LBFGS = "LBFGS"
 
+OPTIMIZER_MAP = {
+    OptimizerType.Adam: torch.optim.Adam,
+    OptimizerType.AdamW: torch.optim.AdamW,
+    OptimizerType.LBFGS: torch.optim.LBFGS
+}
+
 def set_seeds(seed):
     random.seed(seed)
     np.random.seed(seed)

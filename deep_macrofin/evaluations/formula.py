@@ -53,7 +53,9 @@ def latex_parsing_fractions(formula_str: str):
             if "^" in var:
                 # higher order of a single variable
                 var_name, var_power = var.split("^")
-                variables[i] = var_name * int(var_power)
+                variables[i] = var_name.strip() * int(var_power.strip())
+            else:
+                variables[i] = var.strip()
         return function_name + "_" + "".join(variables)
     
     def fraction_match(match: re.Match):

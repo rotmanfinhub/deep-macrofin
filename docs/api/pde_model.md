@@ -166,6 +166,13 @@ def add_system(self, system: System, weight=1.0)
 
 Add a [System](evaluations.md#system) for loss computation.
 
+### set_config
+```py
+def set_config(self, config: Dict[str, Any] = DEFAULT_CONFIG)
+```
+
+This function overwrites the existing configurations. Can be used for L-BFGS finetuning
+
 ### train_model
 ```py
 def train_model(self, model_dir: str="./", filename: str=None, full_log=False)

@@ -374,18 +374,10 @@ class PDEModel:
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
         self.loss_weight_dict[label] = weight
 
-    def update_variables(self):
+    def update_variables(self, SV):
         '''
-        Randomly sample the state variables, 
         update the agent/endogenous variables and variables defined by users using equations
         '''
-        SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
-                         high=self.state_variable_constraints["sv_high"], 
-                         size=(self.batch_size, len(self.state_variables)))
-        SV = torch.Tensor(SV).to(self.device)
-        for i, sv_name in enumerate(self.state_variables):
-            self.variable_val_dict[sv_name] = SV[:, i:i+1]
-
         # properly update variables, including agent, endogenous variables, their derivatives
         for func_name in self.local_function_dict:
             self.variable_val_dict[func_name] = self.local_function_dict[func_name](SV)
@@ -426,36 +418,22 @@ class PDEModel:
         for label in self.systems:
             self.loss_val_dict[label] = self.systems[label].eval({}, self.variable_val_dict)
 
-    def closure(self):
-        self.optimizer.zero_grad()
-        self.update_variables()
+    def closure(self, SV):
+        self.update_variables(SV)
         self.loss_fn()
         total_loss = 0
         for loss_label, loss in self.loss_val_dict.items():
             total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
-        
+
+        self.optimizer.zero_grad()
         total_loss.backward()
-        return total_loss
+        return total_loss        
 
-    def train_step(self):
-        '''
-        initialize random state variable with proper constraints, compute loss and update parameters
-        '''
-        self.optimizer.step(self.closure)
-        total_loss = 0
-        for loss_label, loss in self.loss_val_dict.items():
-            total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
-
-        loss_dict = self.loss_val_dict.copy()
-        loss_dict["total_loss"] = total_loss
-        return loss_dict
-        
-
-    def test_step(self):
+    def test_step(self, SV):
         '''
         initialize random state variable with proper constraints, compute loss
         '''
-        self.update_variables()
+        self.update_variables(SV)
         self.loss_fn()
         total_loss = 0
         for loss_label, loss in self.loss_val_dict.items():
@@ -477,6 +455,25 @@ class PDEModel:
         for endog_var_name in self.endog_vars:
             self.endog_vars[endog_var_name].eval()
     
+    def set_config(self, config: Dict[str, Any] = DEFAULT_CONFIG):
+        '''
+        This function overwrites the existing configurations.
+
+        DEFAULT_CONFIG={
+            "batch_size": 100,
+            "num_epochs": 1000,
+            "lr": 1e-3,
+            "loss_log_interval": 100,
+            "optimizer_type": OptimizerType.AdamW,
+        }
+        '''
+        self.config.update(config)
+        self.batch_size = self.config.get("batch_size", 100)
+        self.num_epochs = self.config.get("num_epochs", 1000)
+        self.lr = self.config.get("lr", 1e-3)
+        self.loss_log_interval = self.config.get("loss_log_interval", 100)
+        self.optimizer_type = self.config.get("optimizer_type", OptimizerType.AdamW)
+
     def train_model(self, model_dir: str="./", filename: str=None, full_log=False):
         '''
         The entire loop of training
@@ -500,14 +497,8 @@ class PDEModel:
             # KAN can only be trained with LBFGS, 
             # as long as there is one model with KAN, we must route to the default LBFGS
             self.optimizer = LBFGS(all_params, lr=self.lr, history_size=10, line_search_fn="strong_wolfe", tolerance_grad=1e-32, tolerance_change=1e-32, tolerance_ys=1e-32)
-        elif self.optimizer_type == OptimizerType.Adam:
-            self.optimizer = torch.optim.Adam(all_params, self.lr)
-        elif self.optimizer_type == OptimizerType.AdamW:
-            self.optimizer = torch.optim.AdamW(all_params, self.lr)
-        elif self.optimizer_type == OptimizerType.LBFGS:
-            self.optimizer = torch.optim.LBFGS(all_params, self.lr)
         else:
-            raise NotImplementedError("Unsupported optimizer type")
+            self.optimizer = OPTIMIZER_MAP[self.optimizer_type](all_params, self.lr)
 
         os.makedirs(model_dir, exist_ok=True)
         if filename is None:
@@ -535,7 +526,20 @@ class PDEModel:
         for epoch in pbar:
             epoch_start_time = time.time()
             
-            loss_dict = self.train_step()
+            SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
+                         high=self.state_variable_constraints["sv_high"], 
+                         size=(self.batch_size, len(self.state_variables)))
+            SV = torch.Tensor(SV).to(self.device)
+            for i, sv_name in enumerate(self.state_variables):
+                self.variable_val_dict[sv_name] = SV[:, i:i+1]
+
+            self.optimizer.step(lambda: self.closure(SV))
+            total_loss = 0
+            for loss_label, loss in self.loss_val_dict.items():
+                total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
+
+            loss_dict = self.loss_val_dict.copy()
+            loss_dict["total_loss"] = total_loss
 
             if full_log:
                 formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
@@ -564,27 +568,6 @@ class PDEModel:
 
         return loss_dict
     
-    def update_variables2(self, SV):
-        # properly update variables, including agent, endogenous variables, their derivatives
-        for func_name in self.local_function_dict:
-            self.variable_val_dict[func_name] = self.local_function_dict[func_name](SV)
-
-        # properly update variables, using equations
-        for eq_name in self.equations:
-            lhs = self.equations[eq_name].lhs.formula_str
-            self.variable_val_dict[lhs] = self.equations[eq_name].eval({}, self.variable_val_dict)
-
-    def closure2(self, SV):
-        self.optimizer.zero_grad()
-        self.update_variables2(SV)
-        self.loss_fn()
-        total_loss = 0
-        for loss_label, loss in self.loss_val_dict.items():
-            total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
-        
-        total_loss.backward()
-        return total_loss
-    
     def train_model_active_learning(self, active_learning_regions: List[List[float]]=[], model_dir: str="./", filename: str=None, full_log=False):
         '''
         The entire loop of training
@@ -608,14 +591,8 @@ class PDEModel:
             # KAN can only be trained with LBFGS, 
             # as long as there is one model with KAN, we must route to the default LBFGS
             self.optimizer = LBFGS(all_params, lr=self.lr, history_size=10, line_search_fn="strong_wolfe", tolerance_grad=1e-32, tolerance_change=1e-32, tolerance_ys=1e-32)
-        elif self.optimizer_type == OptimizerType.Adam:
-            self.optimizer = torch.optim.Adam(all_params, self.lr)
-        elif self.optimizer_type == OptimizerType.AdamW:
-            self.optimizer = torch.optim.AdamW(all_params, self.lr)
-        elif self.optimizer_type == OptimizerType.LBFGS:
-            self.optimizer = torch.optim.LBFGS(all_params, self.lr)
         else:
-            raise NotImplementedError("Unsupported optimizer type")
+            self.optimizer = OPTIMIZER_MAP[self.optimizer_type](all_params, self.lr)
 
         os.makedirs(model_dir, exist_ok=True)
         if filename is None:
@@ -656,7 +633,7 @@ class PDEModel:
             for i, sv_name in enumerate(self.state_variables):
                 self.variable_val_dict[sv_name] = SV[:, i:i+1]
 
-            self.optimizer.step(lambda: self.closure2(SV))
+            self.optimizer.step(lambda: self.closure(SV))
             total_loss = 0
             for loss_label, loss in self.loss_val_dict.items():
                 total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
@@ -699,7 +676,13 @@ class PDEModel:
         self.validate_model_setup()
         self.set_all_model_eval()
         print("{0:=^80}".format("Evaluating"))
-        loss_dict = self.test_step()
+        SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
+                         high=self.state_variable_constraints["sv_high"], 
+                         size=(self.batch_size, len(self.state_variables)))
+        SV = torch.Tensor(SV).to(self.device)
+        for i, sv_name in enumerate(self.state_variables):
+            self.variable_val_dict[sv_name] = SV[:, i:i+1]
+        loss_dict = self.test_step(SV)
 
         if full_log:
             formatted_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
