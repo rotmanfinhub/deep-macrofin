@@ -21,7 +21,6 @@ from deep_macrofin import ActivationType, Comparator, EndogVar, EndogVarConditio
 
 2. Define problem.  
 Here, we use the default training configuration, and default setup for learnable endogenous variable.
-
 ```py
 ode = PDEModel("second_order_linear", config={"num_epochs": 10000}) # define PDE model to solve
 ode.set_state(["t"], {"t": [0., 0.25]}) # set the state variable, which defines the dimensionality of the problem
