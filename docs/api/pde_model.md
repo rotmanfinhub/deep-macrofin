@@ -233,4 +233,3 @@ def plot_vars(self, vars_to_plot: List[str], ncols: int=4)
 - vars_to_plot: **List[str]**, variable names to plot, can be an equation defining a new variable. If Latex, need to be enclosed by $$ symbols
 - ncols: **int**, number of columns to plot, default: 4
 
-**Warning**: This function is only supported for 1D state variables. For simple plots of 2D Agents/Endogenous Variables or their derivatives, use [LearnableVar.plot](models.md#plot).

@@ -498,9 +498,9 @@ class PDEModel:
         sv_ls = [0] * len(self.state_variables)
         for i in range(len(self.state_variables)):
             sv_ls[i] = torch.linspace(self.state_variable_constraints["sv_low"][i], 
-                                      self.state_variable_constraints["sv_high"][i], steps=20, device=self.device)
-        SV = torch.meshgrid(sv_ls)
-        return torch.cat([t.reshape(-1, 1) for t in SV], dim=1)
+                                      self.state_variable_constraints["sv_high"][i], 
+                                      steps=self.batch_size, device=self.device)
+        return torch.cartesian_prod(*sv_ls)
 
     def train_model(self, model_dir: str="./", filename: str=None, full_log=False):
         '''
@@ -997,17 +997,20 @@ class PDEModel:
         var_to_latex = {}
         for k, v in self.latex_var_mapping.items():
             var_to_latex[v] = k
-        X = []
-        for sv in self.state_variables:
-            x_lims = self.state_variable_constraints[sv]
-            X.append(np.linspace(x_lims[0], x_lims[1], 100))
-        X = np.stack(X).T
+
+        sv_ls = [0] * len(self.state_variables)
+        for i in range(len(self.state_variables)):
+            sv_ls[i] = torch.linspace(self.state_variable_constraints["sv_low"][i], 
+                                      self.state_variable_constraints["sv_high"][i], steps=100, device=self.device)
+        X = torch.cartesian_prod(*sv_ls)
         
         nrows = len(vars_to_plot) // ncols
         if len(vars_to_plot) % ncols > 0:
             nrows += 1
         if len(self.state_variables) == 1:
-            SV = torch.Tensor(X)
+            fig, ax = plt.subplots(nrows, ncols, figsize=(ncols * 4, nrows * 4))
+            SV = X.unsqueeze(-1)
+            X = X.detach().cpu().numpy().reshape(-1)
             for i, sv_name in enumerate(self.state_variables):
                 variable_var_dict_[sv_name] = SV[:, i:i+1]
             # properly update variables, including agent, endogenous variables, their derivatives
@@ -1018,7 +1021,6 @@ class PDEModel:
             for eq_name in self.equations:
                 lhs = self.equations[eq_name].lhs.formula_str
                 variable_var_dict_[lhs] = self.equations[eq_name].eval({}, variable_var_dict_)
-            fig, ax = plt.subplots(nrows, ncols, figsize=(ncols * 6, nrows * 6))
 
             sv_text = self.state_variables[0]
             if self.state_variables[0] in var_to_latex:
@@ -1037,7 +1039,7 @@ class PDEModel:
                         curr_eq = Equation(curr_var, f"plot_eq{i}", self.latex_var_mapping)
                         lhs = curr_eq.lhs.formula_str
                         variable_var_dict_[lhs] = curr_eq.eval({}, variable_var_dict_)
-                        curr_ax.plot(X.reshape(-1), variable_var_dict_[lhs].detach().cpu().numpy().reshape(-1))
+                        curr_ax.plot(X, variable_var_dict_[lhs].detach().cpu().numpy().reshape(-1))
                         curr_ax.set_xlabel(sv_text)
                         lhs_unparsed = curr_var.split("=")[0].replace("$", "").strip()
                         curr_ax.set_ylabel(f"${lhs_unparsed}$")
@@ -1045,7 +1047,7 @@ class PDEModel:
                     else:
                         base_var = curr_var.replace("$", "").strip()
                         base_var_non_latex = self.latex_var_mapping.get(base_var, base_var)
-                        curr_ax.plot(X.reshape(-1), variable_var_dict_[base_var_non_latex].detach().cpu().numpy().reshape(-1))
+                        curr_ax.plot(X, variable_var_dict_[base_var_non_latex].detach().cpu().numpy().reshape(-1))
                         curr_ax.set_xlabel(sv_text)
                         curr_ax.set_ylabel(curr_var)
                         curr_ax.set_title(f"{curr_var} vs {sv_text}")
@@ -1054,18 +1056,84 @@ class PDEModel:
                         curr_eq = Equation(curr_var, f"plot_eq{i}", self.latex_var_mapping)
                         lhs = curr_eq.lhs.formula_str
                         variable_var_dict_[lhs] = curr_eq.eval({}, variable_var_dict_)
-                        curr_ax.plot(X.reshape(-1), variable_var_dict_[lhs].detach().cpu().numpy().reshape(-1))
+                        curr_ax.plot(X, variable_var_dict_[lhs].detach().cpu().numpy().reshape(-1))
                         curr_ax.set_xlabel(sv_text)
                         curr_ax.set_ylabel(lhs)
                         curr_ax.set_title(f"{lhs} vs {sv_text}")
                     else:
-                        curr_ax.plot(X.reshape(-1), variable_var_dict_[curr_var].detach().cpu().numpy().reshape(-1))
+                        curr_ax.plot(X, variable_var_dict_[curr_var].detach().cpu().numpy().reshape(-1))
                         curr_ax.set_xlabel(sv_text)
                         curr_ax.set_ylabel(curr_var)
                         curr_ax.set_title(f"{curr_var} vs {sv_text}")
             plt.tight_layout()
             plt.show()
         else:
-            raise NotImplementedError("Plotting additional variables is not yet supported for 2D problems. Plot functions in Agent and EndogVar are available.")
-            fig, ax = plt.subplots(nrows, ncols, figsize=(ncols * 6, nrows * 6), subplot_kw={"projection": "3d"})
+            fig, ax = plt.subplots(nrows, ncols, figsize=(ncols * 4, nrows * 4), subplot_kw={"projection": "3d"})
+            SV = torch.clone(X)
+            X, Y = torch.meshgrid(sv_ls, indexing="ij")
+            for i, sv_name in enumerate(self.state_variables):
+                variable_var_dict_[sv_name] = SV[:, i:i+1]
+            # properly update variables, including agent, endogenous variables, their derivatives
+            for func_name in self.local_function_dict:
+                variable_var_dict_[func_name] = self.local_function_dict[func_name](SV)
+
+            # properly update variables, using equations
+            for eq_name in self.equations:
+                lhs = self.equations[eq_name].lhs.formula_str
+                variable_var_dict_[lhs] = self.equations[eq_name].eval({}, variable_var_dict_)
+
+            sv_text0 = self.state_variables[0]
+            sv_text1 = self.state_variables[1]
+            if self.state_variables[0] in var_to_latex:
+                sv_text0 = f"${var_to_latex[self.state_variables[0]]}$"
+            if self.state_variables[1] in var_to_latex:
+                sv_text1 = f"${var_to_latex[self.state_variables[1]]}$"
+
+            for i, curr_var in enumerate(vars_to_plot):
+                curr_row = i // ncols
+                curr_col = i % ncols
+                if nrows == 1:
+                    curr_ax = ax[curr_col]
+                else:
+                    curr_ax = ax[curr_row][curr_col]
+                if "$" in curr_var:
+                    # parse latex and potentially equation
+                    if "=" in curr_var:
+                        curr_eq = Equation(curr_var, f"plot_eq{i}", self.latex_var_mapping)
+                        lhs = curr_eq.lhs.formula_str
+                        variable_var_dict_[lhs] = curr_eq.eval({}, variable_var_dict_)
+                        curr_ax.plot_surface(X, Y, variable_var_dict_[lhs].detach().cpu().numpy().reshape(100, 100))
+                        curr_ax.set_xlabel(sv_text0)
+                        curr_ax.set_ylabel(sv_text1)
+                        lhs_unparsed = curr_var.split("=")[0].replace("$", "").strip()
+                        curr_ax.set_zlabel(f"${lhs_unparsed}$")
+                        curr_ax.set_title(f"${lhs_unparsed}$ vs ({sv_text0}, {sv_text1})")
+                    else:
+                        base_var = curr_var.replace("$", "").strip()
+                        base_var_non_latex = self.latex_var_mapping.get(base_var, base_var)
+                        curr_ax.plot_surface(X, Y, variable_var_dict_[base_var_non_latex].detach().cpu().numpy().reshape(100, 100))
+                        curr_ax.set_xlabel(sv_text0)
+                        curr_ax.set_ylabel(sv_text1)
+                        curr_ax.set_zlabel(curr_var)
+                        curr_ax.set_title(f"{curr_var} vs ({sv_text0}, {sv_text1})")
+                else:
+                    if "=" in curr_var:
+                        curr_eq = Equation(curr_var, f"plot_eq{i}", self.latex_var_mapping)
+                        lhs = curr_eq.lhs.formula_str
+                        variable_var_dict_[lhs] = curr_eq.eval({}, variable_var_dict_)
+                        curr_ax.plot_surface(X, Y, variable_var_dict_[lhs].detach().cpu().numpy().reshape(100, 100))
+                        curr_ax.set_xlabel(sv_text0)
+                        curr_ax.set_ylabel(sv_text1)
+                        curr_ax.set_zlabel(curr_var)
+                        curr_ax.set_title(f"{lhs} vs ({sv_text0}, {sv_text1})")
+                    else:
+                        curr_ax.plot_surface(X, Y, variable_var_dict_[curr_var].detach().cpu().numpy().reshape(100, 100))
+                        curr_ax.set_xlabel(sv_text0)
+                        curr_ax.set_ylabel(sv_text1)
+                        curr_ax.set_zlabel(curr_var)
+                        curr_ax.set_title(f"{curr_var} vs ({sv_text0}, {sv_text1})")
+                curr_ax.view_init(30, -135, 0)
+                curr_ax.set_box_aspect(None, zoom=0.85)
+            plt.tight_layout()
+            plt.show()
 

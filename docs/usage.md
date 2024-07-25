@@ -482,8 +482,14 @@ pde_model.plot_vars([
     r"$rp = r_t^{ka} - r_t $"])
 ```
 
-**Note**: Currently, this functionality is only supported for 1D models.
-> TODO: support variable number of columns and 2D plots in later versions.
+The following code will plot $q_t^a, \sigma_t^{qa}, w_t^{ia}, w_t^{ha}$ in a 2x2 grid.
+```py
+pde_model.plot_vars([
+    r"$q_t^a$", 
+    r"$\sigma_t^{qa}$", 
+    r"$w_t^{ia}$", 
+    r"$w_t^{ha}$"], ncols=2)
+```
 
 ### Plot Loss
 `plot_loss_df` ([API](./api/utils.md#plot_loss_df)) plots losses in the logged csv file.
