@@ -985,7 +985,7 @@ The full solution for KAN result can be found at <a href="https://github.com/rot
 </li>
 <li>
 <p>Define problem<br />
-Here, we set up the state variable, endogenous equation, and initial conditions.
+Here, we set up the endogenous variable, endogenous equation, and initial conditions.
 <div class="language-py highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">ode</span> <span class="o">=</span> <span class="n">PDEModel</span><span class="p">(</span><span class="s2">&quot;cauchy_euler&quot;</span><span class="p">)</span> <span class="c1"># define PDE model to solve</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">ode</span><span class="o">.</span><span class="n">set_state</span><span class="p">([</span><span class="s2">&quot;x&quot;</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">2.</span><span class="p">]})</span> <span class="c1"># set the state variable, which defines the dimensionality of the problem</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">ode</span><span class="o">.</span><span class="n">add_endog</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">)</span> <span class="c1"># we use endogenous variable to represent the function we want to approximate</span>
