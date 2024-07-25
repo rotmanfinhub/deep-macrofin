@@ -1,7 +1,7 @@
 # Second-Order ODE
 
 The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/basic_examples/basic_odes2.ipynb" target="_blank">basic_odes2.ipynb</a>.
-DeepXDE result can be found at <a href="https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.2nd.html" target="_blank">DeepXDE website</a>.
+DeepXDE result can be found at their <a href="https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.2nd.html" target="_blank">website</a>.
 
 ## Problem Setup
 $$y''-10y'+9y=5t, y(0)=-1, y'(0)=2$$
