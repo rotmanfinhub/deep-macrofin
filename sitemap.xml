@@ -51,11 +51,6 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://rotmanfinhub.github.io/deep-macrofin/examples/odes/cauchy_mlp/</loc>
-         <lastmod>2024-07-25</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/examples/odes/predator_prey/</loc>
          <lastmod>2024-07-25</lastmod>
          <changefreq>daily</changefreq>
