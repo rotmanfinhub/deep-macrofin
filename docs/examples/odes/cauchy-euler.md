@@ -1,7 +1,6 @@
 # Cauchy-Euler Equation
 
-The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/develop/examples/basic_examples/basic_odes.ipynb" target="_blank">basic_odes.ipynb</a>.
-The full solution for KAN result can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/develop/examples/paper_example/basic_ode.ipynb" target="_blank">basic_ode.ipynb</a>.
+The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/paper_example/base_ode.ipynb" target="_blank">base_ode.ipynb</a>.
 
 ## Problem Setup
 $$ x^2 y'' + 6xy' + 4y =0, y(1)=6, y(2)=\frac{5}{4}$$
