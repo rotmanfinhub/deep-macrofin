@@ -41,6 +41,7 @@ class PDEModel:
             "lr": 1e-3,
             "loss_log_interval": 100,
             "optimizer_type": OptimizerType.AdamW,
+            "sampling_method": SamplingMethod.UniformRandom
         }
 
         loss_log_interval: the interval at which loss should be reported/recorded
@@ -50,11 +51,20 @@ class PDEModel:
         self.name = name
         self.config = DEFAULT_CONFIG.copy()
         self.config.update(config)
-        self.batch_size = config.get("batch_size", 100)
-        self.num_epochs = config.get("num_epochs", 1000)
-        self.lr = config.get("lr", 1e-3)
-        self.loss_log_interval = config.get("loss_log_interval", 100)
-        self.optimizer_type = config.get("optimizer_type", OptimizerType.AdamW)
+        self.batch_size = self.config.get("batch_size", 100)
+        self.num_epochs = self.config.get("num_epochs", 1000)
+        self.lr = self.config.get("lr", 1e-3)
+        self.loss_log_interval = self.config.get("loss_log_interval", 100)
+        self.optimizer_type = self.config.get("optimizer_type", OptimizerType.AdamW)
+        self.sampling_method = self.config.get("sampling_method", SamplingMethod.UniformRandom)
+
+        self.SAMPLING_METHOD_MAP = {
+            SamplingMethod.UniformRandom: self.sample_uniform,
+            SamplingMethod.FixedGrid: self.sample_fixed_grid,
+            SamplingMethod.ActiveLearning: self.sample_fixed_grid
+        }
+        self.sample = self.SAMPLING_METHOD_MAP[self.sampling_method]
+
         self.latex_var_mapping = latex_var_mapping
         
         self.state_variables = []
@@ -465,6 +475,7 @@ class PDEModel:
             "lr": 1e-3,
             "loss_log_interval": 100,
             "optimizer_type": OptimizerType.AdamW,
+            "sampling_method": SamplingMethod.UniformRandom
         }
         '''
         self.config.update(config)
@@ -473,6 +484,23 @@ class PDEModel:
         self.lr = self.config.get("lr", 1e-3)
         self.loss_log_interval = self.config.get("loss_log_interval", 100)
         self.optimizer_type = self.config.get("optimizer_type", OptimizerType.AdamW)
+        self.sampling_method = self.config.get("sampling_method", SamplingMethod.UniformRandom)
+        self.sample = self.SAMPLING_METHOD_MAP[self.sampling_method]
+
+    
+    def sample_uniform(self):
+        SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
+                         high=self.state_variable_constraints["sv_high"], 
+                         size=(self.batch_size, len(self.state_variables)))
+        return torch.Tensor(SV).to(self.device)
+    
+    def sample_fixed_grid(self):
+        sv_ls = [0] * len(self.state_variables)
+        for i in range(len(self.state_variables)):
+            sv_ls[i] = torch.linspace(self.state_variable_constraints["sv_low"][i], 
+                                      self.state_variable_constraints["sv_high"][i], steps=20, device=self.device)
+        SV = torch.meshgrid(sv_ls)
+        return torch.cat([t.reshape(-1, 1) for t in SV], dim=1)
 
     def train_model(self, model_dir: str="./", filename: str=None, full_log=False):
         '''
@@ -526,10 +554,7 @@ class PDEModel:
         for epoch in pbar:
             epoch_start_time = time.time()
             
-            SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
-                         high=self.state_variable_constraints["sv_high"], 
-                         size=(self.batch_size, len(self.state_variables)))
-            SV = torch.Tensor(SV).to(self.device)
+            SV = self.sample()
             for i, sv_name in enumerate(self.state_variables):
                 self.variable_val_dict[sv_name] = SV[:, i:i+1]
 
@@ -676,10 +701,7 @@ class PDEModel:
         self.validate_model_setup()
         self.set_all_model_eval()
         print("{0:=^80}".format("Evaluating"))
-        SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
-                         high=self.state_variable_constraints["sv_high"], 
-                         size=(self.batch_size, len(self.state_variables)))
-        SV = torch.Tensor(SV).to(self.device)
+        SV = self.sample()
         for i, sv_name in enumerate(self.state_variables):
             self.variable_val_dict[sv_name] = SV[:, i:i+1]
         loss_dict = self.test_step(SV)
@@ -707,14 +729,15 @@ class PDEModel:
         self.systems,
         '''
         errors = []
-        sv = torch.rand((self.batch_size, len(self.state_variables)), device=self.device)
+        sv = self.sample()
+        variable_val_dict_ = self.variable_val_dict.copy()
         for i, sv_name in enumerate(self.state_variables):
-            self.variable_val_dict[sv_name] = sv[:, i:i+1]
+            variable_val_dict_[sv_name] = sv[:, i:i+1]
 
         for agent_name in self.agents:
             try:
                 y = self.agents[agent_name].forward(sv)
-                assert y.shape[0] == self.batch_size and y.shape[1] == 1
+                assert y.shape[0] == sv.shape[0] and y.shape[1] == 1
             except Exception as e:
                 errors.append({
                     "label": agent_name, 
@@ -724,12 +747,15 @@ class PDEModel:
         for endog_var_name in self.endog_vars:
             try:
                 y = self.endog_vars[endog_var_name].forward(sv)
-                assert y.shape[0] == self.batch_size and y.shape[1] == 1
+                assert y.shape[0] == sv.shape[0] and y.shape[1] == 1
             except Exception as e:
                 errors.append({
                     "label": endog_var_name,
                     "error": str(e),
                 })
+        
+        for func_name in self.local_function_dict:
+            variable_val_dict_[func_name] = self.local_function_dict[func_name](sv)
 
         for label in self.agent_conditions:
             try:
@@ -758,7 +784,8 @@ class PDEModel:
         
         for label in self.equations:
             try:
-                self.equations[label].eval({}, self.variable_val_dict)
+                lhs = self.equations[label].lhs.formula_str
+                variable_val_dict_[lhs] = self.equations[label].eval({}, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
@@ -771,7 +798,7 @@ class PDEModel:
 
         for label in self.endog_equations:
             try:
-                self.endog_equations[label].eval({}, self.variable_val_dict)
+                self.endog_equations[label].eval({}, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
@@ -783,7 +810,7 @@ class PDEModel:
 
         for label in self.constraints:
             try:
-                self.constraints[label].eval({}, self.variable_val_dict)
+                self.constraints[label].eval({}, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
@@ -794,7 +821,7 @@ class PDEModel:
 
         for label in self.hjb_equations:
             try:
-                self.hjb_equations[label].eval({}, self.variable_val_dict)
+                self.hjb_equations[label].eval({}, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
@@ -806,7 +833,7 @@ class PDEModel:
 
         for label in self.systems:
             try:
-                self.systems[label].eval({}, self.variable_val_dict)
+                self.systems[label].eval({}, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     # it's fine to have zero division. All other errors should be raised

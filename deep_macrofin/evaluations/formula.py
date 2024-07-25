@@ -151,6 +151,7 @@ class Formula:
         if "$" in formula_str:
             self.formula_str = latex_parsing(formula_str, latex_var_mapping)
             self.formula_str = self.formula_str.strip() # to avoid additional spaces
+        self.formula_compiled = compile(self.formula_str, "<string>", "eval")
         self.evaluation_method = evaluation_method
 
         if self.evaluation_method == EvaluationMethod.Eval:
@@ -170,7 +171,7 @@ class Formula:
         self.local_context.update(variables)
 
         # Directly evaluate the formula string in the context of available functions and variables
-        result = eval(self.formula_str, {"__builtins__": None}, self.local_context)
+        result = eval(self.formula_compiled, {"__builtins__": None}, self.local_context)
         return result
 
     def try_eval(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor]):

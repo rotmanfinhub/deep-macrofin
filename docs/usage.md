@@ -13,7 +13,7 @@ pde_model = PDEModel("model_name")
 
 ### Training Configs
 
-The default training configs set batch size = 100, epochs = 1000, learning rate = $10^{-3}$, and AdamW optimizer. In this setting, loss will be logged to a csv file every 100 epochs during training (`loss_log_interval`).
+The default training configs set batch size = 100, epochs = 1000, learning rate = $10^{-3}$, and AdamW optimizer. In this setting, loss will be logged to a csv file every 100 epochs during training (`loss_log_interval`), and data points are sampled randomly. 
 ```py
 DEFAULT_CONFIG = {
     "batch_size": 100,
@@ -21,6 +21,7 @@ DEFAULT_CONFIG = {
     "lr": 1e-3,
     "loss_log_interval": 100,
     "optimizer_type": OptimizerType.AdamW,
+    "sampling_method": SamplingMethod.UniformRandom
 }
 ```
 
@@ -44,6 +45,18 @@ from deep_macrofin import OptimizerType
 ```
 
 > Note: when KAN is used as one of the learnable variables, only LBFGS is supported.
+
+SamplingMethod is a `Enum` object that can be imported from the package. Currently, we support the following sampling methods:
+```py
+from deep_macrofin import SamplingMethod
+# SamplingMethod.UniformRandom = "UniformRandom"
+# SamplingMethod.FixedGrid = "FixedGrid"
+# SamplingMethod.ActiveLearning = "ActiveLearning"
+```
+
+> Note: For FixedGrid sampling, the batch size is applied to each dimension, and the final sample is of shape $(B^n, n)$, where $B$ is batch size, $n$ is number of state variables. Batch size should be set to a lower value than in uniform sampling.
+
+> Note: ActiveLearning is not yet implemented.
 
 ### Latex Variable Map
 Economic models may involve a large amount of variables and equations. Each variable can have super-/subscripts. To properly distinguish super-/subscripts from powers/derivatives and parse equations when LaTex formula are provided, we require a mapping from LaTex variables to Python strings. The keys are LaTex strings in raw format `r""`, and the values are the corresponding python string. The following dictionary maps LaTex string $\xi_t^h$ to Python string `"xih"`, and LaTex string $q_t^a$ to Python string `"qa"`.

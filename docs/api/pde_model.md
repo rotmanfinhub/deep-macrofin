@@ -19,6 +19,8 @@ Initialize a PDEModel with the provided name and config.
     - num_epochs: **int**
     - lr: **float**, learning rate for optimizer
     - loss_log_interval: **int**, the interval at which loss should be reported/recorded
+    - optimizer_type: OptimizerType.Adam, OptimizerType.AdamW or OptimizerType.LBFGS
+    - sampling_method: SamplingMethod.UniformRandom, SamplingMethod.FixedGrid, SamplingMethod.ActiveLearning
 - latex_var_mapping: **Dict[str, str]**, it should include all possible latex to python name conversions. Otherwise latex parsing will fail. Can be omitted if all the input equations/formula are not in latex form. For details, check [`Formula`](evaluations.md#formula).
 
 

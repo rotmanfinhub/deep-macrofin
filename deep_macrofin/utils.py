@@ -20,6 +20,11 @@ OPTIMIZER_MAP = {
     OptimizerType.LBFGS: torch.optim.LBFGS
 }
 
+class SamplingMethod(str, Enum):
+    UniformRandom = "UniformRandom"
+    FixedGrid = "FixedGrid"
+    ActiveLearning = "ActiveLearning"
+
 def set_seeds(seed):
     random.seed(seed)
     np.random.seed(seed)
@@ -65,6 +70,7 @@ DEFAULT_CONFIG = {
     "lr": 1e-3,
     "loss_log_interval": 100,
     "optimizer_type": OptimizerType.AdamW,
+    "sampling_method": SamplingMethod.UniformRandom
 }
 
 DEFAULT_LEARNABLE_VAR_CONFIG = {
