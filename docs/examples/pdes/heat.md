@@ -22,7 +22,7 @@ from deep_macrofin import Comparator, EndogVar, EndogVarConditions, EndogEquatio
 ```
 
 2. Define problem  
-Here, we set up the endogenous variable, endogenous equation, boundary condition, and initial conditions.
+Here, we first set up the endogenous variables, equations, and initialize boundary conditions.
 ```py
 pde2 = PDEModel("time_heat") # define pde model to solve
 pde2.set_state(["x", "t"], {"x": [0, 1.], "t": [0, 1.]}) # set the state variable, which defines the dimensionality of the problem
@@ -54,7 +54,6 @@ pde2.add_endog_condition("u",
                               Comparator.EQ,
                               "u_zero_ts", {"u_zero_ts": u_zero_ts},
                               label="ic") # Add initial condition
-
 ```
 
 3. Train and evaluate

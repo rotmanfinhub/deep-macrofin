@@ -20,7 +20,7 @@ from deep_macrofin import Comparator, EndogVar, EndogVarConditions, EndogEquatio
 ```
 
 2. Define problem  
-To solve Laplace's equation with Dirichlet boundary conditions, we first set up the state variables and temperature constraints.
+Here, we first set up the endogenous variables, equations, and initialize boundary conditions.
 ```py
 pde1 = PDEModel("laplace_dirichlet") # define PDE model for Laplace's equation with Dirichlet boundary conditions
 pde1.set_state(["x", "y"], {"x": [0, 3.], "y": [0, np.pi]}) # set state variables "x" and "y" with their respective ranges
@@ -56,7 +56,6 @@ pde1.add_endog_condition("T",
                               Comparator.EQ,
                               "1", {},
                               label="bc_zerox") # add boundary condition for T=1 at x=0
-
 ```
 
 3. Train and evaluate

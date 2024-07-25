@@ -9,7 +9,7 @@ The solution is $x(t)=t^2+1$
 
 ## Implementation
 
-1. Import necessary packages
+1. Import necessary packages 
 ```py
 import os
 import numpy as np

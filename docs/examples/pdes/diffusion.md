@@ -21,8 +21,8 @@ from deep_macrofin import PDEModel
 from deep_macrofin import Comparator, EndogVar, EndogVarConditions, EndogEquation
 ```
 
-2. Define problem  
-Here, we first set up specific boundary and initial conditions.
+2. Define problem
+Here, we set up the endogenous variable, endogenous equation, boundary and initial conditions.
 ```py
 pde1 = PDEModel("diffusion_1d") # define pde model to solve
 pde1.set_state(["x", "t"], {"x": [-1., 1.], "t": [0, 1.]}) # set the state variable, which defines the dimensionality of the problem

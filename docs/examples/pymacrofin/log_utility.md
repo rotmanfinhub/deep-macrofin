@@ -21,7 +21,7 @@ from deep_macrofin import Comparator, Constraint, System, OptimizerType, plot_lo
 ```
 
 2. Define problem  
-Here, we set up the state variables, endogenous variables, parameters, and equations.
+Here, we first set up the endogenous variables, equations, and define parameters.
 ```py
 set_seeds(0) # set random seed for reproducibility
 pde_model = PDEModel("BruSan14_log_utility", 

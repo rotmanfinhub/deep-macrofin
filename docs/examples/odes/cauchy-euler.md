@@ -21,7 +21,7 @@ from deep_macrofin import ActivationType, Comparator, EndogVar, EndogVarConditio
 ```
 
 2. Define problem  
-Here, we set up the state variable, endogenous equation, and initial conditions.
+Here, we set up the endogenous variable, endogenous equation, and initial conditions.
 ```py
 ode = PDEModel("cauchy_euler") # define PDE model to solve
 ode.set_state(["x"], {"x": [1., 2.]}) # set the state variable, which defines the dimensionality of the problem

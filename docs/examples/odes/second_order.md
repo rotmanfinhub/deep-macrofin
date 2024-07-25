@@ -21,7 +21,7 @@ from deep_macrofin import ActivationType, Comparator, EndogVar, EndogVarConditio
 ```
 
 2. Define problem  
-In this example, we define a second-order linear PDE model with specific initial conditions and training configurations to solve a time-dependent equation.
+In this example, we define a second-order linear PDE model with specific initial conditions and training configurations.
 ```py
 ode = PDEModel("second_order_linear", config={"num_epochs": 10000}) # define PDE model to solve
 ode.set_state(["t"], {"t": [0., 0.25]}) # set the state variable, which defines the dimensionality of the problem
