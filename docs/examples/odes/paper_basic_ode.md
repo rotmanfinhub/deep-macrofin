@@ -20,7 +20,7 @@ from deep_macrofin import ActivationType, Comparator, EndogVar, EndogVarConditio
 ```
 
 2. Define problem.  
-Here, we use the default training configuration, and default setup for learnable endogenous variable.
+Here, we use the default training configuration, and default setup for learnable endogenous variable. 
 ```py
 set_seeds(0) # set random seed for reproducibility
 ode = PDEModel("cauchy_euler", {"optimizer_type": OptimizerType.Adam, "num_epochs": 2000}) # define PDE model to solve

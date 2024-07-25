@@ -21,7 +21,6 @@ from deep_macrofin import ActivationType, Comparator, EndogVar, EndogVarConditio
 
 2. Define problem.  
 Here, we use the default training configuration, and default setup for learnable endogenous variable.
-
 ```py
 ode5 = PDEModel("cauchy_euler") # define PDE model to solve
 ode5.set_state(["x"], {"x": [1., 2.]}) # set the state variable, which defines the dimensionality of the problem

@@ -82,6 +82,10 @@ nav:
   - 'Basic Examples':
     - 'Discontinuous Function Approximation': 'examples/approx/discont.md'
     - 'A simple ODE': 'examples/odes/basic_ode1.md'
+    - 'Second-order ODE': 'examples/odes/second_order.md'
+    - 'Cauchy-Euler Equation': 'examples/odes/Cauchy-Euler.md'
+    - 'Cauchy-Euler Equation (MLP)': 'examples/odes/paper_basic_ode.md'
+    - 'Predator-Prey Model': 'examples/odes/predator_prey.md'
     - 'Laplace Equation Dirichlet Problem': 'examples/pdes/laplace.md'
   - 'Economic Problems':
     - 'Log Utility': 'examples/pymacrofin/log_utility.md'
