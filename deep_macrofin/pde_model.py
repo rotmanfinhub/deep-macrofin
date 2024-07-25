@@ -984,10 +984,11 @@ class PDEModel:
 
         return str_repr
     
-    def plot_vars(self, vars_to_plot: List[str]):
+    def plot_vars(self, vars_to_plot: List[str], ncols: int=4):
         '''
         Inputs:
             vars_to_plot: variable names to plot, can be an equation defining a new variable. If Latex, need to be enclosed by $$ symbols
+            ncols: number of columns to plot, default: 4
         This function is only supported for 1D or 2D state_variables.
         '''
         assert len(self.state_variables) <= 2, "Plot is only supported for problems with no more than 2 state variables"
@@ -1002,8 +1003,8 @@ class PDEModel:
             X.append(np.linspace(x_lims[0], x_lims[1], 100))
         X = np.stack(X).T
         
-        nrows = len(vars_to_plot) // 4
-        if len(vars_to_plot) % 4 > 0:
+        nrows = len(vars_to_plot) // ncols
+        if len(vars_to_plot) % ncols > 0:
             nrows += 1
         if len(self.state_variables) == 1:
             SV = torch.Tensor(X)
@@ -1017,15 +1018,15 @@ class PDEModel:
             for eq_name in self.equations:
                 lhs = self.equations[eq_name].lhs.formula_str
                 variable_var_dict_[lhs] = self.equations[eq_name].eval({}, variable_var_dict_)
-            fig, ax = plt.subplots(nrows, 4, figsize=(24, nrows * 6))
+            fig, ax = plt.subplots(nrows, ncols, figsize=(ncols * 6, nrows * 6))
 
             sv_text = self.state_variables[0]
             if self.state_variables[0] in var_to_latex:
                 sv_text = f"${var_to_latex[self.state_variables[0]]}$"
 
             for i, curr_var in enumerate(vars_to_plot):
-                curr_row = i // 4
-                curr_col = i % 4
+                curr_row = i // ncols
+                curr_col = i % ncols
                 if nrows == 1:
                     curr_ax = ax[curr_col]
                 else:
@@ -1066,5 +1067,5 @@ class PDEModel:
             plt.show()
         else:
             raise NotImplementedError("Plotting additional variables is not yet supported for 2D problems. Plot functions in Agent and EndogVar are available.")
-            fig, ax = plt.subplots(nrows, 4, figsize=(24, nrows * 6), subplot_kw={"projection": "3d"})
+            fig, ax = plt.subplots(nrows, ncols, figsize=(ncols * 6, nrows * 6), subplot_kw={"projection": "3d"})
 
