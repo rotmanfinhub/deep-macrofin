@@ -12,13 +12,13 @@
         <meta name="author" content="Rotman Finhub">
       
       
-        <link rel="canonical" href="https://rotmanfinhub.github.io/deep-macrofin/examples/odes/cauchy_kan/">
+        <link rel="canonical" href="https://rotmanfinhub.github.io/deep-macrofin/examples/odes/basic_ode2/">
       
       
-        <link rel="prev" href="../cauchy-euler/">
+        <link rel="prev" href="../basic_ode1/">
       
       
-        <link rel="next" href="../../approx/discont/">
+        <link rel="next" href="../second_order/">
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
@@ -26,7 +26,7 @@
     
     
       
-        <title>Cauchy-Euler Equation (KAN) - Deep-MacroFin Wiki</title>
+        <title>Yet another simple ODE - Deep-MacroFin Wiki</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#cauchy-euler-equation-kan" class="md-skip">
+        <a href="#base-ode-2" class="md-skip">
           Skip to content
         </a>
       
@@ -110,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Cauchy-Euler Equation (KAN)
+              Yet another simple ODE
             
           </span>
         </div>
@@ -588,48 +588,6 @@
                 
   
   
-  
-  
-    <li class="md-nav__item">
-      <a href="../second_order/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Second-order ODE
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../cauchy-euler/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Cauchy-Euler Equation
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
     
   
   
@@ -646,7 +604,7 @@
           
   
   <span class="md-ellipsis">
-    Cauchy-Euler Equation (KAN)
+    Yet another simple ODE
   </span>
   
 
@@ -657,7 +615,7 @@
         
   
   <span class="md-ellipsis">
-    Cauchy-Euler Equation (KAN)
+    Yet another simple ODE
   </span>
   
 
@@ -700,6 +658,48 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../second_order/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Second-order ODE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cauchy-euler/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cauchy-Euler Equation
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -759,6 +759,48 @@
   
   <span class="md-ellipsis">
     Laplace Equation Dirichlet Problem
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pdes/heat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Time-dependent Heat Equation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pdes/diffusion/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Diffusion Equation
   </span>
   
 
@@ -905,11 +947,11 @@
   
 
 
-<h1 id="cauchy-euler-equation-kan">Cauchy-Euler Equation (KAN)</h1>
-<p>The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/develop/examples/paper_example/basic_ode.ipynb" target="_blank">basic_ode.ipynb</a>.</p>
+<h1 id="base-ode-2">Base ODE 2</h1>
+<p>The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/develop/examples/basic_examples/basic_odes.ipynb" target="_blank">basic_odes.ipynb</a>.</p>
 <h2 id="problem-setup">Problem Setup</h2>
-<div class="arithmatex">\[ x^2 y'' + 6xy' + 4y =0, y(1)=6, y(2)=\frac{5}{4}\]</div>
-<p>Solution: <span class="arithmatex">\(y=4x^{-4} + 2 x^{-1}\)</span></p>
+<div class="arithmatex">\[\frac{d x}{d t} = x, x(0)=1\]</div>
+<p>The solution is <span class="arithmatex">\(x(t)=e^t\)</span></p>
 <h2 id="implementation">Implementation</h2>
 <ol>
 <li>
@@ -919,57 +961,44 @@
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">import</span> <span class="nn">torch</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="kn">from</span> <span class="nn">deep_macrofin</span> <span class="kn">import</span> <span class="n">PDEModel</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="kn">from</span> <span class="nn">deep_macrofin</span> <span class="kn">import</span> <span class="n">ActivationType</span><span class="p">,</span> <span class="n">Comparator</span><span class="p">,</span> <span class="n">OptimizerType</span><span class="p">,</span> <span class="n">set_seeds</span><span class="p">,</span> <span class="n">LayerType</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="kn">from</span> <span class="nn">deep_macrofin</span> <span class="kn">import</span> <span class="n">ActivationType</span><span class="p">,</span> <span class="n">Comparator</span><span class="p">,</span> <span class="n">EndogVar</span><span class="p">,</span> <span class="n">EndogVarConditions</span><span class="p">,</span> <span class="n">EndogEquation</span>
 </span></code></pre></div></p>
 </li>
 <li>
-<p>Define problem.<br />
-Here, we use the default training configuration, and setup differently for learnable endogenous variable. 
-<div class="language-py highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">set_seeds</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="c1"># set random seed for reproducibility</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">ode</span> <span class="o">=</span> <span class="n">PDEModel</span><span class="p">(</span><span class="s2">&quot;cauchy_euler&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;num_epochs&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span> <span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;loss_log_interval&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">})</span> <span class="c1"># define PDE model to solve</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">ode</span><span class="o">.</span><span class="n">set_state</span><span class="p">([</span><span class="s2">&quot;x&quot;</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">2.</span><span class="p">]})</span> <span class="c1"># set the state variable, which defines the dimensionality of the problem</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">ode</span><span class="o">.</span><span class="n">add_endog</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="p">{</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="s2">&quot;device&quot;</span><span class="p">:</span> <span class="s2">&quot;cuda&quot;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;cpu&quot;</span><span class="p">,</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="s2">&quot;hidden_units&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="s2">&quot;layer_type&quot;</span><span class="p">:</span> <span class="n">LayerType</span><span class="o">.</span><span class="n">KAN</span><span class="p">,</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="s2">&quot;activation_type&quot;</span><span class="p">:</span> <span class="n">ActivationType</span><span class="o">.</span><span class="n">SiLU</span><span class="p">,</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="s2">&quot;positive&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="s2">&quot;derivative_order&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="p">})</span> <span class="c1"># we use endogenous variable to represent the function we want to approximate</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">ode</span><span class="o">.</span><span class="n">add_endog_equation</span><span class="p">(</span><span class="s2">&quot;x**2 * y_xx + 6*x*y_x + 4*y=0&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;base_ode&quot;</span><span class="p">)</span> <span class="c1"># endogenous equations are used to represent the ODE</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="n">ode</span><span class="o">.</span><span class="n">add_endog_condition</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> 
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>                              <span class="s2">&quot;y(SV)&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;SV&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))},</span>
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>                              <span class="n">Comparator</span><span class="o">.</span><span class="n">EQ</span><span class="p">,</span>
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>                              <span class="s2">&quot;6&quot;</span><span class="p">,</span> <span class="p">{},</span>
-</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>                              <span class="n">label</span><span class="o">=</span><span class="s2">&quot;ic1&quot;</span><span class="p">)</span> <span class="c1"># define initial condition</span>
-</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="n">ode</span><span class="o">.</span><span class="n">add_endog_condition</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> 
-</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>                              <span class="s2">&quot;y(SV)&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;SV&quot;</span><span class="p">:</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))},</span>
-</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>                              <span class="n">Comparator</span><span class="o">.</span><span class="n">EQ</span><span class="p">,</span>
-</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>                              <span class="s2">&quot;5/4&quot;</span><span class="p">,</span> <span class="p">{},</span>
-</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>                              <span class="n">label</span><span class="o">=</span><span class="s2">&quot;ic2&quot;</span><span class="p">)</span> <span class="c1"># define second initial condition</span>
+<p>Define problem<br />
+Here, we use the default training configuration, and default setup for learnable endogenous variable.
+<div class="language-py highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">ode2</span> <span class="o">=</span> <span class="n">PDEModel</span><span class="p">(</span><span class="s2">&quot;ode2&quot;</span><span class="p">)</span> <span class="c1"># define PDE model to solve</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">ode2</span><span class="o">.</span><span class="n">set_state</span><span class="p">([</span><span class="s2">&quot;t&quot;</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;t&quot;</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mf">2.</span><span class="p">,</span> <span class="mf">2.</span><span class="p">]})</span> <span class="c1"># set the state variable, which defines the dimensionality of the problem</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">ode2</span><span class="o">.</span><span class="n">add_endog</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">)</span> <span class="c1"># we use endogenous variable to represent the function we want to approximate</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">ode2</span><span class="o">.</span><span class="n">add_endog_equation</span><span class="p">(</span><span class="s2">&quot;x_t=x&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;base_ode&quot;</span><span class="p">)</span> 
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">ode2</span><span class="o">.</span><span class="n">add_endog_condition</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> 
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>                              <span class="s2">&quot;x(SV)&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;SV&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))},</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>                              <span class="n">Comparator</span><span class="o">.</span><span class="n">EQ</span><span class="p">,</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>                              <span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="p">{},</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>                              <span class="n">label</span><span class="o">=</span><span class="s2">&quot;initial_condition&quot;</span><span class="p">)</span> 
 </span></code></pre></div></p>
 </li>
 <li>
 <p>Train and evaluate
-<div class="language-py highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">ode</span><span class="o">.</span><span class="n">train_model</span><span class="p">(</span><span class="s2">&quot;./models/cauchy_euler_kan&quot;</span><span class="p">,</span> <span class="s2">&quot;cauchy_euler.pt&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">ode</span><span class="o">.</span><span class="n">eval_model</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+<div class="language-py highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">ode2</span><span class="o">.</span><span class="n">train_model</span><span class="p">(</span><span class="s2">&quot;./models/ode2&quot;</span><span class="p">,</span> <span class="s2">&quot;ode2.pt&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">ode2</span><span class="o">.</span><span class="n">eval_model</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
 </span></code></pre></div></p>
 </li>
 <li>
 <p>To load a trained model
-<div class="language-py highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">ode</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;./models/cauchy_euler_kan/cauchy_euler_best.pt&quot;</span><span class="p">))</span>
+<div class="language-py highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">ode2</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;./models/ode2/ode2.pt&quot;</span><span class="p">))</span>
 </span></code></pre></div></p>
 </li>
 <li>
 <p>Plot the solutions
 <div class="language-py highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">18</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">4</span><span class="o">*</span><span class="n">x</span><span class="o">**</span><span class="p">(</span><span class="o">-</span><span class="mi">4</span><span class="p">)</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">x</span><span class="o">**</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;4x^{-4}+2x^{-1}&quot;</span><span class="p">)</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="o">-</span><span class="mi">16</span><span class="o">*</span><span class="n">x</span><span class="o">**</span><span class="p">(</span><span class="o">-</span><span class="mi">5</span><span class="p">)</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">x</span><span class="o">**</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">),</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;-16x^{-5}-2x^{-2}&quot;</span><span class="p">)</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">ax</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">80</span><span class="o">*</span><span class="n">x</span><span class="o">**</span><span class="p">(</span><span class="o">-</span><span class="mi">6</span><span class="p">)</span> <span class="o">+</span> <span class="mi">4</span><span class="o">*</span><span class="n">x</span><span class="o">**</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">),</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;80x^{-6}+4x^{-3}&quot;</span><span class="p">)</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="n">ode</span><span class="o">.</span><span class="n">endog_vars</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]},</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="n">ode</span><span class="o">.</span><span class="n">endog_vars</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s2">&quot;y_x&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]},</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="n">ode</span><span class="o">.</span><span class="n">endog_vars</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s2">&quot;y_xx&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]},</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">t</span><span class="p">),</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;e^t&quot;</span><span class="p">)</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">t</span><span class="p">),</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;e^t&quot;</span><span class="p">)</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">ax</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">t</span><span class="p">),</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;e^t&quot;</span><span class="p">)</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="n">ode2</span><span class="o">.</span><span class="n">endog_vars</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;t&quot;</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]},</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="n">ode2</span><span class="o">.</span><span class="n">endog_vars</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s2">&quot;x_t&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;t&quot;</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]},</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="n">ode2</span><span class="o">.</span><span class="n">endog_vars</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s2">&quot;x_tt&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;t&quot;</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]},</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
 </span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="n">plt</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">()</span>
 </span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </span></code></pre></div></p>

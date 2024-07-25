@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://rotmanfinhub.github.io/deep-macrofin/examples/odes/second_order/">
       
       
-        <link rel="prev" href="../basic_ode1/">
+        <link rel="prev" href="../basic_ode2/">
       
       
         <link rel="next" href="../cauchy-euler/">
@@ -588,6 +588,27 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../basic_ode2/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Yet another simple ODE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -691,27 +712,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../cauchy_kan/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Cauchy-Euler Equation (KAN)
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../approx/discont/" class="md-nav__link">
         
   
@@ -759,6 +759,48 @@
   
   <span class="md-ellipsis">
     Laplace Equation Dirichlet Problem
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pdes/heat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Time-dependent Heat Equation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pdes/diffusion/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Diffusion Equation
   </span>
   
 
@@ -907,7 +949,7 @@
 
 <h1 id="second-order-ode">Second-Order ODE</h1>
 <p>The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/basic_examples/basic_odes2.ipynb" target="_blank">basic_odes2.ipynb</a>.
-DeepXDE result can be found at their <a href="https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.2nd.html" target="_blank">website</a>.</p>
+DeepXDE result can be found on their <a href="https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.2nd.html" target="_blank">website</a>.</p>
 <h2 id="problem-setup">Problem Setup</h2>
 <div class="arithmatex">\[y''-10y'+9y=5t, y(0)=-1, y'(0)=2\]</div>
 <p>The solution is <span class="arithmatex">\(y=\frac{50}{81} + \frac{5}{9}t + \frac{31}{81}e^{9t} - 2e^t\)</span></p>
@@ -924,8 +966,8 @@ DeepXDE result can be found at their <a href="https://deepxde.readthedocs.io/en/
 </span></code></pre></div></p>
 </li>
 <li>
-<p>Define problem.<br />
-Here, we use the default training configuration, and default setup for learnable endogenous variable.
+<p>Define problem<br />
+In this example, we define a second-order linear PDE model with specific initial conditions and training configurations to solve a time-dependent equation.
 <div class="language-py highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">ode</span> <span class="o">=</span> <span class="n">PDEModel</span><span class="p">(</span><span class="s2">&quot;second_order_linear&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;num_epochs&quot;</span><span class="p">:</span> <span class="mi">10000</span><span class="p">})</span> <span class="c1"># define PDE model to solve</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">ode</span><span class="o">.</span><span class="n">set_state</span><span class="p">([</span><span class="s2">&quot;t&quot;</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;t&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">]})</span> <span class="c1"># set the state variable, which defines the dimensionality of the problem</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">ode</span><span class="o">.</span><span class="n">add_endog</span><span class="p">(</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="p">{</span>

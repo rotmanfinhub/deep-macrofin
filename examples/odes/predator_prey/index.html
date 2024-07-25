@@ -591,6 +591,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../basic_ode2/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Yet another simple ODE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../second_order/" class="md-nav__link">
         
   
@@ -617,27 +638,6 @@
   
   <span class="md-ellipsis">
     Cauchy-Euler Equation
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../cauchy_kan/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Cauchy-Euler Equation (KAN)
   </span>
   
 
@@ -759,6 +759,48 @@
   
   <span class="md-ellipsis">
     Laplace Equation Dirichlet Problem
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pdes/heat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Time-dependent Heat Equation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pdes/diffusion/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Diffusion Equation
   </span>
   
 
@@ -923,8 +965,8 @@
 </span></code></pre></div></p>
 </li>
 <li>
-<p>Define problem.<br />
-Here, we use the default training configuration, and default setup for learnable endogenous variable.
+<p>Define problem<br />
+Here, we define predator-prey dynamics with specific initial conditions and training epochs.
 <div class="language-py highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">lv</span> <span class="o">=</span> <span class="n">PDEModel</span><span class="p">(</span><span class="s2">&quot;lotka_volterra&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;num_epochs&quot;</span><span class="p">:</span> <span class="mi">2000</span><span class="p">})</span> <span class="c1"># define PDE model to solve</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">lv</span><span class="o">.</span><span class="n">set_state</span><span class="p">([</span><span class="s2">&quot;t&quot;</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;t&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">5.</span><span class="p">]})</span> <span class="c1"># set the state variable, which defines the dimensionality of the problem</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">lv</span><span class="o">.</span><span class="n">add_endog</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">)</span> 
