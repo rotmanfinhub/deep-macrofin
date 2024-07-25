@@ -19,8 +19,8 @@ from deep_macrofin import PDEModel
 from deep_macrofin import ActivationType, Comparator, EndogVar, EndogVarConditions, EndogEquation
 ```
 
-2. Define problem.  
-Here, we use the default training configuration, and default setup for learnable endogenous variable.
+2. Define problem  
+Here, we define predator-prey dynamics with specific initial conditions and training epochs.
 ```py
 lv = PDEModel("lotka_volterra", {"num_epochs": 2000}) # define PDE model to solve
 lv.set_state(["t"], {"t": [0., 5.]}) # set the state variable, which defines the dimensionality of the problem

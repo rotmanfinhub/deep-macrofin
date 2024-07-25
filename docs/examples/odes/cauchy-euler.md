@@ -20,8 +20,8 @@ from deep_macrofin import PDEModel
 from deep_macrofin import ActivationType, Comparator, EndogVar, EndogVarConditions, EndogEquation
 ```
 
-2. Define problem.  
-Here, we first try using the default training configuration, and default setup for learnable endogenous variable.
+2. Define problem  
+Here, we set up the state variable, endogenous equation, and initial conditions.
 ```py
 ode = PDEModel("cauchy_euler") # define PDE model to solve
 ode.set_state(["x"], {"x": [1., 2.]}) # set the state variable, which defines the dimensionality of the problem
@@ -38,7 +38,6 @@ ode.add_endog_condition("y",
                               "5/4", {},
                               label="ic2") # define second initial condition
 ```
-
 
 3. Train and evaluate
 ```py
@@ -64,6 +63,7 @@ ode.endog_vars["y"].plot("y_xx", {"x": [1, 2]}, ax=ax[2])
 plt.subplots_adjust()
 plt.show()
 ```
+
 ## KAN Approach
 
 Here, we try using the KAN layer for the endogenous variable. The rest of the steps are the same.

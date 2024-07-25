@@ -16,11 +16,11 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from deep_macrofin import PDEModel
-from deep_macrofin import ActivationType, Comparator, EndogVar, EndogVarConditions, EndogEquation
+from deep_macrofin import Comparator, EndogVar, EndogVarConditions, EndogEquation
 ```
 
-2. Define problem.  
-Here, we use the default training configuration, and default setup for learnable endogenous variable.
+2. Define problem  
+To solve Laplace's equation with Dirichlet boundary conditions, we first set up the state variables and temperature constraints.
 ```py
 pde1 = PDEModel("laplace_dirichlet") # define PDE model for Laplace's equation with Dirichlet boundary conditions
 pde1.set_state(["x", "y"], {"x": [0, 3.], "y": [0, np.pi]}) # set state variables "x" and "y" with their respective ranges

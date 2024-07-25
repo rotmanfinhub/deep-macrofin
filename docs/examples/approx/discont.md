@@ -23,7 +23,7 @@ from deep_macrofin import PDEModel
 from deep_macrofin import ActivationType, Comparator, EndogVar, EndogVarConditions, EndogEquation
 ```
 
-2. Define problem.  
+2. Define problem  
 Here, we use the default training configuration, and default setup for learnable endogenous variable.
 ```py
 discont_approx2 = PDEModel("discontinuous_approximator", {"num_epochs": 50000}) # define PDE model with 50,000 epochs
@@ -32,15 +32,8 @@ discont_approx2.add_endog("y", {
     "hidden_units": [40, 40], # specify the architecture with two hidden layers of 40 units each
     "activation_type": ActivationType.SiLU, # set the activation function to SiLU
 })
-
-neg_sys = System([Constraint("x", Comparator.LT, "0", label="neg_const")], label="neg_sys") # define system for x < 0
-neg_sys.add_endog_equation("y=5+sin(x)+sin(2*x)+sin(3*x)+sin(4*x)") # add equation for negative system
-
-pos_sys = System([Constraint("x", Comparator.GEQ, "0", label="pos_const")], label="pos_sys") # define system for x >= 0
-pos_sys.add_endog_equation("y=cos(10*x)") # add equation for positive system
-
-discont_approx2.add_system(neg_sys) # add negative system to the model
-discont_approx2.add_system(pos_sys) # add positive system to the model
+discont_approx2.add_endog_equation("y=5+sin(x)+sin(2*x)+sin(3*x)+sin(4*x)") 
+discont_approx2.add_endog_equation("y=cos(10*x)") 
 ```
 
 3. Train and evaluate

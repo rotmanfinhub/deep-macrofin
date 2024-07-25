@@ -81,11 +81,13 @@ nav:
   - 'Basic Usage': 'usage.md'
   - 'Basic Examples':
     - 'A simple ODE': 'examples/odes/basic_ode1.md'
+    - 'Yet another simple ODE': 'examples/odes/basic_ode2.md'
     - 'Second-order ODE': 'examples/odes/second_order.md'
     - 'Cauchy-Euler Equation': 'examples/odes/cauchy-euler.md'
-    - 'Cauchy-Euler Equation (KAN)': 'examples/odes/cauchy_kan.md'
     - 'Discontinuous Function Approximation': 'examples/approx/discont.md'
     - 'Predator-Prey Model': 'examples/odes/predator_prey.md'
     - 'Laplace Equation Dirichlet Problem': 'examples/pdes/laplace.md'
+    - 'Time-dependent Heat Equation': 'examples/pdes/heat.md'
+    - 'Diffusion Equation': 'examples/pdes/diffusion.md'
   - 'Economic Problems':
     - 'Log Utility': 'examples/pymacrofin/log_utility.md'

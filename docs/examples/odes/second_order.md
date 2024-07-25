@@ -1,7 +1,7 @@
 # Second-Order ODE
 
 The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/basic_examples/basic_odes2.ipynb" target="_blank">basic_odes2.ipynb</a>.
-DeepXDE result can be found at their <a href="https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.2nd.html" target="_blank">website</a>.
+DeepXDE result can be found on their <a href="https://deepxde.readthedocs.io/en/latest/demos/pinn_forward/ode.2nd.html" target="_blank">website</a>.
 
 ## Problem Setup
 $$y''-10y'+9y=5t, y(0)=-1, y'(0)=2$$
@@ -20,8 +20,8 @@ from deep_macrofin import PDEModel
 from deep_macrofin import ActivationType, Comparator, EndogVar, EndogVarConditions, EndogEquation
 ```
 
-2. Define problem.  
-Here, we use the default training configuration, and default setup for learnable endogenous variable.
+2. Define problem  
+In this example, we define a second-order linear PDE model with specific initial conditions and training configurations to solve a time-dependent equation.
 ```py
 ode = PDEModel("second_order_linear", config={"num_epochs": 10000}) # define PDE model to solve
 ode.set_state(["t"], {"t": [0., 0.25]}) # set the state variable, which defines the dimensionality of the problem

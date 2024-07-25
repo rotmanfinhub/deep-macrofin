@@ -19,7 +19,7 @@ from deep_macrofin import PDEModel
 from deep_macrofin import ActivationType, Comparator, EndogVar, EndogVarConditions, EndogEquation
 ```
 
-2. Define problem.  
+2. Define problem  
 Here, we use the default training configuration, and default setup for learnable endogenous variable.
 ```py
 ode1 = PDEModel("ode1") # define PDE model to solve
