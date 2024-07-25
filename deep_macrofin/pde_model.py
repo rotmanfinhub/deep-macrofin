@@ -1071,6 +1071,8 @@ class PDEModel:
             fig, ax = plt.subplots(nrows, ncols, figsize=(ncols * 4, nrows * 4), subplot_kw={"projection": "3d"})
             SV = torch.clone(X)
             X, Y = torch.meshgrid(sv_ls, indexing="ij")
+            X = X.detach().cpu().numpy()
+            Y = Y.detach().cpu().numpy()
             for i, sv_name in enumerate(self.state_variables):
                 variable_var_dict_[sv_name] = SV[:, i:i+1]
             # properly update variables, including agent, endogenous variables, their derivatives
