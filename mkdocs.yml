@@ -83,7 +83,6 @@ nav:
     - 'A simple ODE': 'examples/odes/basic_ode1.md'
     - 'Second-order ODE': 'examples/odes/second_order.md'
     - 'Cauchy-Euler Equation': 'examples/odes/cauchy-euler.md'
-    - 'Cauchy-Euler Equation (MLP)': 'examples/odes/cauchy_mlp.md'
     - 'Cauchy-Euler Equation (KAN)': 'examples/odes/cauchy_kan.md'
     - 'Discontinuous Function Approximation': 'examples/approx/discont.md'
     - 'Predator-Prey Model': 'examples/odes/predator_prey.md'
