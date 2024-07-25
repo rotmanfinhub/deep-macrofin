@@ -9,7 +9,7 @@ The solution is $x(t)=t^2+1$
 
 ## Implementation
 
-1. Import necessary packages
+1. Import necessary packages 
 ```py
 import os
 import numpy as np
@@ -19,9 +19,8 @@ from deep_macrofin import PDEModel
 from deep_macrofin import ActivationType, Comparator, EndogVar, EndogVarConditions, EndogEquation
 ```
 
-2. Define problem.  
+2. Define problem  
 Here, we use the default training configuration, and default setup for learnable endogenous variable.
-
 ```py
 ode1 = PDEModel("ode1") # define PDE model to solve
 ode1.set_state(["t"], {"t": [-2., 2.]}) # set the state variable, which defines the dimensionality of the problem
