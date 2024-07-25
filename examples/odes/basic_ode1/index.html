@@ -18,7 +18,7 @@
         <link rel="prev" href="../../approx/discont/">
       
       
-        <link rel="next" href="../../pdes/laplace/">
+        <link rel="next" href="../second_order/">
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
@@ -670,6 +670,90 @@
   
   
     <li class="md-nav__item">
+      <a href="../second_order/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Second-order ODE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Cauchy-Euler/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cauchy-Euler Equation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../paper_basic_ode/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cauchy-Euler Equation (MLP)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../predator_prey/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Predator-Prey Model
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pdes/laplace/" class="md-nav__link">
         
   
@@ -840,9 +924,7 @@
 </li>
 <li>
 <p>Define problem.<br />
-Here, we use the default training configuration, and default setup for learnable endogenous variable.</p>
-</li>
-</ol>
+Here, we use the default training configuration, and default setup for learnable endogenous variable.
 <div class="language-py highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">ode1</span> <span class="o">=</span> <span class="n">PDEModel</span><span class="p">(</span><span class="s2">&quot;ode1&quot;</span><span class="p">)</span> <span class="c1"># define PDE model to solve</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">ode1</span><span class="o">.</span><span class="n">set_state</span><span class="p">([</span><span class="s2">&quot;t&quot;</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;t&quot;</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mf">2.</span><span class="p">,</span> <span class="mf">2.</span><span class="p">]})</span> <span class="c1"># set the state variable, which defines the dimensionality of the problem</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">ode1</span><span class="o">.</span><span class="n">add_endog</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">)</span> <span class="c1"># we use endogenous variable to represent the function we want to approximate</span>
@@ -852,8 +934,8 @@ Here, we use the default training configuration, and default setup for learnable
 </span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>                              <span class="n">Comparator</span><span class="o">.</span><span class="n">EQ</span><span class="p">,</span>
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>                              <span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="p">{},</span>
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>                              <span class="n">label</span><span class="o">=</span><span class="s2">&quot;initial_condition&quot;</span><span class="p">)</span> <span class="c1"># define initial condition</span>
-</span></code></pre></div>
-<ol>
+</span></code></pre></div></p>
+</li>
 <li>
 <p>Train and evaluate
 <div class="language-py highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">ode1</span><span class="o">.</span><span class="n">train_model</span><span class="p">(</span><span class="s2">&quot;./models/ode1&quot;</span><span class="p">,</span> <span class="s2">&quot;ode1.pt&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>

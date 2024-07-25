@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://rotmanfinhub.github.io/deep-macrofin/examples/pdes/laplace/">
       
       
-        <link rel="prev" href="../../odes/basic_ode1/">
+        <link rel="prev" href="../../odes/predator_prey/">
       
       
         <link rel="next" href="../../pymacrofin/log_utility/">
@@ -609,6 +609,90 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../../odes/second_order/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Second-order ODE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../odes/Cauchy-Euler/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cauchy-Euler Equation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../odes/paper_basic_ode/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cauchy-Euler Equation (MLP)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../odes/predator_prey/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Predator-Prey Model
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -827,6 +911,81 @@
 <div class="arithmatex">\[\nabla^2 T = \frac{\partial^2 T}{\partial x^2} + \frac{\partial^2 T}{\partial y^2} = 0, T(x,0)=T(x,\pi)=0, T(0,y)=1\]</div>
 <p>The solution is <span class="arithmatex">\(T(x,y) = \frac{2}{\pi} \arctan\frac{\sin y}{\sinh x}\)</span></p>
 <h2 id="implementation">Implementation</h2>
+<ol>
+<li>
+<p>Import necessary packages
+<div class="language-py highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span> <span class="nn">os</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">import</span> <span class="nn">torch</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="kn">from</span> <span class="nn">deep_macrofin</span> <span class="kn">import</span> <span class="n">PDEModel</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="kn">from</span> <span class="nn">deep_macrofin</span> <span class="kn">import</span> <span class="n">ActivationType</span><span class="p">,</span> <span class="n">Comparator</span><span class="p">,</span> <span class="n">EndogVar</span><span class="p">,</span> <span class="n">EndogVarConditions</span><span class="p">,</span> <span class="n">EndogEquation</span>
+</span></code></pre></div></p>
+</li>
+<li>
+<p>Define problem.<br />
+Here, we use the default training configuration, and default setup for learnable endogenous variable.
+<div class="language-py highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">pde1</span> <span class="o">=</span> <span class="n">PDEModel</span><span class="p">(</span><span class="s2">&quot;laplace_dirichlet&quot;</span><span class="p">)</span> <span class="c1"># define PDE model for Laplace&#39;s equation with Dirichlet boundary conditions</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">pde1</span><span class="o">.</span><span class="n">set_state</span><span class="p">([</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">3.</span><span class="p">],</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">]})</span> <span class="c1"># set state variables &quot;x&quot; and &quot;y&quot; with their respective ranges</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">pde1</span><span class="o">.</span><span class="n">add_endog</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">)</span> <span class="c1"># add endogenous variable &quot;T&quot; to represent the temperature</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">pde1</span><span class="o">.</span><span class="n">add_endog_equation</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;$\frac{\partial^2 T}{\partial x^2} + \frac{\partial^2 T}{\partial y^2} = 0$&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;base_pde&quot;</span><span class="p">)</span> 
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1"># add Laplace&#39;s equation as the endogenous equation</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">zero_ys</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">100</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span> <span class="c1"># create tensor for boundary condition at y=0</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">zero_ys</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">100</span><span class="p">))</span> <span class="c1"># set x-values from 0 to 3</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="n">pi_ys</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">100</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span> <span class="c1"># create tensor for boundary condition at y=pi</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">pi_ys</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">100</span><span class="p">))</span> <span class="c1"># set x-values from 0 to 3</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="n">pi_ys</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">pi</span> <span class="c1"># set y-value to pi</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="n">zero_xs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">100</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span> <span class="c1"># create tensor for boundary condition at x=0</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="n">zero_xs</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="mi">100</span><span class="p">))</span> <span class="c1"># set y-values from 0 to pi</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="n">pde1</span><span class="o">.</span><span class="n">add_endog_condition</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">,</span> 
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>                              <span class="s2">&quot;T(SV)&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;SV&quot;</span><span class="p">:</span> <span class="n">zero_ys</span><span class="p">},</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>                              <span class="n">Comparator</span><span class="o">.</span><span class="n">EQ</span><span class="p">,</span>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>                              <span class="s2">&quot;0&quot;</span><span class="p">,</span> <span class="p">{},</span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>                              <span class="n">label</span><span class="o">=</span><span class="s2">&quot;bc_zeroy&quot;</span><span class="p">)</span> <span class="c1"># add boundary condition for T=0 at y=0</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="n">pde1</span><span class="o">.</span><span class="n">add_endog_condition</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">,</span> 
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>                              <span class="s2">&quot;T(SV)&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;SV&quot;</span><span class="p">:</span> <span class="n">pi_ys</span><span class="p">},</span>
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>                              <span class="n">Comparator</span><span class="o">.</span><span class="n">EQ</span><span class="p">,</span>
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>                              <span class="s2">&quot;0&quot;</span><span class="p">,</span> <span class="p">{},</span>
+</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>                              <span class="n">label</span><span class="o">=</span><span class="s2">&quot;bc_piy&quot;</span><span class="p">)</span> <span class="c1"># add boundary condition for T=0 at y=pi</span>
+</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>
+</span><span id="__span-1-30"><a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a><span class="n">pde1</span><span class="o">.</span><span class="n">add_endog_condition</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">,</span> 
+</span><span id="__span-1-31"><a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>                              <span class="s2">&quot;T(SV)&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;SV&quot;</span><span class="p">:</span> <span class="n">zero_xs</span><span class="p">},</span>
+</span><span id="__span-1-32"><a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a>                              <span class="n">Comparator</span><span class="o">.</span><span class="n">EQ</span><span class="p">,</span>
+</span><span id="__span-1-33"><a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a>                              <span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="p">{},</span>
+</span><span id="__span-1-34"><a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a>                              <span class="n">label</span><span class="o">=</span><span class="s2">&quot;bc_zerox&quot;</span><span class="p">)</span> <span class="c1"># add boundary condition for T=1 at x=0</span>
+</span></code></pre></div></p>
+</li>
+<li>
+<p>Train and evaluate
+<div class="language-py highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">pde1</span><span class="o">.</span><span class="n">train_model</span><span class="p">(</span><span class="s2">&quot;./models/laplace_dirichlet&quot;</span><span class="p">,</span> <span class="s2">&quot;laplace_dirichlet.pt&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">pde1</span><span class="o">.</span><span class="n">eval_model</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+</span></code></pre></div></p>
+</li>
+<li>
+<p>To load a trained model
+<div class="language-py highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">pde1</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;./models/laplace_dirichlet/laplace_dirichlet.pt&quot;</span><span class="p">))</span>
+</span></code></pre></div></p>
+</li>
+<li>
+<p>Plot the solutions
+<div class="language-py highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">subplot_kw</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;projection&quot;</span><span class="p">:</span> <span class="s2">&quot;3d&quot;</span><span class="p">})</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">x_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">y_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">X</span><span class="p">,</span> <span class="n">Y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">x_np</span><span class="p">,</span> <span class="n">y_np</span><span class="p">)</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">exact_Z</span> <span class="o">=</span> <span class="mf">2.</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">Y</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sinh</span><span class="p">(</span><span class="n">X</span><span class="p">))</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="n">ax</span><span class="o">.</span><span class="n">plot_surface</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">exact_Z</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;exact&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.6</span><span class="p">)</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="n">pde1</span><span class="o">.</span><span class="n">endog_vars</span><span class="p">[</span><span class="s2">&quot;T&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">3.</span><span class="p">],</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">]},</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="n">plt</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">()</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</span></code></pre></div></p>
+</li>
+</ol>
 
 
 
