@@ -84,7 +84,7 @@ The following defines a 2D problem, with state variable $(x,y)$, domain $(x,y)\i
 pde_model.set_state(["x", "y"])
 ```
 
-The following defines a 2D problem, with state variable $(x,y)$, domain $(x,y)\in [0,1]\times[0,\pi]$ (default domain). 
+The following defines a 2D problem, with state variable $(x,y)$, domain $(x,y)\in [0,1]\times[0,\pi]$. 
 ```py
 pde_model.set_state(["x", "y"], {"x": [0,1], "y": [0, np.pi]}) # torch.pi is also acceptable (They are the same constant)
 ```
