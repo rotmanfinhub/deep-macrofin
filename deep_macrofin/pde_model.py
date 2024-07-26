@@ -1030,7 +1030,10 @@ class PDEModel:
                 curr_row = i // ncols
                 curr_col = i % ncols
                 if nrows == 1:
-                    curr_ax = ax[curr_col]
+                    if ncols == 1:
+                        curr_ax = ax
+                    else:
+                        curr_ax = ax[curr_col]
                 else:
                     curr_ax = ax[curr_row][curr_col]
                 if "$" in curr_var:
@@ -1095,7 +1098,10 @@ class PDEModel:
                 curr_row = i // ncols
                 curr_col = i % ncols
                 if nrows == 1:
-                    curr_ax = ax[curr_col]
+                    if ncols == 1:
+                        curr_ax = ax
+                    else:
+                        curr_ax = ax[curr_col]
                 else:
                     curr_ax = ax[curr_row][curr_col]
                 if "$" in curr_var:
