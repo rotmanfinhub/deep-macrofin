@@ -53,7 +53,9 @@ def latex_parsing_fractions(formula_str: str):
             if "^" in var:
                 # higher order of a single variable
                 var_name, var_power = var.split("^")
-                variables[i] = var_name * int(var_power)
+                variables[i] = var_name.strip() * int(var_power.strip())
+            else:
+                variables[i] = var.strip()
         return function_name + "_" + "".join(variables)
     
     def fraction_match(match: re.Match):
@@ -149,6 +151,10 @@ class Formula:
         if "$" in formula_str:
             self.formula_str = latex_parsing(formula_str, latex_var_mapping)
             self.formula_str = self.formula_str.strip() # to avoid additional spaces
+        try:
+            self.formula_compiled = compile(self.formula_str, "<string>", "eval")
+        except:
+            self.formula_compiled = self.formula_str
         self.evaluation_method = evaluation_method
 
         if self.evaluation_method == EvaluationMethod.Eval:
@@ -168,7 +174,7 @@ class Formula:
         self.local_context.update(variables)
 
         # Directly evaluate the formula string in the context of available functions and variables
-        result = eval(self.formula_str, {"__builtins__": None}, self.local_context)
+        result = eval(self.formula_compiled, {"__builtins__": None}, self.local_context)
         return result
 
     def try_eval(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor]):

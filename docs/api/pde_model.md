@@ -19,6 +19,8 @@ Initialize a PDEModel with the provided name and config.
     - num_epochs: **int**
     - lr: **float**, learning rate for optimizer
     - loss_log_interval: **int**, the interval at which loss should be reported/recorded
+    - optimizer_type: OptimizerType.Adam, OptimizerType.AdamW or OptimizerType.LBFGS
+    - sampling_method: SamplingMethod.UniformRandom, SamplingMethod.FixedGrid, SamplingMethod.ActiveLearning
 - latex_var_mapping: **Dict[str, str]**, it should include all possible latex to python name conversions. Otherwise latex parsing will fail. Can be omitted if all the input equations/formula are not in latex form. For details, check [`Formula`](evaluations.md#formula).
 
 
@@ -81,7 +83,7 @@ Add boundary/initial condition for a specific agent with associated weight
 - comparator: **Comparator**
 - rhs: **str**, the string expression for lhs formula, latex expression not supported, should be functions of specific format agent_name(SV), or simply a constant value
 - rhs_state: **Dict[str, torch.Tensor]**, the specific value of SV to evaluate rhs at for the agent/endogenous variable, if rhs is a constant, this can be an empty dictionary
-- label: **str** label for the condition
+- label: **str** label for the condition, by default, it will self-increment `agent_cond_1`, `agent_cond_2`,...
 - weight: **float**, weight in total loss computation
 
 
@@ -126,7 +128,7 @@ Add boundary/initial condition for a specific endogenous variable with associate
 - comparator: **Comparator**
 - rhs: **str**, the string expression for lhs formula, latex expression not supported, should be functions of specific format agent_name(SV), or simply a constant value
 - rhs_state: **Dict[str, torch.Tensor]**, the specific value of SV to evaluate rhs at for the agent/endogenous variable, if rhs is a constant, this can be an empty dictionary
-- label: **str** label for the condition
+- label: **str** label for the condition, by default, it will self-increment `endog_cond_1`, `endog_cond_2`,...
 - weight: **float**, weight in total loss computation
 
 
@@ -165,6 +167,13 @@ def add_system(self, system: System, weight=1.0)
 ```
 
 Add a [System](evaluations.md#system) for loss computation.
+
+### set_config
+```py
+def set_config(self, config: Dict[str, Any] = DEFAULT_CONFIG)
+```
+
+This function overwrites the existing configurations. Can be used for L-BFGS finetuning
 
 ### train_model
 ```py
@@ -216,11 +225,11 @@ Load all the agents, endogenous variables (pytorch model and configurations) fro
 
 ### plot_vars
 ```py
-def plot_vars(self, vars_to_plot: List[str])
+def plot_vars(self, vars_to_plot: List[str], ncols: int=4)
 ```
 
 **Parameters**:
 
-- vars_to_plot: variable names to plot, can be an equation defining a new variable. If Latex, need to be enclosed by $$ symbols
+- vars_to_plot: **List[str]**, variable names to plot, can be an equation defining a new variable. If Latex, need to be enclosed by $$ symbols
+- ncols: **int**, number of columns to plot, default: 4
 
-**Warning**: This function is only supported for 1D state variables. For simple plots of 2D Agents/Endogenous Variables or their derivatives, use [LearnableVar.plot](models.md#plot).

@@ -41,6 +41,7 @@ class PDEModel:
             "lr": 1e-3,
             "loss_log_interval": 100,
             "optimizer_type": OptimizerType.AdamW,
+            "sampling_method": SamplingMethod.UniformRandom
         }
 
         loss_log_interval: the interval at which loss should be reported/recorded
@@ -50,11 +51,20 @@ class PDEModel:
         self.name = name
         self.config = DEFAULT_CONFIG.copy()
         self.config.update(config)
-        self.batch_size = config.get("batch_size", 100)
-        self.num_epochs = config.get("num_epochs", 1000)
-        self.lr = config.get("lr", 1e-3)
-        self.loss_log_interval = config.get("loss_log_interval", 100)
-        self.optimizer_type = config.get("optimizer_type", OptimizerType.AdamW)
+        self.batch_size = self.config.get("batch_size", 100)
+        self.num_epochs = self.config.get("num_epochs", 1000)
+        self.lr = self.config.get("lr", 1e-3)
+        self.loss_log_interval = self.config.get("loss_log_interval", 100)
+        self.optimizer_type = self.config.get("optimizer_type", OptimizerType.AdamW)
+        self.sampling_method = self.config.get("sampling_method", SamplingMethod.UniformRandom)
+
+        self.SAMPLING_METHOD_MAP = {
+            SamplingMethod.UniformRandom: self.sample_uniform,
+            SamplingMethod.FixedGrid: self.sample_fixed_grid,
+            SamplingMethod.ActiveLearning: self.sample_fixed_grid
+        }
+        self.sample = self.SAMPLING_METHOD_MAP[self.sampling_method]
+
         self.latex_var_mapping = latex_var_mapping
         
         self.state_variables = []
@@ -374,18 +384,10 @@ class PDEModel:
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
         self.loss_weight_dict[label] = weight
 
-    def update_variables(self):
+    def update_variables(self, SV):
         '''
-        Randomly sample the state variables, 
         update the agent/endogenous variables and variables defined by users using equations
         '''
-        SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
-                         high=self.state_variable_constraints["sv_high"], 
-                         size=(self.batch_size, len(self.state_variables)))
-        SV = torch.Tensor(SV).to(self.device)
-        for i, sv_name in enumerate(self.state_variables):
-            self.variable_val_dict[sv_name] = SV[:, i:i+1]
-
         # properly update variables, including agent, endogenous variables, their derivatives
         for func_name in self.local_function_dict:
             self.variable_val_dict[func_name] = self.local_function_dict[func_name](SV)
@@ -426,36 +428,22 @@ class PDEModel:
         for label in self.systems:
             self.loss_val_dict[label] = self.systems[label].eval({}, self.variable_val_dict)
 
-    def closure(self):
-        self.optimizer.zero_grad()
-        self.update_variables()
+    def closure(self, SV):
+        self.update_variables(SV)
         self.loss_fn()
         total_loss = 0
         for loss_label, loss in self.loss_val_dict.items():
             total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
-        
+
+        self.optimizer.zero_grad()
         total_loss.backward()
-        return total_loss
+        return total_loss        
 
-    def train_step(self):
-        '''
-        initialize random state variable with proper constraints, compute loss and update parameters
-        '''
-        self.optimizer.step(self.closure)
-        total_loss = 0
-        for loss_label, loss in self.loss_val_dict.items():
-            total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
-
-        loss_dict = self.loss_val_dict.copy()
-        loss_dict["total_loss"] = total_loss
-        return loss_dict
-        
-
-    def test_step(self):
+    def test_step(self, SV):
         '''
         initialize random state variable with proper constraints, compute loss
         '''
-        self.update_variables()
+        self.update_variables(SV)
         self.loss_fn()
         total_loss = 0
         for loss_label, loss in self.loss_val_dict.items():
@@ -477,6 +465,48 @@ class PDEModel:
         for endog_var_name in self.endog_vars:
             self.endog_vars[endog_var_name].eval()
     
+    def set_config(self, config: Dict[str, Any] = DEFAULT_CONFIG):
+        '''
+        This function overwrites the existing configurations.
+
+        DEFAULT_CONFIG={
+            "batch_size": 100,
+            "num_epochs": 1000,
+            "lr": 1e-3,
+            "loss_log_interval": 100,
+            "optimizer_type": OptimizerType.AdamW,
+            "sampling_method": SamplingMethod.UniformRandom
+        }
+        '''
+        self.config.update(config)
+        self.batch_size = self.config.get("batch_size", 100)
+        self.num_epochs = self.config.get("num_epochs", 1000)
+        self.lr = self.config.get("lr", 1e-3)
+        self.loss_log_interval = self.config.get("loss_log_interval", 100)
+        self.optimizer_type = self.config.get("optimizer_type", OptimizerType.AdamW)
+        self.sampling_method = self.config.get("sampling_method", SamplingMethod.UniformRandom)
+        self.sample = self.SAMPLING_METHOD_MAP[self.sampling_method]
+
+    
+    def sample_uniform(self):
+        SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
+                         high=self.state_variable_constraints["sv_high"], 
+                         size=(self.batch_size, len(self.state_variables)))
+        return torch.Tensor(SV).to(self.device)
+    
+    def sample_fixed_grid(self):
+        if len(self.state_variables) == 1:
+            return torch.linspace(self.state_variable_constraints["sv_low"][0], 
+                                  self.state_variable_constraints["sv_high"][0], 
+                                  steps=self.batch_size, device=self.device).view(-1, 1)
+        else:
+            sv_ls = [0] * len(self.state_variables)
+            for i in range(len(self.state_variables)):
+                sv_ls[i] = torch.linspace(self.state_variable_constraints["sv_low"][i], 
+                                        self.state_variable_constraints["sv_high"][i], 
+                                        steps=self.batch_size, device=self.device)
+            return torch.cartesian_prod(*sv_ls)
+
     def train_model(self, model_dir: str="./", filename: str=None, full_log=False):
         '''
         The entire loop of training
@@ -500,14 +530,8 @@ class PDEModel:
             # KAN can only be trained with LBFGS, 
             # as long as there is one model with KAN, we must route to the default LBFGS
             self.optimizer = LBFGS(all_params, lr=self.lr, history_size=10, line_search_fn="strong_wolfe", tolerance_grad=1e-32, tolerance_change=1e-32, tolerance_ys=1e-32)
-        elif self.optimizer_type == OptimizerType.Adam:
-            self.optimizer = torch.optim.Adam(all_params, self.lr)
-        elif self.optimizer_type == OptimizerType.AdamW:
-            self.optimizer = torch.optim.AdamW(all_params, self.lr)
-        elif self.optimizer_type == OptimizerType.LBFGS:
-            self.optimizer = torch.optim.LBFGS(all_params, self.lr)
         else:
-            raise NotImplementedError("Unsupported optimizer type")
+            self.optimizer = OPTIMIZER_MAP[self.optimizer_type](all_params, self.lr)
 
         os.makedirs(model_dir, exist_ok=True)
         if filename is None:
@@ -535,7 +559,17 @@ class PDEModel:
         for epoch in pbar:
             epoch_start_time = time.time()
             
-            loss_dict = self.train_step()
+            SV = self.sample()
+            for i, sv_name in enumerate(self.state_variables):
+                self.variable_val_dict[sv_name] = SV[:, i:i+1]
+
+            self.optimizer.step(lambda: self.closure(SV))
+            total_loss = 0
+            for loss_label, loss in self.loss_val_dict.items():
+                total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
+
+            loss_dict = self.loss_val_dict.copy()
+            loss_dict["total_loss"] = total_loss
 
             if full_log:
                 formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
@@ -564,27 +598,6 @@ class PDEModel:
 
         return loss_dict
     
-    def update_variables2(self, SV):
-        # properly update variables, including agent, endogenous variables, their derivatives
-        for func_name in self.local_function_dict:
-            self.variable_val_dict[func_name] = self.local_function_dict[func_name](SV)
-
-        # properly update variables, using equations
-        for eq_name in self.equations:
-            lhs = self.equations[eq_name].lhs.formula_str
-            self.variable_val_dict[lhs] = self.equations[eq_name].eval({}, self.variable_val_dict)
-
-    def closure2(self, SV):
-        self.optimizer.zero_grad()
-        self.update_variables2(SV)
-        self.loss_fn()
-        total_loss = 0
-        for loss_label, loss in self.loss_val_dict.items():
-            total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
-        
-        total_loss.backward()
-        return total_loss
-    
     def train_model_active_learning(self, active_learning_regions: List[List[float]]=[], model_dir: str="./", filename: str=None, full_log=False):
         '''
         The entire loop of training
@@ -608,14 +621,8 @@ class PDEModel:
             # KAN can only be trained with LBFGS, 
             # as long as there is one model with KAN, we must route to the default LBFGS
             self.optimizer = LBFGS(all_params, lr=self.lr, history_size=10, line_search_fn="strong_wolfe", tolerance_grad=1e-32, tolerance_change=1e-32, tolerance_ys=1e-32)
-        elif self.optimizer_type == OptimizerType.Adam:
-            self.optimizer = torch.optim.Adam(all_params, self.lr)
-        elif self.optimizer_type == OptimizerType.AdamW:
-            self.optimizer = torch.optim.AdamW(all_params, self.lr)
-        elif self.optimizer_type == OptimizerType.LBFGS:
-            self.optimizer = torch.optim.LBFGS(all_params, self.lr)
         else:
-            raise NotImplementedError("Unsupported optimizer type")
+            self.optimizer = OPTIMIZER_MAP[self.optimizer_type](all_params, self.lr)
 
         os.makedirs(model_dir, exist_ok=True)
         if filename is None:
@@ -656,7 +663,7 @@ class PDEModel:
             for i, sv_name in enumerate(self.state_variables):
                 self.variable_val_dict[sv_name] = SV[:, i:i+1]
 
-            self.optimizer.step(lambda: self.closure2(SV))
+            self.optimizer.step(lambda: self.closure(SV))
             total_loss = 0
             for loss_label, loss in self.loss_val_dict.items():
                 total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
@@ -699,7 +706,10 @@ class PDEModel:
         self.validate_model_setup()
         self.set_all_model_eval()
         print("{0:=^80}".format("Evaluating"))
-        loss_dict = self.test_step()
+        SV = self.sample()
+        for i, sv_name in enumerate(self.state_variables):
+            self.variable_val_dict[sv_name] = SV[:, i:i+1]
+        loss_dict = self.test_step(SV)
 
         if full_log:
             formatted_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
@@ -724,14 +734,15 @@ class PDEModel:
         self.systems,
         '''
         errors = []
-        sv = torch.rand((self.batch_size, len(self.state_variables)), device=self.device)
+        sv = self.sample()
+        variable_val_dict_ = self.variable_val_dict.copy()
         for i, sv_name in enumerate(self.state_variables):
-            self.variable_val_dict[sv_name] = sv[:, i:i+1]
+            variable_val_dict_[sv_name] = sv[:, i:i+1]
 
         for agent_name in self.agents:
             try:
                 y = self.agents[agent_name].forward(sv)
-                assert y.shape[0] == self.batch_size and y.shape[1] == 1
+                assert y.shape[0] == sv.shape[0] and y.shape[1] == 1
             except Exception as e:
                 errors.append({
                     "label": agent_name, 
@@ -741,12 +752,15 @@ class PDEModel:
         for endog_var_name in self.endog_vars:
             try:
                 y = self.endog_vars[endog_var_name].forward(sv)
-                assert y.shape[0] == self.batch_size and y.shape[1] == 1
+                assert y.shape[0] == sv.shape[0] and y.shape[1] == 1
             except Exception as e:
                 errors.append({
                     "label": endog_var_name,
                     "error": str(e),
                 })
+        
+        for func_name in self.local_function_dict:
+            variable_val_dict_[func_name] = self.local_function_dict[func_name](sv)
 
         for label in self.agent_conditions:
             try:
@@ -775,7 +789,8 @@ class PDEModel:
         
         for label in self.equations:
             try:
-                self.equations[label].eval({}, self.variable_val_dict)
+                lhs = self.equations[label].lhs.formula_str
+                variable_val_dict_[lhs] = self.equations[label].eval({}, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
@@ -788,7 +803,7 @@ class PDEModel:
 
         for label in self.endog_equations:
             try:
-                self.endog_equations[label].eval({}, self.variable_val_dict)
+                self.endog_equations[label].eval({}, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
@@ -800,7 +815,7 @@ class PDEModel:
 
         for label in self.constraints:
             try:
-                self.constraints[label].eval({}, self.variable_val_dict)
+                self.constraints[label].eval({}, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
@@ -811,7 +826,7 @@ class PDEModel:
 
         for label in self.hjb_equations:
             try:
-                self.hjb_equations[label].eval({}, self.variable_val_dict)
+                self.hjb_equations[label].eval({}, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
@@ -823,7 +838,7 @@ class PDEModel:
 
         for label in self.systems:
             try:
-                self.systems[label].eval({}, self.variable_val_dict)
+                self.systems[label].eval({}, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     # it's fine to have zero division. All other errors should be raised
@@ -974,10 +989,11 @@ class PDEModel:
 
         return str_repr
     
-    def plot_vars(self, vars_to_plot: List[str]):
+    def plot_vars(self, vars_to_plot: List[str], ncols: int=4):
         '''
         Inputs:
             vars_to_plot: variable names to plot, can be an equation defining a new variable. If Latex, need to be enclosed by $$ symbols
+            ncols: number of columns to plot, default: 4
         This function is only supported for 1D or 2D state_variables.
         '''
         assert len(self.state_variables) <= 2, "Plot is only supported for problems with no more than 2 state variables"
@@ -986,17 +1002,20 @@ class PDEModel:
         var_to_latex = {}
         for k, v in self.latex_var_mapping.items():
             var_to_latex[v] = k
-        X = []
-        for sv in self.state_variables:
-            x_lims = self.state_variable_constraints[sv]
-            X.append(np.linspace(x_lims[0], x_lims[1], 100))
-        X = np.stack(X).T
+
+        sv_ls = [0] * len(self.state_variables)
+        for i in range(len(self.state_variables)):
+            sv_ls[i] = torch.linspace(self.state_variable_constraints["sv_low"][i], 
+                                      self.state_variable_constraints["sv_high"][i], steps=100, device=self.device)
+        X = torch.cartesian_prod(*sv_ls)
         
-        nrows = len(vars_to_plot) // 4
-        if len(vars_to_plot) % 4 > 0:
+        nrows = len(vars_to_plot) // ncols
+        if len(vars_to_plot) % ncols > 0:
             nrows += 1
         if len(self.state_variables) == 1:
-            SV = torch.Tensor(X)
+            fig, ax = plt.subplots(nrows, ncols, figsize=(ncols * 4, nrows * 4))
+            SV = X.unsqueeze(-1)
+            X = X.detach().cpu().numpy().reshape(-1)
             for i, sv_name in enumerate(self.state_variables):
                 variable_var_dict_[sv_name] = SV[:, i:i+1]
             # properly update variables, including agent, endogenous variables, their derivatives
@@ -1007,17 +1026,19 @@ class PDEModel:
             for eq_name in self.equations:
                 lhs = self.equations[eq_name].lhs.formula_str
                 variable_var_dict_[lhs] = self.equations[eq_name].eval({}, variable_var_dict_)
-            fig, ax = plt.subplots(nrows, 4, figsize=(24, nrows * 6))
 
             sv_text = self.state_variables[0]
             if self.state_variables[0] in var_to_latex:
                 sv_text = f"${var_to_latex[self.state_variables[0]]}$"
 
             for i, curr_var in enumerate(vars_to_plot):
-                curr_row = i // 4
-                curr_col = i % 4
+                curr_row = i // ncols
+                curr_col = i % ncols
                 if nrows == 1:
-                    curr_ax = ax[curr_col]
+                    if ncols == 1:
+                        curr_ax = ax
+                    else:
+                        curr_ax = ax[curr_col]
                 else:
                     curr_ax = ax[curr_row][curr_col]
                 if "$" in curr_var:
@@ -1026,7 +1047,7 @@ class PDEModel:
                         curr_eq = Equation(curr_var, f"plot_eq{i}", self.latex_var_mapping)
                         lhs = curr_eq.lhs.formula_str
                         variable_var_dict_[lhs] = curr_eq.eval({}, variable_var_dict_)
-                        curr_ax.plot(X.reshape(-1), variable_var_dict_[lhs].detach().cpu().numpy().reshape(-1))
+                        curr_ax.plot(X, variable_var_dict_[lhs].detach().cpu().numpy().reshape(-1))
                         curr_ax.set_xlabel(sv_text)
                         lhs_unparsed = curr_var.split("=")[0].replace("$", "").strip()
                         curr_ax.set_ylabel(f"${lhs_unparsed}$")
@@ -1034,7 +1055,7 @@ class PDEModel:
                     else:
                         base_var = curr_var.replace("$", "").strip()
                         base_var_non_latex = self.latex_var_mapping.get(base_var, base_var)
-                        curr_ax.plot(X.reshape(-1), variable_var_dict_[base_var_non_latex].detach().cpu().numpy().reshape(-1))
+                        curr_ax.plot(X, variable_var_dict_[base_var_non_latex].detach().cpu().numpy().reshape(-1))
                         curr_ax.set_xlabel(sv_text)
                         curr_ax.set_ylabel(curr_var)
                         curr_ax.set_title(f"{curr_var} vs {sv_text}")
@@ -1043,18 +1064,89 @@ class PDEModel:
                         curr_eq = Equation(curr_var, f"plot_eq{i}", self.latex_var_mapping)
                         lhs = curr_eq.lhs.formula_str
                         variable_var_dict_[lhs] = curr_eq.eval({}, variable_var_dict_)
-                        curr_ax.plot(X.reshape(-1), variable_var_dict_[lhs].detach().cpu().numpy().reshape(-1))
+                        curr_ax.plot(X, variable_var_dict_[lhs].detach().cpu().numpy().reshape(-1))
                         curr_ax.set_xlabel(sv_text)
                         curr_ax.set_ylabel(lhs)
                         curr_ax.set_title(f"{lhs} vs {sv_text}")
                     else:
-                        curr_ax.plot(X.reshape(-1), variable_var_dict_[curr_var].detach().cpu().numpy().reshape(-1))
+                        curr_ax.plot(X, variable_var_dict_[curr_var].detach().cpu().numpy().reshape(-1))
                         curr_ax.set_xlabel(sv_text)
                         curr_ax.set_ylabel(curr_var)
                         curr_ax.set_title(f"{curr_var} vs {sv_text}")
             plt.tight_layout()
             plt.show()
         else:
-            raise NotImplementedError("Plotting additional variables is not yet supported for 2D problems. Plot functions in Agent and EndogVar are available.")
-            fig, ax = plt.subplots(nrows, 4, figsize=(24, nrows * 6), subplot_kw={"projection": "3d"})
+            fig, ax = plt.subplots(nrows, ncols, figsize=(ncols * 4, nrows * 4), subplot_kw={"projection": "3d"})
+            SV = torch.clone(X)
+            X, Y = torch.meshgrid(sv_ls, indexing="ij")
+            X = X.detach().cpu().numpy()
+            Y = Y.detach().cpu().numpy()
+            for i, sv_name in enumerate(self.state_variables):
+                variable_var_dict_[sv_name] = SV[:, i:i+1]
+            # properly update variables, including agent, endogenous variables, their derivatives
+            for func_name in self.local_function_dict:
+                variable_var_dict_[func_name] = self.local_function_dict[func_name](SV)
+
+            # properly update variables, using equations
+            for eq_name in self.equations:
+                lhs = self.equations[eq_name].lhs.formula_str
+                variable_var_dict_[lhs] = self.equations[eq_name].eval({}, variable_var_dict_)
+
+            sv_text0 = self.state_variables[0]
+            sv_text1 = self.state_variables[1]
+            if self.state_variables[0] in var_to_latex:
+                sv_text0 = f"${var_to_latex[self.state_variables[0]]}$"
+            if self.state_variables[1] in var_to_latex:
+                sv_text1 = f"${var_to_latex[self.state_variables[1]]}$"
+
+            for i, curr_var in enumerate(vars_to_plot):
+                curr_row = i // ncols
+                curr_col = i % ncols
+                if nrows == 1:
+                    if ncols == 1:
+                        curr_ax = ax
+                    else:
+                        curr_ax = ax[curr_col]
+                else:
+                    curr_ax = ax[curr_row][curr_col]
+                if "$" in curr_var:
+                    # parse latex and potentially equation
+                    if "=" in curr_var:
+                        curr_eq = Equation(curr_var, f"plot_eq{i}", self.latex_var_mapping)
+                        lhs = curr_eq.lhs.formula_str
+                        variable_var_dict_[lhs] = curr_eq.eval({}, variable_var_dict_)
+                        curr_ax.plot_surface(X, Y, variable_var_dict_[lhs].detach().cpu().numpy().reshape(100, 100))
+                        curr_ax.set_xlabel(sv_text0)
+                        curr_ax.set_ylabel(sv_text1)
+                        lhs_unparsed = curr_var.split("=")[0].replace("$", "").strip()
+                        curr_ax.set_zlabel(f"${lhs_unparsed}$")
+                        curr_ax.set_title(f"${lhs_unparsed}$ vs ({sv_text0}, {sv_text1})")
+                    else:
+                        base_var = curr_var.replace("$", "").strip()
+                        base_var_non_latex = self.latex_var_mapping.get(base_var, base_var)
+                        curr_ax.plot_surface(X, Y, variable_var_dict_[base_var_non_latex].detach().cpu().numpy().reshape(100, 100))
+                        curr_ax.set_xlabel(sv_text0)
+                        curr_ax.set_ylabel(sv_text1)
+                        curr_ax.set_zlabel(curr_var)
+                        curr_ax.set_title(f"{curr_var} vs ({sv_text0}, {sv_text1})")
+                else:
+                    if "=" in curr_var:
+                        curr_eq = Equation(curr_var, f"plot_eq{i}", self.latex_var_mapping)
+                        lhs = curr_eq.lhs.formula_str
+                        variable_var_dict_[lhs] = curr_eq.eval({}, variable_var_dict_)
+                        curr_ax.plot_surface(X, Y, variable_var_dict_[lhs].detach().cpu().numpy().reshape(100, 100))
+                        curr_ax.set_xlabel(sv_text0)
+                        curr_ax.set_ylabel(sv_text1)
+                        curr_ax.set_zlabel(curr_var)
+                        curr_ax.set_title(f"{lhs} vs ({sv_text0}, {sv_text1})")
+                    else:
+                        curr_ax.plot_surface(X, Y, variable_var_dict_[curr_var].detach().cpu().numpy().reshape(100, 100))
+                        curr_ax.set_xlabel(sv_text0)
+                        curr_ax.set_ylabel(sv_text1)
+                        curr_ax.set_zlabel(curr_var)
+                        curr_ax.set_title(f"{curr_var} vs ({sv_text0}, {sv_text1})")
+                curr_ax.view_init(30, -135, 0)
+                curr_ax.set_box_aspect(None, zoom=0.85)
+            plt.tight_layout()
+            plt.show()
 
