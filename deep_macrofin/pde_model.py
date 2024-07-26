@@ -495,12 +495,17 @@ class PDEModel:
         return torch.Tensor(SV).to(self.device)
     
     def sample_fixed_grid(self):
-        sv_ls = [0] * len(self.state_variables)
-        for i in range(len(self.state_variables)):
-            sv_ls[i] = torch.linspace(self.state_variable_constraints["sv_low"][i], 
-                                      self.state_variable_constraints["sv_high"][i], 
-                                      steps=self.batch_size, device=self.device)
-        return torch.cartesian_prod(*sv_ls)
+        if len(self.state_variables) == 1:
+            return torch.linspace(self.state_variable_constraints["sv_low"][0], 
+                                  self.state_variable_constraints["sv_high"][0], 
+                                  steps=self.batch_size, device=self.device).view(-1, 1)
+        else:
+            sv_ls = [0] * len(self.state_variables)
+            for i in range(len(self.state_variables)):
+                sv_ls[i] = torch.linspace(self.state_variable_constraints["sv_low"][i], 
+                                        self.state_variable_constraints["sv_high"][i], 
+                                        steps=self.batch_size, device=self.device)
+            return torch.cartesian_prod(*sv_ls)
 
     def train_model(self, model_dir: str="./", filename: str=None, full_log=False):
         '''

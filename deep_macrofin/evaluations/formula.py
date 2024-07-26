@@ -151,7 +151,10 @@ class Formula:
         if "$" in formula_str:
             self.formula_str = latex_parsing(formula_str, latex_var_mapping)
             self.formula_str = self.formula_str.strip() # to avoid additional spaces
-        self.formula_compiled = compile(self.formula_str, "<string>", "eval")
+        try:
+            self.formula_compiled = compile(self.formula_str, "<string>", "eval")
+        except:
+            self.formula_compiled = self.formula_str
         self.evaluation_method = evaluation_method
 
         if self.evaluation_method == EvaluationMethod.Eval:
