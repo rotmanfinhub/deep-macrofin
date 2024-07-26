@@ -5,6 +5,7 @@ from typing import Callable, Dict, List, Union
 import torch
 
 from .formula import EvaluationMethod, Formula
+from .loss_compute_methods import LOSS_REDUCTION_MAP, LossReductionMethod
 
 
 class HJBEquation:
@@ -25,12 +26,16 @@ class HJBEquation:
         self.eq = eq
         self.parsed_eq = Formula(eq, EvaluationMethod.Eval, latex_var_mapping)
 
-    def eval(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor]):
+    def eval(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor], 
+                loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         Evaluate the function, compute MSE with 0, return the value
         '''
         eq_eval = self.parsed_eq.eval(available_functions, variables)
-        return torch.mean(torch.square(eq_eval))
+        return LOSS_REDUCTION_MAP[loss_reduction](eq_eval)
+    
+    def eval_no_loss(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor]):
+        return self.eval(available_functions, variables, loss_reduction=LossReductionMethod.NONE)
 
     def __str__(self):
         str_repr = f"{self.label}: \n"

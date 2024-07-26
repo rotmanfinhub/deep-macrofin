@@ -3,7 +3,7 @@ import unittest
 import torch
 import torch.nn as nn
 
-from deep_macrofin.evaluations import EndogEquation
+from deep_macrofin.evaluations import EndogEquation, LossReductionMethod
 
 class TestConditions(unittest.TestCase):
     @classmethod
@@ -105,6 +105,18 @@ class TestConditions(unittest.TestCase):
         eq = EndogEquation(r"$\alpha^a -\iota_t^a &= c_t^i * \eta_t + c_t^h * (1-\eta_t)$", "label", self.latex_mapping)
         result = eq.eval({}, self.variables)
         expected_result = torch.mean(torch.square(self.variables["ci"] * self.variables["eta"] + self.variables["ch"] * (1 - self.variables["eta"]) - (self.variables["alpha"] - self.variables["iota"])))
+        self.assertTrue(torch.allclose(result, expected_result), f"Expected {expected_result}, got {result}")
+
+    def test_endogeq_loss_reduction(self):
+        eq = EndogEquation(r"$x^2 = 1$", "label", self.latex_mapping)
+        result = eq.eval({}, self.variables, loss_reduction=LossReductionMethod.MAE)
+        expected_result = torch.mean(torch.abs(self.variables["x"] ** 2 - 1))
+        self.assertTrue(torch.allclose(result, expected_result), f"Expected {expected_result}, got {result}")
+
+    def test_endogeq_loss_reduction2(self):
+        eq = EndogEquation(r"$x^2 = 1$", "label", self.latex_mapping)
+        result = eq.eval({}, self.variables, loss_reduction=LossReductionMethod.NONE)
+        expected_result = self.variables["x"] ** 2 - 1
         self.assertTrue(torch.allclose(result, expected_result), f"Expected {expected_result}, got {result}")
 
 if __name__ == "__main__":

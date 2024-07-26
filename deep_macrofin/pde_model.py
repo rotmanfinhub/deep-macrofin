@@ -83,6 +83,8 @@ class PDEModel:
         
         self.local_function_dict: Dict[str, Callable] = OrderedDict() # should include all functions available from agents and endogenous vars (direct evaluation and derivatives)
 
+        self.loss_reduction_dict: Dict[str, LossReductionMethod] = OrderedDict() # used to store all loss function label to reduction method mappings
+
         # label to value mapping, used to store all variable values and loss.
         self.params: Dict[str, torch.Tensor] = OrderedDict()
         self.variable_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include all local variables/params + current values, initially, all values in this dictionary can be zero
@@ -209,7 +211,8 @@ class PDEModel:
                             comparator: Comparator, 
                             rhs: str, rhs_state: Dict[str, torch.Tensor], 
                             label: str=None,
-                            weight: float=1.0):
+                            weight: float=1.0, 
+                            loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         Add boundary/initial condition for a specific agent
 
@@ -222,6 +225,7 @@ class PDEModel:
         - rhs_state: **Dict[str, torch.Tensor]**, the specific value of SV to evaluate rhs at for the agent/endogenous variable, if rhs is a constant, this can be an empty dictionary
         - label: **str** label for the condition
         - weight: **float**, weight in total loss computation
+        - loss_reduction: **LossReductionMethod**, `LossReductionMethod.MSE` for mean squared error, or `LossReductionMethod.MAE` for mean absolute error
         '''
         assert name in self.agents, f"Agent {name} does not exist"
         if label is None:
@@ -235,6 +239,7 @@ class PDEModel:
                                                        label, self.latex_var_mapping)
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
         self.loss_weight_dict[label] = weight
+        self.loss_reduction_dict[label] = loss_reduction
 
     def add_endog(self, name: str, 
                   config: Dict[str, Any] = DEFAULT_LEARNABLE_VAR_CONFIG,
@@ -292,7 +297,8 @@ class PDEModel:
                             comparator: Comparator, 
                             rhs: str, rhs_state: Dict[str, torch.Tensor], 
                             label: str=None,
-                            weight=1.0):
+                            weight=1.0, 
+                            loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         Add boundary/initial condition for a specific endogenous var
 
@@ -305,6 +311,7 @@ class PDEModel:
         - rhs_state: **Dict[str, torch.Tensor]**, the specific value of SV to evaluate rhs at for the agent/endogenous variable, if rhs is a constant, this can be an empty dictionary
         - label: **str** label for the condition
         - weight: **float**, weight in total loss computation
+        - loss_reduction: **LossReductionMethod**, `LossReductionMethod.MSE` for mean squared error, or `LossReductionMethod.MAE` for mean absolute error
         '''
         assert name in self.endog_vars, f"Endogenous variable {name} does not exist"
         if label is None:
@@ -318,6 +325,7 @@ class PDEModel:
                                                        label, self.latex_var_mapping)
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
         self.loss_weight_dict[label] = weight
+        self.loss_reduction_dict[label] = loss_reduction
 
     def add_equation(self, eq: str, label: str=None):
         '''
@@ -331,7 +339,8 @@ class PDEModel:
         self.equations[label] = new_eq
         self.variable_val_dict[new_eq.lhs.formula_str] = torch.zeros((self.batch_size, 1), device=self.device)
 
-    def add_endog_equation(self, eq: str, label: str=None, weight=1.0):
+    def add_endog_equation(self, eq: str, label: str=None, weight=1.0, 
+                loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         Add an equation for loss computation based on endogenous variable
         '''
@@ -342,8 +351,10 @@ class PDEModel:
         self.endog_equations[label] = EndogEquation(eq, label, self.latex_var_mapping)
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
         self.loss_weight_dict[label] = weight
+        self.loss_reduction_dict[label] = loss_reduction
 
-    def add_constraint(self, lhs: str, comparator: Comparator, rhs: str, label: str=None, weight=1.0):
+    def add_constraint(self, lhs: str, comparator: Comparator, rhs: str, label: str=None, weight=1.0, 
+                loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         comparator should be one of "=", ">", ">=", "<", "<=", we can use enum for this.
 
@@ -356,8 +367,10 @@ class PDEModel:
         self.constraints[label] = Constraint(lhs, comparator, rhs, label, self.latex_var_mapping)
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
         self.loss_weight_dict[label] = weight
+        self.loss_reduction_dict[label] = loss_reduction
 
-    def add_hjb_equation(self, eq: str, label: str=None, weight=1.0):
+    def add_hjb_equation(self, eq: str, label: str=None, weight=1.0, 
+                loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         Add an equation for loss computation based on an HJB equation (residual form)
         '''
@@ -368,6 +381,7 @@ class PDEModel:
         self.hjb_equations[label] = HJBEquation(eq, label, self.latex_var_mapping)
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
         self.loss_weight_dict[label] = weight
+        self.loss_reduction_dict[label] = loss_reduction
 
 
     def add_system(self, system: System, weight=1.0):
@@ -410,20 +424,20 @@ class PDEModel:
         '''
         # for agent and endogenous variable conditions, we need to use the exact function to compute the values
         for label in self.agent_conditions:
-            self.loss_val_dict[label] = self.agent_conditions[label].eval(self.local_function_dict)
+            self.loss_val_dict[label] = self.agent_conditions[label].eval(self.local_function_dict, self.loss_reduction_dict[label])
         
         for label in self.endog_var_conditions:
-            self.loss_val_dict[label] = self.endog_var_conditions[label].eval(self.local_function_dict)
+            self.loss_val_dict[label] = self.endog_var_conditions[label].eval(self.local_function_dict, self.loss_reduction_dict[label])
 
         # for all other formula/equations, we can use the pre-computed values of a specific state to compute the loss
         for label in self.endog_equations:
-            self.loss_val_dict[label] = self.endog_equations[label].eval({}, self.variable_val_dict)
+            self.loss_val_dict[label] = self.endog_equations[label].eval({}, self.variable_val_dict, self.loss_reduction_dict[label])
 
         for label in self.constraints:
-            self.loss_val_dict[label] = self.constraints[label].eval({}, self.variable_val_dict)
+            self.loss_val_dict[label] = self.constraints[label].eval({}, self.variable_val_dict, self.loss_reduction_dict[label])
 
         for label in self.hjb_equations:
-            self.loss_val_dict[label] = self.hjb_equations[label].eval({}, self.variable_val_dict)
+            self.loss_val_dict[label] = self.hjb_equations[label].eval({}, self.variable_val_dict, self.loss_reduction_dict[label])
 
         for label in self.systems:
             self.loss_val_dict[label] = self.systems[label].eval({}, self.variable_val_dict)
@@ -487,6 +501,10 @@ class PDEModel:
         self.sampling_method = self.config.get("sampling_method", SamplingMethod.UniformRandom)
         self.sample = self.SAMPLING_METHOD_MAP[self.sampling_method]
 
+    def set_loss_reduction(self, label: str, loss_reduction: LossReductionMethod):
+        if label not in self.loss_reduction_dict:
+            raise ValueError(f"{label} is not a valid label for loss function")
+        self.loss_reduction_dict[label] = loss_reduction
     
     def sample_uniform(self):
         SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 

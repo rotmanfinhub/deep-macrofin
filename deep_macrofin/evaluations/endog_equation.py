@@ -5,6 +5,7 @@ from typing import Callable, Dict, List, Union
 import torch
 
 from .formula import EvaluationMethod, Formula
+from .loss_compute_methods import LOSS_REDUCTION_MAP, LossReductionMethod
 
 
 class EndogEquation:
@@ -28,22 +29,30 @@ class EndogEquation:
         self.lhs = Formula(eq_splitted[0], EvaluationMethod.Eval, latex_var_mapping)
         self.rhs = Formula(eq_splitted[1], EvaluationMethod.Eval, latex_var_mapping)
 
-    def eval(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor]):
+    def eval(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor], 
+                loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         evaluate LHS and RHS, compute MSE between them, return the value
         '''
         lhs_eval = self.lhs.eval(available_functions, variables)
         rhs_eval = self.rhs.eval(available_functions, variables)
-        return torch.mean(torch.square(lhs_eval - rhs_eval))
+        return LOSS_REDUCTION_MAP[loss_reduction](lhs_eval - rhs_eval)
     
-    def eval_with_mask(self,  available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor], mask: torch.Tensor):
+    def eval_no_loss(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor]):
+        return self.eval(available_functions, variables, loss_reduction=LossReductionMethod.NONE)
+    
+    def eval_with_mask(self,  available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor], 
+                       mask: torch.Tensor, loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         evaluate LHS and RHS, for batch elements selected by the mask, compute MSE between them, return the value
         mask should be set by a system only, it is to detect which loss should be triggered by the system constraint
         '''
         lhs_eval = self.lhs.eval(available_functions, variables)
         rhs_eval = self.rhs.eval(available_functions, variables)
-        return torch.mean(torch.square(lhs_eval - rhs_eval)[mask.squeeze(-1).to(torch.bool)])
+        return LOSS_REDUCTION_MAP[loss_reduction]((lhs_eval - rhs_eval)[mask.squeeze(-1).to(torch.bool)])
+
+    def eval_with_mask_no_loss(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor]):
+        return self.eval_with_mask(available_functions, variables, loss_reduction=LossReductionMethod.NONE)
     
     def __str__(self):
         str_repr = f"{self.label}: \n"
