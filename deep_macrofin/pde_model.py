@@ -41,7 +41,8 @@ class PDEModel:
             "lr": 1e-3,
             "loss_log_interval": 100,
             "optimizer_type": OptimizerType.AdamW,
-            "sampling_method": SamplingMethod.UniformRandom
+            "sampling_method": SamplingMethod.UniformRandom,
+            "refinement_sample_interval": 200,
         }
 
         loss_log_interval: the interval at which loss should be reported/recorded
@@ -61,7 +62,9 @@ class PDEModel:
         self.SAMPLING_METHOD_MAP = {
             SamplingMethod.UniformRandom: self.sample_uniform,
             SamplingMethod.FixedGrid: self.sample_fixed_grid,
-            SamplingMethod.ActiveLearning: self.sample_fixed_grid
+            SamplingMethod.ActiveLearning: self.sample_rar_greedy,
+            SamplingMethod.RARG: self.sample_rar_greedy,
+            SamplingMethod.RARD: self.sample_rar_distribution,
         }
         self.sample = self.SAMPLING_METHOD_MAP[self.sampling_method]
 
@@ -91,6 +94,11 @@ class PDEModel:
         self.loss_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include loss equation (constraints, endogenous equations, HJB equations) labels + corresponding loss values, initially, all values in this dictionary can be zero.
         self.loss_weight_dict: Dict[str, float] = OrderedDict() # should include loss equation labels + corresponding weight
         self.device = "cpu"
+
+        # for residual-based adaptive refinement (RAR) and active learning
+        self.anchor_points: torch.Tensor = None
+        self.refinement_sample_interval: int = self.config.get("refinement_sample_interval", int(0.2 * self.num_epochs))
+        self.refinement_rounds: int = self.num_epochs // self.refinement_sample_interval
 
     def check_name_used(self, name: str):
         for self_dicts in [self.state_variables,
@@ -506,13 +514,13 @@ class PDEModel:
             raise ValueError(f"{label} is not a valid label for loss function")
         self.loss_reduction_dict[label] = loss_reduction
     
-    def sample_uniform(self):
+    def sample_uniform(self, epoch):
         SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
                          high=self.state_variable_constraints["sv_high"], 
                          size=(self.batch_size, len(self.state_variables)))
         return torch.Tensor(SV).to(self.device)
     
-    def sample_fixed_grid(self):
+    def sample_fixed_grid(self, epoch):
         if len(self.state_variables) == 1:
             return torch.linspace(self.state_variable_constraints["sv_low"][0], 
                                   self.state_variable_constraints["sv_high"][0], 
@@ -524,11 +532,95 @@ class PDEModel:
                                         self.state_variable_constraints["sv_high"][i], 
                                         steps=self.batch_size, device=self.device)
             return torch.cartesian_prod(*sv_ls)
+        
+    def get_refinement_loss_dict(self, epoch):
+        '''
+        Sample a dense subset of the problem domain, compute the loss and return total loss for each point sampled. Used for Residual-based Adaptive Refinement and Active Learning
+
+        Returns:
+            {
+                "SV": sampled state variables, shape (100000, len(self.state_variables))
+                "loss": total loss computed at each sv, shape (100000, 1)
+            }
+        '''
+        # because we need a set of dense points to compute residual for adaptive sampling
+        # we set all models to evaluation models so that gradients won't be computed.
+        # it speeds up the computation and reduces memory usages
+        self.set_all_model_eval()
+
+        # Temporarily set a large batch size for each dimension
+        self.batch_size = 100000
+        SV = self.sample_uniform(epoch)
+
+        # make a copy of variable value mapping
+        # so that we don't break the top level training routine
+        variable_val_dict_ = self.variable_val_dict.copy()
+        total_loss = torch.zeros((self.batch_size, 1))
+
+        # forward pass
+        for i, sv_name in enumerate(self.state_variables):
+            variable_val_dict_[sv_name] = SV[:, i:i+1]
+
+        # update variables, including agent, endogenous variables, their derivatives
+        for func_name in self.local_function_dict:
+            variable_val_dict_[func_name] = self.local_function_dict[func_name](SV)
+
+        # update variables, using equations
+        for eq_name in self.equations:
+            lhs = self.equations[eq_name].lhs.formula_str
+            variable_val_dict_[lhs] = self.equations[eq_name].eval({}, variable_val_dict_)
+
+        # compute total losses, without reducing to a single value, keep the original dimension, but summing up using abs values
+        # Note that the conditions (IC/BC, or user pre-defined sampling regions) are not considered
+        # Systems are not considered
+        for label in self.endog_equations:
+            total_loss += torch.abs(self.endog_equations[label].eval({}, variable_val_dict_, LossReductionMethod.NONE)).reshape((self.batch_size, 1))
+
+        for label in self.constraints:
+            total_loss += torch.abs(self.constraints[label].eval({}, variable_val_dict_, LossReductionMethod.NONE)).reshape((self.batch_size, 1))
+
+        for label in self.hjb_equations:
+            total_loss += torch.abs(self.hjb_equations[label].eval({}, variable_val_dict_, LossReductionMethod.NONE)).reshape((self.batch_size, 1))
+
+        self.batch_size = self.config.get("batch_size", 100) # reset the batch size for normal computation
+        self.set_all_model_training() # reset the model for training stage
+
+        return {
+            "SV": SV,
+            "loss": total_loss,
+        }
+        
+    def sample_rar_greedy(self, epoch):
+        if epoch % self.refinement_sample_interval == 0 and epoch > 0:
+            # check epoch > 0 so we don't need to resample in the first epoch
+            refinement_loss_dict = self.get_refinement_loss_dict(epoch)
+            SV = refinement_loss_dict["SV"]
+            all_losses = refinement_loss_dict["loss"]
+            X_ids = torch.topk(all_losses, self.batch_size**len(self.state_variables)//self.refinement_rounds, dim=0)[1].squeeze(-1)
+            self.anchor_points = torch.vstack((self.anchor_points, SV[X_ids]))
+        fixed_grid_sv = self.sample_fixed_grid(epoch)
+        return torch.vstack((fixed_grid_sv, self.anchor_points))
+        
+
+    def sample_rar_distribution(self, epoch):
+        if epoch % self.refinement_sample_interval == 0 and epoch > 0:
+            # check epoch > 0 so we don't need to resample in the first epoch
+            refinement_loss_dict = self.get_refinement_loss_dict(epoch)
+            SV = refinement_loss_dict["SV"]
+            all_losses = refinement_loss_dict["loss"]
+            err_eq = all_losses / all_losses.mean() + 1
+            err_eq_normalized = (err_eq / err_eq.sum())[:, 0]
+            X_ids = np.random.choice(a=SV.shape[0], size=self.batch_size**len(self.state_variables)//self.refinement_rounds, replace=False, p=err_eq_normalized.detach().cpu().numpy())
+            self.anchor_points = torch.vstack((self.anchor_points, SV[X_ids]))
+        fixed_grid_sv = self.sample_fixed_grid(epoch)
+        return torch.vstack((fixed_grid_sv, self.anchor_points))
 
     def train_model(self, model_dir: str="./", filename: str=None, full_log=False):
         '''
         The entire loop of training
         '''
+
+        self.anchor_points = torch.empty((0, len(self.state_variables)), device=self.device)
 
         min_loss = torch.inf
         epoch_loss_dict = defaultdict(list)
@@ -577,7 +669,7 @@ class PDEModel:
         for epoch in pbar:
             epoch_start_time = time.time()
             
-            SV = self.sample()
+            SV = self.sample(epoch)
             for i, sv_name in enumerate(self.state_variables):
                 self.variable_val_dict[sv_name] = SV[:, i:i+1]
 
@@ -721,10 +813,12 @@ class PDEModel:
         '''
         The entire loop of evaluation
         '''
+        self.anchor_points = torch.empty((0, len(self.state_variables)), device=self.device)
+        
         self.validate_model_setup()
         self.set_all_model_eval()
         print("{0:=^80}".format("Evaluating"))
-        SV = self.sample()
+        SV = self.sample(0)
         for i, sv_name in enumerate(self.state_variables):
             self.variable_val_dict[sv_name] = SV[:, i:i+1]
         loss_dict = self.test_step(SV)
@@ -752,7 +846,7 @@ class PDEModel:
         self.systems,
         '''
         errors = []
-        sv = self.sample()
+        sv = self.sample(0)
         variable_val_dict_ = self.variable_val_dict.copy()
         for i, sv_name in enumerate(self.state_variables):
             variable_val_dict_[sv_name] = sv[:, i:i+1]

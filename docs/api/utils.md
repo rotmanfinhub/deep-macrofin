@@ -33,6 +33,8 @@ class SamplingMethod(str, Enum):
     UniformRandom = "UniformRandom"
     FixedGrid = "FixedGrid"
     ActiveLearning = "ActiveLearning"
+    RARG = "RAR-G"
+    RARD = "RAR-D"
 
 DEFAULT_CONFIG = {
     "batch_size": 100,
@@ -40,7 +42,8 @@ DEFAULT_CONFIG = {
     "lr": 1e-3,
     "loss_log_interval": 100,
     "optimizer_type": OptimizerType.AdamW,
-    "sampling_method": SamplingMethod.UniformRandom
+    "sampling_method": SamplingMethod.UniformRandom,
+    "refinement_sample_interval": 200,
 }
 
 DEFAULT_LEARNABLE_VAR_CONFIG = {

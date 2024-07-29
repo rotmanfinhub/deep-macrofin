@@ -21,7 +21,8 @@ DEFAULT_CONFIG = {
     "lr": 1e-3,
     "loss_log_interval": 100,
     "optimizer_type": OptimizerType.AdamW,
-    "sampling_method": SamplingMethod.UniformRandom
+    "sampling_method": SamplingMethod.UniformRandom,
+    "refinement_sample_interval": 200,
 }
 ```
 
@@ -52,11 +53,17 @@ from deep_macrofin import SamplingMethod
 # SamplingMethod.UniformRandom = "UniformRandom"
 # SamplingMethod.FixedGrid = "FixedGrid"
 # SamplingMethod.ActiveLearning = "ActiveLearning"
+# SamplingMethod.RARG = "RAR-G"
+# SamplingMethod.RARD = "RAR-D"
 ```
+
+When sampling method is `ActiveLearning`, `RARG`, or `RARD`, additional points to help learning are sampled every `refinement_sample_interval` epochs. It is default to 200 epochs, which is 20% of total epochs.
 
 > Note: For FixedGrid sampling, the batch size is applied to each dimension, and the final sample is of shape $(B^n, n)$, where $B$ is batch size, $n$ is number of state variables. Batch size should be set to a lower value than in uniform sampling.
 
-> Note: ActiveLearning is not yet implemented.
+> Note: RAR-G and RAR-D are implemented based on Wu et al. 2022[^1], the underlying sampling method for additional residual points is UniformRandom, and the base sampling method for training is FixedGrid. The total number of additional residual points sampled over the entire training period is $B^n$. In each addition, $\frac{B^n}{\text{refinement rounds}}$ points are added. These temporarily does not consider constraint-activated system losses. 
+
+> Note: ActiveLearning is not yet implemented specifically, and currently uses the logic of RAR-G.
 
 ### Latex Variable Map
 Economic models may involve a large amount of variables and equations. Each variable can have super-/subscripts. To properly distinguish super-/subscripts from powers/derivatives and parse equations when LaTex formula are provided, we require a mapping from LaTex variables to Python strings. The keys are LaTex strings in raw format `r""`, and the values are the corresponding python string. The following dictionary maps LaTex string $\xi_t^h$ to Python string `"xih"`, and LaTex string $q_t^a$ to Python string `"qa"`.
@@ -500,3 +507,4 @@ from deep_macrofin import plot_loss_df
 plot_loss_df(fn="./models/1d_prob/1d_prob_loss.csv", loss_plot_fn="./models/1d_prob/1d_prob_loss.png")
 ```
 
+[^1]: Chenxi Wu, and Min Zhu, and Qinyang Tan, and Yadhu Kartha, and Lu Lu, *"A comprehensive study of non-adaptive and residual-based adaptive sampling for physics-informed neural networks"*, 2022-07-21, <a href="https://arxiv.org/abs/2207.10289" target="_blank">arXiv:2207.10289</a>  
