@@ -90,4 +90,6 @@ nav:
     - 'Time-dependent Heat Equation': 'examples/pdes/heat.md'
     - 'Diffusion Equation': 'examples/pdes/diffusion.md'
   - 'Economic Problems':
-    - 'Log Utility': 'examples/pymacrofin/log_utility.md'
+    - 'Log Utility': 'examples/macrofinance_models/log_utility.md'
+    - '1D Problem': 'examples/macrofinance_models/1d_problem.md'
+    - '2D Problem': 'examples/macrofinance_models/2d_problem.md'
