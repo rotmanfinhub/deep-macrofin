@@ -497,7 +497,8 @@ class PDEModel:
             "lr": 1e-3,
             "loss_log_interval": 100,
             "optimizer_type": OptimizerType.AdamW,
-            "sampling_method": SamplingMethod.UniformRandom
+            "sampling_method": SamplingMethod.UniformRandom,
+            "refinement_sample_interval": 200,
         }
         '''
         self.config.update(config)
