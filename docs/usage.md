@@ -22,7 +22,7 @@ DEFAULT_CONFIG = {
     "loss_log_interval": 100,
     "optimizer_type": OptimizerType.AdamW,
     "sampling_method": SamplingMethod.UniformRandom,
-    "refinement_sample_interval": 200,
+    "refinement_sample_interval": int(0.2 * num_epochs),
 }
 ```
 
@@ -61,7 +61,7 @@ When sampling method is `ActiveLearning`, `RARG`, or `RARD`, additional points t
 
 > Note: For FixedGrid sampling, the batch size is applied to each dimension, and the final sample is of shape $(B^n, n)$, where $B$ is batch size, $n$ is number of state variables. Batch size should be set to a lower value than in uniform sampling.
 
-> Note: RAR-G and RAR-D are implemented based on Wu et al. 2022[^1], the underlying sampling method for additional residual points is UniformRandom, and the base sampling method for training is FixedGrid. The total number of additional residual points sampled over the entire training period is $B^n$. In each addition, $\frac{B^n}{\text{refinement rounds}}$ points are added. These temporarily does not consider constraint-activated system losses. 
+> Note: RAR-G and RAR-D are implemented based on Wu et al. 2022[^1], the underlying sampling method for additional residual points is UniformRandom, and the base sampling method for training is FixedGrid. The total number of additional residual points sampled over the entire training period is $B^n$. In each addition, $\frac{B^n}{\text{refinement rounds}}$ points are added.
 
 > Note: ActiveLearning is not yet implemented specifically, and currently uses the logic of RAR-G.
 

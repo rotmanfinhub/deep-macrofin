@@ -140,7 +140,33 @@ class System:
             total_loss += self.loss_weight_dict[loss_label] * loss
 
         return total_loss
+    
+    def eval_no_loss(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor], batch_size: int):
+        '''
+        compute the loss based on the system constraint, but do not reduce the final loss. 
+        Used for RAR and active learning
+        '''
+        variables_ = variables.copy()
+        mask = self.compute_constraint_mask(available_functions, variables_)
 
+        # properly update variables, using equations
+        for eq_name in self.equations:
+            lhs = self.equations[eq_name].lhs.formula_str
+            res = self.equations[eq_name].eval(available_functions, variables_)
+            variables_[lhs] = res
+
+        total_loss = torch.zeros((batch_size, 1))
+
+        # the loss will only be computed for a specific portion for the endogenous equations.
+        for label in self.endog_equations:
+            total_loss += torch.abs(self.endog_equations[label].eval_no_loss(available_functions, variables_)).reshape((batch_size, 1))
+
+        for label in self.constraints:
+            total_loss += torch.abs(self.constraints[label].eval_no_loss(available_functions, variables_)).reshape((batch_size, 1))
+        
+        # zero-mask the portion that doesn't satisfy the activation constraints. 
+        total_loss = total_loss * mask
+        return total_loss
 
     def __str__(self):
         str_repr = f"{self.label}: \n"

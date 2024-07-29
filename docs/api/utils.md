@@ -43,7 +43,7 @@ DEFAULT_CONFIG = {
     "loss_log_interval": 100,
     "optimizer_type": OptimizerType.AdamW,
     "sampling_method": SamplingMethod.UniformRandom,
-    "refinement_sample_interval": 200,
+    "refinement_sample_interval": int(0.2*num_epochs),
 }
 
 DEFAULT_LEARNABLE_VAR_CONFIG = {

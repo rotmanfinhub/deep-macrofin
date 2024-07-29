@@ -51,9 +51,6 @@ class EndogEquation:
         rhs_eval = self.rhs.eval(available_functions, variables)
         return LOSS_REDUCTION_MAP[loss_reduction]((lhs_eval - rhs_eval)[mask.squeeze(-1).to(torch.bool)])
 
-    def eval_with_mask_no_loss(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor]):
-        return self.eval_with_mask(available_functions, variables, loss_reduction=LossReductionMethod.NONE)
-    
     def __str__(self):
         str_repr = f"{self.label}: \n"
         str_repr += f"Raw input: {self.eq}\n" 

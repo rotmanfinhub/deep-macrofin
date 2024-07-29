@@ -38,7 +38,7 @@ class TestPDESystem(unittest.TestCase):
         self.pde_sys = pde_sys
     
     def run_one_step(self):
-        SV = self.pde_sys.sample()
+        SV = self.pde_sys.sample(0)
         for i, sv_name in enumerate(self.pde_sys.state_variables):
             self.pde_sys.variable_val_dict[sv_name] = SV[:, i:i+1]
         self.pde_sys.test_step(SV)
