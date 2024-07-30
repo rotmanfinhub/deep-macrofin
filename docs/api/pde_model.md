@@ -28,7 +28,13 @@ Initialize a PDEModel with the provided name and config.
 ```py
 def set_state(self, names: List[str], constraints: Dict[str, List] = {})
 ```
-Set the state variables ("grid") of the problem. By default, the constraints will be [-1, 1] (for easier sampling). Only rectangular regions are supported.
+Set the state variables ("grid") of the problem. By default, the constraints will be [-1, 1] (for easier sampling). Only rectangular regions are supported. Once an agent or endogenous variable has been added, calling set_state will raise an error.
+
+### set_state_constraints
+```py
+def set_state_constraints(self, constraints: Dict[str, List] = {})
+```
+Overwrite the constraints for state variables, without changing the number of state variables. This can be used after adding an agent or endogenous variable and after loading a pre-trained model.
 
 ### add_param
 ```py

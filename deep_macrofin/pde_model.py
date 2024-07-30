@@ -137,7 +137,7 @@ class PDEModel:
         constraints_low = []
         constraints_high = []
         
-        for svc in self.state_variable_constraints:
+        for svc in self.state_variables:
             constraints_low.append(self.state_variable_constraints[svc][0])
             constraints_high.append(self.state_variable_constraints[svc][1])
         self.state_variable_constraints["sv_low"] = constraints_low
@@ -145,6 +145,24 @@ class PDEModel:
 
         for name in self.state_variables:
             self.variable_val_dict[name] = torch.zeros((self.batch_size, 1))
+
+    def set_state_constraints(self, constraints: Dict[str, List] = {}):
+        '''
+        Overwrite the constraints for state variables, without changing the number of state variables.
+
+        This can be used after loading a pre-trained model.
+        '''
+        for k in constraints:
+            assert k in self.state_variables, f"{k} is not a state variable"
+        self.state_variable_constraints.update(constraints)
+        constraints_low = []
+        constraints_high = []
+        
+        for svc in self.state_variables:
+            constraints_low.append(self.state_variable_constraints[svc][0])
+            constraints_high.append(self.state_variable_constraints[svc][1])
+        self.state_variable_constraints["sv_low"] = constraints_low
+        self.state_variable_constraints["sv_high"] = constraints_high
 
     def add_param(self, name: str, value: torch.Tensor):
         '''
@@ -718,6 +736,11 @@ class PDEModel:
         self.save_model(model_dir, filename, verbose=True)
         pd.DataFrame(epoch_loss_dict).to_csv(f"{model_dir}/{file_prefix}_loss.csv", index=False)
         pd.DataFrame(min_loss_dict).to_csv(f"{model_dir}/{file_prefix}_min_loss.csv", index=False)
+
+        if self.anchor_points.shape[0] > 0:
+            anchor_points_np = self.anchor_points.detach().cpu().numpy()
+            np.save(f"{model_dir}/{file_prefix}_anchor_points.npy", anchor_points_np)
+            print(f"Anchor points saved to {model_dir}/{file_prefix}_anchor_points.npy")
 
         return loss_dict
     
