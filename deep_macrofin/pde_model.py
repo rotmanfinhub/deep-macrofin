@@ -187,6 +187,8 @@ class PDEModel:
             self.check_name_used(name)
         agent_config = deepcopy(DEFAULT_LEARNABLE_VAR_CONFIG)
         agent_config.update(config)
+        if not torch.cuda.is_available():
+            agent_config["device"] = "cpu"
 
         self.device = agent_config["device"]
 
@@ -273,6 +275,8 @@ class PDEModel:
             self.check_name_used(name)
         endog_var_config = deepcopy(DEFAULT_LEARNABLE_VAR_CONFIG)
         endog_var_config.update(config)
+        if not torch.cuda.is_available():
+            endog_var_config["device"] = "cpu"
 
         self.device = endog_var_config["device"]
 
