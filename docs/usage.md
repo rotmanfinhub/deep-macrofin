@@ -293,7 +293,7 @@ pde_model.add_equation("z=y*2") # eq_2 is z=y*2
 After the model is defined, `train_model` ([API](./api/pde_model.md#train_model)) can be used to train the models, and `eval_model` ([API](./api/pde_model.md#eval_model)) can be used to eval models. 
 `load_model` ([API](./api/pde_model.md#load_model)) can be used to load a trained model. It will overwrite existing agent/endogenous variables in the PDEModel.
 
-`train_model` will print out the full model configurations and save the best and final models. Losses will be logged every `loss_log_interval` epochs during training in a csv file for plotting. Examples can be found in [Basic Examples](./examples/approx/discont.md).
+`train_model` will print out the full model configurations and save the best and final models. Losses are logged every `loss_log_interval` epochs during training in `modelname_loss.csv` file for plotting. Minimum (converging) losses are logged in a separate `modelname_min_loss.csv` file. Examples can be found in [Basic Examples](./examples/approx/discont.md).
 
 ### Print the Model
 For easier debugging on the model setup and equation typing, `print(pde_model)` prints out a detailed configuration of the model. The following is a sample print out of [log utility problem](./examples/pymacrofin/log_utility.md). The same summary is logged in the log file for each model. 

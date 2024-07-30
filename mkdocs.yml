@@ -93,3 +93,4 @@ nav:
     - 'Log Utility': 'examples/macrofinance_models/log_utility.md'
     - '1D Problem': 'examples/macrofinance_models/1d_problem.md'
     - '2D Problem': 'examples/macrofinance_models/2d_problem.md'
+    - 'Di Tella (2017)': 'examples/macrofinance_models/di_tella.md'
