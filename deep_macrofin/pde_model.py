@@ -177,10 +177,10 @@ class PDEModel:
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
             - hidden_units: **List[int]**, number of units in each layer, default: [30,30,30,30]
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
-            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - activation_type: **str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false
             - hardcode_function: a lambda function for hardcoded forwarding function.
-            - derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
+            - derivative_order: **int**, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         if not overwrite:
@@ -205,10 +205,10 @@ class PDEModel:
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
             - hidden_units: **List[int]**, number of units in each layer, default: [30,30,30,30]
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
-            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - activation_type: **str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false
             - hardcode_function: a lambda function for hardcoded forwarding function.
-            - derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
+            - derivative_order: **int**, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         for name in names:
@@ -263,10 +263,10 @@ class PDEModel:
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
             - hidden_units: **List[int]**, number of units in each layer, default: [30,30,30,30]
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
-            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - activation_type: **str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false
             - hardcode_function: a lambda function for hardcoded forwarding function.
-            - derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
+            - derivative_order: **int**, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         if not overwrite:
@@ -291,10 +291,10 @@ class PDEModel:
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
             - hidden_units: **List[int]**, number of units in each layer, default: [30,30,30,30]
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
-            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - activation_type: **str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false
             - hardcode_function: a lambda function for hardcoded forwarding function.
-            - derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
+            - derivative_order: **int**, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         for name in names:

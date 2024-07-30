@@ -162,6 +162,16 @@ Afterwards, [e,t] should be passed as x into the lambda function
 '''
 ```
 
+## Activation Functions
+
+The supported activation functions are listed in `ActivationTypes` below. ReLU, SiLU, Sigmoid and Tanh are default PyTorch activation functions. Wavelet is from <a href="https://openreview.net/forum?id=DO2WFXU1Be" target="_blank">Zhao, Ding, and Prakash 2024</a>[^1]. It is a learnable activation function of the form:
+
+$$\text{Wavelet}(x) = w_1 \sin(x) + w_2 \cos(x),$$
+
+where $w_1$ and $w_2$ are learnable parameters.
+
+[^1]: Zhiyuan Zhao, Xueying Ding, and B. Aditya Prakash, *"PINNsFormer: A Transformer-Based Framework For Physics-Informed Neural Networks"*, The Twelfth International Conference on Learning Representations, 2024
+
 ## Constants
 
 These constants are used to identify model/layer/activation types for initialization.
@@ -180,4 +190,5 @@ class ActivationType(str, Enum):
     SiLU="silu"
     Sigmoid="sigmoid"
     Tanh="tanh"
+    Wavelet="wavelet"
 ```

@@ -136,6 +136,7 @@ from deep_macrofin import ActivationType, LayerType
 # ActivationType.SiLU = "silu" (nn.SiLU)
 # ActivationType.Sigmoid = "sigmoid" (nn.Sigmoid)
 # ActivationType.Tanh = "tanh" (nn.Tanh)
+# ActivationType.Wavelet="wavelet" (w1*sin(x)+w2*cos(x), where w1 and w2 are learnable)
 
 # LayerType.MLP = "MLP"
 # LayerType.KAN = "KAN"
