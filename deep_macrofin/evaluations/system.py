@@ -155,7 +155,7 @@ class System:
             res = self.equations[eq_name].eval(available_functions, variables_)
             variables_[lhs] = res
 
-        total_loss = torch.zeros((batch_size, 1))
+        total_loss = torch.zeros((batch_size, 1), device=self.device)
 
         # the loss will only be computed for a specific portion for the endogenous equations.
         for label in self.endog_equations:

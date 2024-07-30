@@ -578,7 +578,7 @@ class PDEModel:
         # make a copy of variable value mapping
         # so that we don't break the top level training routine
         variable_val_dict_ = self.variable_val_dict.copy()
-        total_loss = torch.zeros((self.batch_size, 1))
+        total_loss = torch.zeros((self.batch_size, 1), device=self.device)
 
         # forward pass
         for i, sv_name in enumerate(self.state_variables):
@@ -633,8 +633,8 @@ class PDEModel:
             # check epoch > 0 so we don't need to resample in the first epoch
             refinement_loss_dict = self.get_refinement_loss_dict(epoch)
             SV = refinement_loss_dict["SV"]
-            all_losses = refinement_loss_dict["loss"]
-            err_eq = all_losses / all_losses.mean() + 1
+            all_losses = refinement_loss_dict["loss"] ** 2
+            err_eq = all_losses / all_losses.mean()
             err_eq_normalized = (err_eq / err_eq.sum())[:, 0]
             X_ids = np.random.choice(a=SV.shape[0], size=self.batch_size**len(self.state_variables)//self.refinement_rounds, replace=False, p=err_eq_normalized.detach().cpu().numpy())
             self.anchor_points = torch.vstack((self.anchor_points, SV[X_ids]))
