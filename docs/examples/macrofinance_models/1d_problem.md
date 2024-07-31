@@ -2,18 +2,6 @@
 
 The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/macro_problems/problem1.ipynb" target="_blank">problem1.ipynb</a>.
 
-<!-- "gammai": 2.0,
-    "gammah": 5.0,
-    "rhoi": 0.05,
-    "rhoh": 0.05,
-    "siga": 0.2, #\sigma^{a}
-    "mua": 0.04,
-    "muO": 0.04,
-    "zetai":1.00005,
-    "zetah":1.00005,
-    "aa":0.1,
-    "kappa":10000 -->
-
 ## Problem Setup
 ### Parameter and Variable Definitions
 | Parameter | Definition | Value |

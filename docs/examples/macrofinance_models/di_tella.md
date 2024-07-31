@@ -7,20 +7,6 @@ This is from <a href="https://www.journals.uchicago.edu/doi/10.1086/694290" targ
 
 [^1]: Sebastian Di Tella, *"Uncertainty Shocks and Balance Sheet Recessions"*, Journal of Political Economy, 125(6): 2038-2081, 2017
 
-<!-- "a": 1,
-    "sigma": 0.0125,
-    "lbd": 1.38,
-    "v_mean": 0.25,
-    "sigv_mean": -0.17,
-    "rho": 0.0665,
-    "gamma": 5,
-    "psi": 0.5,
-    "tau": 1.15,
-    "phi": 0.2,
-
-    "A": 53.2,
-    "B": -0.8668571428571438,
-    "delta": 0.05, -->
 ### Parameter and Variable Definitions
 | Parameter | Definition | Value |
 |:---:|:---:|:---:|
@@ -244,7 +230,7 @@ pde_model.plot_vars([r"$\xi$", r"$\zeta$", "p",
                      r"$\sigma+\sigma_p = \sigma + \sigma_p$", r"$\pi$", "r"], ncols=3)
 ```
 
-6. Plot variable slices in 1D.
+6. Plot variables in 1D. Specifically, we plot $p$ (price of capital), $\sigma_x$ (volatility of $x$), $\Omega = \frac{\xi}{\zeta}$ (relative investment opportunities), $\sigma+\sigma_p$ (aggregate risk), $\pi$ (price of risk), and $r$ (risk-free rate) as functions of $v$ for $x=0.05, 0.1, 0.2$, and as functions of $x$ for $v=0.1, 0.25, 0.6$.
 ```py
 fig, ax = plt.subplots(2, 3, figsize=(18, 12))
 for x_val, linestyle in [(0.05, "-"), (0.1, ":"), (0.2, "--")]:
