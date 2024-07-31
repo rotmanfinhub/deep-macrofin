@@ -531,6 +531,8 @@ class PDEModel:
         self.optimizer_type = self.config.get("optimizer_type", OptimizerType.AdamW)
         self.sampling_method = self.config.get("sampling_method", SamplingMethod.UniformRandom)
         self.sample = self.SAMPLING_METHOD_MAP[self.sampling_method]
+        self.refinement_sample_interval = self.config.get("refinement_sample_interval", int(0.2 * self.num_epochs))
+        self.refinement_rounds = self.num_epochs // self.refinement_sample_interval
 
     def set_loss_reduction(self, label: str, loss_reduction: LossReductionMethod):
         if label not in self.loss_reduction_dict:
@@ -646,7 +648,8 @@ class PDEModel:
         The entire loop of training
         '''
 
-        self.anchor_points = torch.empty((0, len(self.state_variables)), device=self.device)
+        if self.anchor_points is None:
+            self.anchor_points = torch.empty((0, len(self.state_variables)), device=self.device)
 
         min_loss = torch.inf
         epoch_loss_dict = defaultdict(list)
