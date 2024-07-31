@@ -2,7 +2,7 @@ import unittest
 
 import torch
 
-from deep_macrofin.evaluations import Comparator, Constraint
+from deep_macrofin.evaluations import Comparator, Constraint, LossReductionMethod
 
 
 class TestConstraints(unittest.TestCase):
@@ -38,16 +38,34 @@ class TestConstraints(unittest.TestCase):
         expected_result = torch.mean(torch.square(torch.relu(self.variables['x'] - self.variables['y'])))
         self.assertTrue(torch.allclose(result, expected_result))
 
-    def test_constraint_eval_no_reduce(self):
-        constraint = Constraint("x", Comparator.EQ, "x2", "Test Constraint Equal")
-        result = constraint.eval_no_reduce(self.available_functions, self.variables)
-        expected_result = torch.tensor([0.0, 1.0, 2.0])
+    def test_constraint_eval_loss_reduction(self):
+        constraint = Constraint("x", Comparator.GEQ, "y", "const")
+        result = constraint.eval(self.available_functions, self.variables, loss_reduction=LossReductionMethod.MAE)
+        expected_result = torch.mean(torch.abs(torch.relu(self.variables['y'] - self.variables['x'])))
         self.assertTrue(torch.allclose(result, expected_result))
 
-    def test_constraint_eval_no_reduce2(self):
-        constraint = Constraint("x", Comparator.LEQ, "y", "Test Constraint Equal")
-        result = constraint.eval_no_reduce(self.available_functions, self.variables)
-        expected_result = torch.tensor([-3.0, -3.0, -3.0])
+    def test_constraint_eval_loss_reduction2(self):
+        constraint = Constraint("x", Comparator.GEQ, "y", "const")
+        result = constraint.eval(self.available_functions, self.variables, loss_reduction=LossReductionMethod.NONE)
+        expected_result = torch.relu(self.variables['y'] - self.variables['x'])
+        self.assertTrue(torch.allclose(result, expected_result))
+
+    def test_constraint_eval_no_loss(self):
+        constraint = Constraint("x", Comparator.GEQ, "y", "const")
+        result = constraint.eval_no_loss(self.available_functions, self.variables)
+        expected_result = torch.relu(self.variables['y'] - self.variables['x'])
+        self.assertTrue(torch.allclose(result, expected_result))
+
+    def test_constraint_eval_masked(self):
+        constraint = Constraint("x", Comparator.LEQ, "x2", "const")
+        result = constraint.eval_with_mask(self.available_functions, self.variables, mask=torch.Tensor([[0], [0], [1]]))
+        expected_result = torch.tensor([4.0])
+        self.assertTrue(torch.allclose(result, expected_result))
+
+    def test_constraint_eval_masked2(self):
+        constraint = Constraint("x", Comparator.LEQ, "x2", "const")
+        result = constraint.eval_with_mask(self.available_functions, self.variables, mask=torch.Tensor([[0], [1], [0]]))
+        expected_result = torch.tensor([1.0])
         self.assertTrue(torch.allclose(result, expected_result))
 
 if __name__ == '__main__':

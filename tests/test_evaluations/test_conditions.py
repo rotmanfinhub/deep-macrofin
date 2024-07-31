@@ -3,7 +3,7 @@ import unittest
 import torch
 import torch.nn as nn
 
-from deep_macrofin.evaluations import AgentConditions, Comparator, EndogVarConditions
+from deep_macrofin.evaluations import AgentConditions, Comparator, EndogVarConditions, LossReductionMethod
 
 class TestConditions(unittest.TestCase):
     @classmethod
@@ -58,6 +58,18 @@ class TestConditions(unittest.TestCase):
         condition = EndogVarConditions("g", "g(SV)", {"SV": torch.ones((1,1)) * 2}, Comparator.LEQ, "1", {}, "condition1")
         eval_mse = condition.eval(self.LOCAL_DICT)
         expected_mse = torch.tensor([9.0]) # f(2) = 4, mse = 3^2
+        self.assertTrue(torch.allclose(eval_mse, expected_mse), f"Expected {expected_mse}, got {eval_mse}")
+
+    def test_condition_loss(self):
+        condition = EndogVarConditions("g", "g(SV)", {"SV": torch.ones((1,1)) * 2}, Comparator.LEQ, "1", {}, "condition1")
+        eval_mse = condition.eval(self.LOCAL_DICT, LossReductionMethod.MAE)
+        expected_mse = torch.tensor([3.0]) # f(2) = 4, mae = 3
+        self.assertTrue(torch.allclose(eval_mse, expected_mse), f"Expected {expected_mse}, got {eval_mse}")
+
+    def test_condition_loss2(self):
+        condition = EndogVarConditions("g", "g(SV)", {"SV": torch.ones((1,1)) * 2}, Comparator.GEQ, "1", {}, "condition1")
+        eval_mse = condition.eval(self.LOCAL_DICT, LossReductionMethod.MAE)
+        expected_mse = torch.tensor([0.0]) # f(2) = 4, mae = 0
         self.assertTrue(torch.allclose(eval_mse, expected_mse), f"Expected {expected_mse}, got {eval_mse}")
 
 if __name__ == "__main__":

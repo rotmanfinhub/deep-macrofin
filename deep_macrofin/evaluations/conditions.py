@@ -7,6 +7,7 @@ import torch.nn.functional as F
 
 from .comparators import Comparator
 from .formula import EvaluationMethod, Formula
+from .loss_compute_methods import LOSS_REDUCTION_MAP, LossReductionMethod
 
 
 class BaseConditions:
@@ -61,16 +62,18 @@ class BaseConditions:
         elif comparator == Comparator.GEQ:
             self.eval = self.eval_geq
     
-    def eval_eq(self, available_functions: Dict[str, Callable]):
+    def eval_eq(self, available_functions: Dict[str, Callable], 
+                loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         The condition is LHS=RHS.
         Compute the MSE between LHS and RHS
         '''
         lhs_eval = self.lhs.eval(available_functions, self.lhs_state)
         rhs_eval = self.rhs.eval(available_functions, self.rhs_state)
-        return torch.mean(torch.square(lhs_eval - rhs_eval))
+        return LOSS_REDUCTION_MAP[loss_reduction](lhs_eval - rhs_eval)
 
-    def eval_lt(self, available_functions: Dict[str, Callable]):
+    def eval_lt(self, available_functions: Dict[str, Callable], 
+                loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         The condition is LHS<RHS.
         Evaluate ReLU(LHS-RHS+eps), it will only contribute to loss when LHS>RHS-eps
@@ -78,9 +81,10 @@ class BaseConditions:
         lhs_eval = self.lhs.eval(available_functions, self.lhs_state)
         rhs_eval = self.rhs.eval(available_functions, self.rhs_state)
         relu_res = F.relu(lhs_eval - rhs_eval + 1e-8)
-        return torch.mean(torch.square(relu_res))
+        return LOSS_REDUCTION_MAP[loss_reduction](relu_res)
 
-    def eval_leq(self, available_functions: Dict[str, Callable]):
+    def eval_leq(self, available_functions: Dict[str, Callable], 
+                loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         The condition is LHS<=RHS.
         Evaluate ReLU(LHS-RHS), it will only contribute to loss when LHS>RHS
@@ -88,9 +92,10 @@ class BaseConditions:
         lhs_eval = self.lhs.eval(available_functions, self.lhs_state)
         rhs_eval = self.rhs.eval(available_functions, self.rhs_state)
         relu_res = F.relu(lhs_eval - rhs_eval)
-        return torch.mean(torch.square(relu_res))
+        return LOSS_REDUCTION_MAP[loss_reduction](relu_res)
     
-    def eval_gt(self, available_functions: Dict[str, Callable]):
+    def eval_gt(self, available_functions: Dict[str, Callable], 
+                loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         The condition is LHS>RHS.
         Evaluate ReLU(RHS-LHS+eps), it will only contribute to loss when RHS>LHS-eps
@@ -98,9 +103,10 @@ class BaseConditions:
         lhs_eval = self.lhs.eval(available_functions, self.lhs_state)
         rhs_eval = self.rhs.eval(available_functions, self.rhs_state)
         relu_res = F.relu(rhs_eval - lhs_eval + 1e-8)
-        return torch.mean(torch.square(relu_res))
+        return LOSS_REDUCTION_MAP[loss_reduction](relu_res)
 
-    def eval_geq(self, available_functions: Dict[str, Callable]):
+    def eval_geq(self, available_functions: Dict[str, Callable], 
+                loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         The condition is LHS>=RHS.
         Evaluate ReLU(RHS-LHS), it will only contribute to loss when RHS>LHS
@@ -108,7 +114,7 @@ class BaseConditions:
         lhs_eval = self.lhs.eval(available_functions, self.lhs_state)
         rhs_eval = self.rhs.eval(available_functions, self.rhs_state)
         relu_res = F.relu(rhs_eval - lhs_eval)
-        return torch.mean(torch.square(relu_res))
+        return LOSS_REDUCTION_MAP[loss_reduction](relu_res)
     
     def __str__(self):
         cond_str = f"{self.label}: "

@@ -28,7 +28,13 @@ Initialize a PDEModel with the provided name and config.
 ```py
 def set_state(self, names: List[str], constraints: Dict[str, List] = {})
 ```
-Set the state variables ("grid") of the problem. By default, the constraints will be [-1, 1] (for easier sampling). Only rectangular regions are supported.
+Set the state variables ("grid") of the problem. By default, the constraints will be [-1, 1] (for easier sampling). Only rectangular regions are supported. Once an agent or endogenous variable has been added, calling set_state will raise an error.
+
+### set_state_constraints
+```py
+def set_state_constraints(self, constraints: Dict[str, List] = {})
+```
+Overwrite the constraints for state variables, without changing the number of state variables. This can be used after adding an agent or endogenous variable and after loading a pre-trained model.
 
 ### add_param
 ```py
@@ -71,7 +77,8 @@ def add_agent_condition(self, name: str,
                     comparator: Comparator, 
                     rhs: str, rhs_state: Dict[str, torch.Tensor], 
                     label: str=None,
-                    weight: float=1.0):
+                    weight: float=1.0, 
+                    loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
 ```
 Add boundary/initial condition for a specific agent with associated weight
 
@@ -85,7 +92,7 @@ Add boundary/initial condition for a specific agent with associated weight
 - rhs_state: **Dict[str, torch.Tensor]**, the specific value of SV to evaluate rhs at for the agent/endogenous variable, if rhs is a constant, this can be an empty dictionary
 - label: **str** label for the condition, by default, it will self-increment `agent_cond_1`, `agent_cond_2`,...
 - weight: **float**, weight in total loss computation
-
+- loss_reduction: **LossReductionMethod**, `LossReductionMethod.MSE` for mean squared error, or `LossReductionMethod.MAE` for mean absolute error
 
 ### add_endog
 ```py
@@ -116,7 +123,8 @@ def add_endog_condition(self, name: str,
                     comparator: Comparator, 
                     rhs: str, rhs_state: Dict[str, torch.Tensor], 
                     label: str=None,
-                    weight: float=1.0):
+                    weight: float=1.0, 
+                    loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
 ```
 Add boundary/initial condition for a specific endogenous variable with associated weight
 
@@ -130,7 +138,7 @@ Add boundary/initial condition for a specific endogenous variable with associate
 - rhs_state: **Dict[str, torch.Tensor]**, the specific value of SV to evaluate rhs at for the agent/endogenous variable, if rhs is a constant, this can be an empty dictionary
 - label: **str** label for the condition, by default, it will self-increment `endog_cond_1`, `endog_cond_2`,...
 - weight: **float**, weight in total loss computation
-
+- loss_reduction: **LossReductionMethod**, `LossReductionMethod.MSE` for mean squared error, or `LossReductionMethod.MAE` for mean absolute error
 
 ### add_equation
 ```py
@@ -142,21 +150,21 @@ Add an [equation](evaluations.md#equation) to define a new variable.
 
 ### add_endog_equation
 ```py
-def add_endog_equation(self, eq: str, label: str=None, weight=1.0)
+def add_endog_equation(self, eq: str, label: str=None, weight=1.0, loss_reduction: LossReductionMethod=LossReductionMethod.MSE)
 ```
 
 Add an [endogenous equation](evaluations.md#endogequation) for loss computation.
 
 ### add_constraint
 ```py
-def add_constraint(self, lhs: str, comparator: Comparator, rhs: str, label: str=None, weight=1.0)
+def add_constraint(self, lhs: str, comparator: Comparator, rhs: str, label: str=None, weight=1.0, loss_reduction: LossReductionMethod=LossReductionMethod.MSE)
 ```
 
 Add a [constraint](evaluations.md#constraint) for loss computation.
 
 ### add_hjb_equation
 ```py
-def add_hjb_equation(self, eq: str, label: str=None, weight=1.0)
+def add_hjb_equation(self, eq: str, label: str=None, weight=1.0, loss_reduction: LossReductionMethod=LossReductionMethod.MSE)
 ```
 
 Add an [HJB Equation](evaluations.md#hjbequation) for loss computation.

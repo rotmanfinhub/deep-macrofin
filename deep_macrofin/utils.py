@@ -24,6 +24,8 @@ class SamplingMethod(str, Enum):
     UniformRandom = "UniformRandom"
     FixedGrid = "FixedGrid"
     ActiveLearning = "ActiveLearning"
+    RARG = "RAR-G"
+    RARD = "RAR-D"
 
 def set_seeds(seed):
     random.seed(seed)
@@ -47,7 +49,10 @@ def plot_loss_df(fn: str=None, loss_df: pd.DataFrame=None, losses_to_plot: list=
     if fn is not None:
         loss_df = pd.read_csv(fn)
     loss_df = loss_df.dropna().reset_index(drop=True)
-    epochs = loss_df["epoch"]
+    try:
+        epochs = loss_df["epoch"]
+    except:
+        epochs = loss_df["index"]
     if losses_to_plot is None:
         losses_to_plot = list(loss_df.columns)
         losses_to_plot.remove("epoch")
@@ -70,7 +75,7 @@ DEFAULT_CONFIG = {
     "lr": 1e-3,
     "loss_log_interval": 100,
     "optimizer_type": OptimizerType.AdamW,
-    "sampling_method": SamplingMethod.UniformRandom
+    "sampling_method": SamplingMethod.UniformRandom,
 }
 
 DEFAULT_LEARNABLE_VAR_CONFIG = {

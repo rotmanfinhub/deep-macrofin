@@ -73,5 +73,40 @@ class TestSystems(unittest.TestCase):
         expected_result = torch.tensor([1.0]) # first and last batch elements will be computed, (1^2+1^2)/ 2
         self.assertTrue(torch.allclose(result, expected_result), f"Expected {expected_result}, got {result}")
 
+    def test_system_loss3(self):
+        sys = System([Constraint("x", Comparator.LEQ, "x2", "const1")], 
+                     "system1")
+        sys.add_endog_equation("x=y-1")
+        sys.add_constraint("x", Comparator.GEQ, "y", "const")
+        result = sys.eval({}, self.variables)
+        expected_result = torch.tensor([3.0]) # first and last batch elements will be computed, (1^2+1^2)/ 2 + 2^2/2
+        self.assertTrue(torch.allclose(result, expected_result), f"Expected {expected_result}, got {result}")
+
+    def test_system_eval_no_loss(self):
+        sys = System([Constraint("x", Comparator.LT, "y", "const1"),
+                      Constraint("x", Comparator.LEQ, "x2", "const2")], 
+                     "system1")
+        sys.add_endog_equation("x=y")
+        result = sys.eval_no_loss({}, self.variables, 3)
+        expected_result = torch.tensor([[0], [0], [2.0]]) # only the last batch element will be computed, (3-1)^2
+        self.assertTrue(torch.allclose(result, expected_result), f"Expected {expected_result}, got {result}")
+
+    def test_system_eval_no_loss2(self):
+        sys = System([Constraint("x", Comparator.LEQ, "x2", "const1")], 
+                     "system1")
+        sys.add_endog_equation("x=y-1")
+        result = sys.eval_no_loss({}, self.variables, 3)
+        expected_result = torch.tensor([[1.0], [0], [1.0]]) # first and last batch elements will be computed, (1^2+1^2)/ 2
+        self.assertTrue(torch.allclose(result, expected_result), f"Expected {expected_result}, got {result}")
+
+    def test_system_eval_no_loss3(self):
+        sys = System([Constraint("x", Comparator.LEQ, "x2", "const1")], 
+                     "system1")
+        sys.add_endog_equation("x=y-1")
+        sys.add_constraint("x", Comparator.GEQ, "y", "const")
+        result = sys.eval_no_loss({}, self.variables, 3)
+        expected_result = torch.tensor([[1.0], [0], [3.0]]) # first and last batch elements will be computed, (1^2+1^2)/ 2 + 2^2/2
+        self.assertTrue(torch.allclose(result, expected_result), f"Expected {expected_result}, got {result}")
+
 if __name__ == "__main__":
     unittest.main()

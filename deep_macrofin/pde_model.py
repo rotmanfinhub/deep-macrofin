@@ -41,7 +41,8 @@ class PDEModel:
             "lr": 1e-3,
             "loss_log_interval": 100,
             "optimizer_type": OptimizerType.AdamW,
-            "sampling_method": SamplingMethod.UniformRandom
+            "sampling_method": SamplingMethod.UniformRandom,
+            "refinement_sample_interval": int(0.2*num_epochs),
         }
 
         loss_log_interval: the interval at which loss should be reported/recorded
@@ -61,7 +62,9 @@ class PDEModel:
         self.SAMPLING_METHOD_MAP = {
             SamplingMethod.UniformRandom: self.sample_uniform,
             SamplingMethod.FixedGrid: self.sample_fixed_grid,
-            SamplingMethod.ActiveLearning: self.sample_fixed_grid
+            SamplingMethod.ActiveLearning: self.sample_rar_greedy,
+            SamplingMethod.RARG: self.sample_rar_greedy,
+            SamplingMethod.RARD: self.sample_rar_distribution,
         }
         self.sample = self.SAMPLING_METHOD_MAP[self.sampling_method]
 
@@ -83,12 +86,19 @@ class PDEModel:
         
         self.local_function_dict: Dict[str, Callable] = OrderedDict() # should include all functions available from agents and endogenous vars (direct evaluation and derivatives)
 
+        self.loss_reduction_dict: Dict[str, LossReductionMethod] = OrderedDict() # used to store all loss function label to reduction method mappings
+
         # label to value mapping, used to store all variable values and loss.
         self.params: Dict[str, torch.Tensor] = OrderedDict()
         self.variable_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include all local variables/params + current values, initially, all values in this dictionary can be zero
         self.loss_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include loss equation (constraints, endogenous equations, HJB equations) labels + corresponding loss values, initially, all values in this dictionary can be zero.
         self.loss_weight_dict: Dict[str, float] = OrderedDict() # should include loss equation labels + corresponding weight
         self.device = "cpu"
+
+        # for residual-based adaptive refinement (RAR) and active learning
+        self.anchor_points: torch.Tensor = None
+        self.refinement_sample_interval: int = self.config.get("refinement_sample_interval", int(0.2 * self.num_epochs))
+        self.refinement_rounds: int = self.num_epochs // self.refinement_sample_interval
 
     def check_name_used(self, name: str):
         for self_dicts in [self.state_variables,
@@ -127,7 +137,7 @@ class PDEModel:
         constraints_low = []
         constraints_high = []
         
-        for svc in self.state_variable_constraints:
+        for svc in self.state_variables:
             constraints_low.append(self.state_variable_constraints[svc][0])
             constraints_high.append(self.state_variable_constraints[svc][1])
         self.state_variable_constraints["sv_low"] = constraints_low
@@ -135,6 +145,24 @@ class PDEModel:
 
         for name in self.state_variables:
             self.variable_val_dict[name] = torch.zeros((self.batch_size, 1))
+
+    def set_state_constraints(self, constraints: Dict[str, List] = {}):
+        '''
+        Overwrite the constraints for state variables, without changing the number of state variables.
+
+        This can be used after loading a pre-trained model.
+        '''
+        for k in constraints:
+            assert k in self.state_variables, f"{k} is not a state variable"
+        self.state_variable_constraints.update(constraints)
+        constraints_low = []
+        constraints_high = []
+        
+        for svc in self.state_variables:
+            constraints_low.append(self.state_variable_constraints[svc][0])
+            constraints_high.append(self.state_variable_constraints[svc][1])
+        self.state_variable_constraints["sv_low"] = constraints_low
+        self.state_variable_constraints["sv_high"] = constraints_high
 
     def add_param(self, name: str, value: torch.Tensor):
         '''
@@ -167,16 +195,18 @@ class PDEModel:
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
             - hidden_units: **List[int]**, number of units in each layer, default: [30,30,30,30]
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
-            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - activation_type: **str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false
             - hardcode_function: a lambda function for hardcoded forwarding function.
-            - derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
+            - derivative_order: **int**, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         if not overwrite:
             self.check_name_used(name)
         agent_config = deepcopy(DEFAULT_LEARNABLE_VAR_CONFIG)
         agent_config.update(config)
+        if not torch.cuda.is_available():
+            agent_config["device"] = "cpu"
 
         self.device = agent_config["device"]
 
@@ -195,10 +225,10 @@ class PDEModel:
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
             - hidden_units: **List[int]**, number of units in each layer, default: [30,30,30,30]
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
-            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - activation_type: **str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false
             - hardcode_function: a lambda function for hardcoded forwarding function.
-            - derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
+            - derivative_order: **int**, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         for name in names:
@@ -209,7 +239,8 @@ class PDEModel:
                             comparator: Comparator, 
                             rhs: str, rhs_state: Dict[str, torch.Tensor], 
                             label: str=None,
-                            weight: float=1.0):
+                            weight: float=1.0, 
+                            loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         Add boundary/initial condition for a specific agent
 
@@ -222,6 +253,7 @@ class PDEModel:
         - rhs_state: **Dict[str, torch.Tensor]**, the specific value of SV to evaluate rhs at for the agent/endogenous variable, if rhs is a constant, this can be an empty dictionary
         - label: **str** label for the condition
         - weight: **float**, weight in total loss computation
+        - loss_reduction: **LossReductionMethod**, `LossReductionMethod.MSE` for mean squared error, or `LossReductionMethod.MAE` for mean absolute error
         '''
         assert name in self.agents, f"Agent {name} does not exist"
         if label is None:
@@ -235,6 +267,7 @@ class PDEModel:
                                                        label, self.latex_var_mapping)
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
         self.loss_weight_dict[label] = weight
+        self.loss_reduction_dict[label] = loss_reduction
 
     def add_endog(self, name: str, 
                   config: Dict[str, Any] = DEFAULT_LEARNABLE_VAR_CONFIG,
@@ -250,16 +283,18 @@ class PDEModel:
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
             - hidden_units: **List[int]**, number of units in each layer, default: [30,30,30,30]
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
-            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - activation_type: **str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false
             - hardcode_function: a lambda function for hardcoded forwarding function.
-            - derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
+            - derivative_order: **int**, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         if not overwrite:
             self.check_name_used(name)
         endog_var_config = deepcopy(DEFAULT_LEARNABLE_VAR_CONFIG)
         endog_var_config.update(config)
+        if not torch.cuda.is_available():
+            endog_var_config["device"] = "cpu"
 
         self.device = endog_var_config["device"]
 
@@ -278,10 +313,10 @@ class PDEModel:
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
             - hidden_units: **List[int]**, number of units in each layer, default: [30,30,30,30]
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
-            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - activation_type: **str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false
             - hardcode_function: a lambda function for hardcoded forwarding function.
-            - derivative_order: int, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
+            - derivative_order: **int**, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         for name in names:
@@ -292,7 +327,8 @@ class PDEModel:
                             comparator: Comparator, 
                             rhs: str, rhs_state: Dict[str, torch.Tensor], 
                             label: str=None,
-                            weight=1.0):
+                            weight=1.0, 
+                            loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         Add boundary/initial condition for a specific endogenous var
 
@@ -305,6 +341,7 @@ class PDEModel:
         - rhs_state: **Dict[str, torch.Tensor]**, the specific value of SV to evaluate rhs at for the agent/endogenous variable, if rhs is a constant, this can be an empty dictionary
         - label: **str** label for the condition
         - weight: **float**, weight in total loss computation
+        - loss_reduction: **LossReductionMethod**, `LossReductionMethod.MSE` for mean squared error, or `LossReductionMethod.MAE` for mean absolute error
         '''
         assert name in self.endog_vars, f"Endogenous variable {name} does not exist"
         if label is None:
@@ -318,6 +355,7 @@ class PDEModel:
                                                        label, self.latex_var_mapping)
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
         self.loss_weight_dict[label] = weight
+        self.loss_reduction_dict[label] = loss_reduction
 
     def add_equation(self, eq: str, label: str=None):
         '''
@@ -331,7 +369,8 @@ class PDEModel:
         self.equations[label] = new_eq
         self.variable_val_dict[new_eq.lhs.formula_str] = torch.zeros((self.batch_size, 1), device=self.device)
 
-    def add_endog_equation(self, eq: str, label: str=None, weight=1.0):
+    def add_endog_equation(self, eq: str, label: str=None, weight=1.0, 
+                loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         Add an equation for loss computation based on endogenous variable
         '''
@@ -342,8 +381,10 @@ class PDEModel:
         self.endog_equations[label] = EndogEquation(eq, label, self.latex_var_mapping)
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
         self.loss_weight_dict[label] = weight
+        self.loss_reduction_dict[label] = loss_reduction
 
-    def add_constraint(self, lhs: str, comparator: Comparator, rhs: str, label: str=None, weight=1.0):
+    def add_constraint(self, lhs: str, comparator: Comparator, rhs: str, label: str=None, weight=1.0, 
+                loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         comparator should be one of "=", ">", ">=", "<", "<=", we can use enum for this.
 
@@ -356,8 +397,10 @@ class PDEModel:
         self.constraints[label] = Constraint(lhs, comparator, rhs, label, self.latex_var_mapping)
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
         self.loss_weight_dict[label] = weight
+        self.loss_reduction_dict[label] = loss_reduction
 
-    def add_hjb_equation(self, eq: str, label: str=None, weight=1.0):
+    def add_hjb_equation(self, eq: str, label: str=None, weight=1.0, 
+                loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
         Add an equation for loss computation based on an HJB equation (residual form)
         '''
@@ -368,6 +411,7 @@ class PDEModel:
         self.hjb_equations[label] = HJBEquation(eq, label, self.latex_var_mapping)
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
         self.loss_weight_dict[label] = weight
+        self.loss_reduction_dict[label] = loss_reduction
 
 
     def add_system(self, system: System, weight=1.0):
@@ -410,20 +454,20 @@ class PDEModel:
         '''
         # for agent and endogenous variable conditions, we need to use the exact function to compute the values
         for label in self.agent_conditions:
-            self.loss_val_dict[label] = self.agent_conditions[label].eval(self.local_function_dict)
+            self.loss_val_dict[label] = self.agent_conditions[label].eval(self.local_function_dict, self.loss_reduction_dict[label])
         
         for label in self.endog_var_conditions:
-            self.loss_val_dict[label] = self.endog_var_conditions[label].eval(self.local_function_dict)
+            self.loss_val_dict[label] = self.endog_var_conditions[label].eval(self.local_function_dict, self.loss_reduction_dict[label])
 
         # for all other formula/equations, we can use the pre-computed values of a specific state to compute the loss
         for label in self.endog_equations:
-            self.loss_val_dict[label] = self.endog_equations[label].eval({}, self.variable_val_dict)
+            self.loss_val_dict[label] = self.endog_equations[label].eval({}, self.variable_val_dict, self.loss_reduction_dict[label])
 
         for label in self.constraints:
-            self.loss_val_dict[label] = self.constraints[label].eval({}, self.variable_val_dict)
+            self.loss_val_dict[label] = self.constraints[label].eval({}, self.variable_val_dict, self.loss_reduction_dict[label])
 
         for label in self.hjb_equations:
-            self.loss_val_dict[label] = self.hjb_equations[label].eval({}, self.variable_val_dict)
+            self.loss_val_dict[label] = self.hjb_equations[label].eval({}, self.variable_val_dict, self.loss_reduction_dict[label])
 
         for label in self.systems:
             self.loss_val_dict[label] = self.systems[label].eval({}, self.variable_val_dict)
@@ -475,7 +519,8 @@ class PDEModel:
             "lr": 1e-3,
             "loss_log_interval": 100,
             "optimizer_type": OptimizerType.AdamW,
-            "sampling_method": SamplingMethod.UniformRandom
+            "sampling_method": SamplingMethod.UniformRandom,
+            "refinement_sample_interval": int(0.2*num_epochs),
         }
         '''
         self.config.update(config)
@@ -486,15 +531,21 @@ class PDEModel:
         self.optimizer_type = self.config.get("optimizer_type", OptimizerType.AdamW)
         self.sampling_method = self.config.get("sampling_method", SamplingMethod.UniformRandom)
         self.sample = self.SAMPLING_METHOD_MAP[self.sampling_method]
+        self.refinement_sample_interval = self.config.get("refinement_sample_interval", int(0.2 * self.num_epochs))
+        self.refinement_rounds = self.num_epochs // self.refinement_sample_interval
 
+    def set_loss_reduction(self, label: str, loss_reduction: LossReductionMethod):
+        if label not in self.loss_reduction_dict:
+            raise ValueError(f"{label} is not a valid label for loss function")
+        self.loss_reduction_dict[label] = loss_reduction
     
-    def sample_uniform(self):
+    def sample_uniform(self, epoch):
         SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
                          high=self.state_variable_constraints["sv_high"], 
                          size=(self.batch_size, len(self.state_variables)))
         return torch.Tensor(SV).to(self.device)
     
-    def sample_fixed_grid(self):
+    def sample_fixed_grid(self, epoch):
         if len(self.state_variables) == 1:
             return torch.linspace(self.state_variable_constraints["sv_low"][0], 
                                   self.state_variable_constraints["sv_high"][0], 
@@ -506,14 +557,103 @@ class PDEModel:
                                         self.state_variable_constraints["sv_high"][i], 
                                         steps=self.batch_size, device=self.device)
             return torch.cartesian_prod(*sv_ls)
+        
+    def get_refinement_loss_dict(self, epoch):
+        '''
+        Sample a dense subset of the problem domain, compute the loss and return total loss for each point sampled. Used for Residual-based Adaptive Refinement and Active Learning
+
+        Returns:
+            {
+                "SV": sampled state variables, shape (100000, len(self.state_variables))
+                "loss": total loss computed at each sv, shape (100000, 1)
+            }
+        '''
+        # because we need a set of dense points to compute residual for adaptive sampling
+        # we set all models to evaluation models so that gradients won't be computed.
+        # it speeds up the computation and reduces memory usages
+        self.set_all_model_eval()
+
+        # Temporarily set a large batch size for each dimension
+        self.batch_size = 100000
+        SV = self.sample_uniform(epoch)
+
+        # make a copy of variable value mapping
+        # so that we don't break the top level training routine
+        variable_val_dict_ = self.variable_val_dict.copy()
+        total_loss = torch.zeros((self.batch_size, 1), device=self.device)
+
+        # forward pass
+        for i, sv_name in enumerate(self.state_variables):
+            variable_val_dict_[sv_name] = SV[:, i:i+1]
+
+        # update variables, including agent, endogenous variables, their derivatives
+        for func_name in self.local_function_dict:
+            variable_val_dict_[func_name] = self.local_function_dict[func_name](SV)
+
+        # update variables, using equations
+        for eq_name in self.equations:
+            lhs = self.equations[eq_name].lhs.formula_str
+            variable_val_dict_[lhs] = self.equations[eq_name].eval({}, variable_val_dict_)
+
+        # compute total losses, without reducing to a single value, keep the original dimension, but summing up using abs values
+        # Note that the conditions (IC/BC, or user pre-defined sampling regions) are not considered
+        # Systems are not considered
+        for label in self.endog_equations:
+            total_loss += torch.abs(self.endog_equations[label].eval_no_loss({}, variable_val_dict_)).reshape((self.batch_size, 1))
+
+        for label in self.constraints:
+            total_loss += torch.abs(self.constraints[label].eval_no_loss({}, variable_val_dict_)).reshape((self.batch_size, 1))
+
+        for label in self.hjb_equations:
+            total_loss += torch.abs(self.hjb_equations[label].eval_no_loss({}, variable_val_dict_)).reshape((self.batch_size, 1))
+
+        for label in self.systems:
+            total_loss += torch.abs(self.systems[label].eval_no_loss({}, variable_val_dict_, self.batch_size)).reshape((self.batch_size, 1))
+
+        self.batch_size = self.config.get("batch_size", 100) # reset the batch size for normal computation
+        self.set_all_model_training() # reset the model for training stage
+
+        return {
+            "SV": SV,
+            "loss": total_loss,
+        }
+        
+    def sample_rar_greedy(self, epoch):
+        if epoch % self.refinement_sample_interval == 0 and epoch > 0:
+            # check epoch > 0 so we don't need to resample in the first epoch
+            refinement_loss_dict = self.get_refinement_loss_dict(epoch)
+            SV = refinement_loss_dict["SV"]
+            all_losses = refinement_loss_dict["loss"]
+            X_ids = torch.topk(all_losses, self.batch_size**len(self.state_variables)//self.refinement_rounds, dim=0)[1].squeeze(-1)
+            self.anchor_points = torch.vstack((self.anchor_points, SV[X_ids]))
+        fixed_grid_sv = self.sample_fixed_grid(epoch)
+        return torch.vstack((fixed_grid_sv, self.anchor_points))
+        
+
+    def sample_rar_distribution(self, epoch):
+        if epoch % self.refinement_sample_interval == 0 and epoch > 0:
+            # check epoch > 0 so we don't need to resample in the first epoch
+            refinement_loss_dict = self.get_refinement_loss_dict(epoch)
+            SV = refinement_loss_dict["SV"]
+            all_losses = refinement_loss_dict["loss"] ** 2
+            err_eq = all_losses / all_losses.mean()
+            err_eq_normalized = (err_eq / err_eq.sum())[:, 0]
+            X_ids = np.random.choice(a=SV.shape[0], size=self.batch_size**len(self.state_variables)//self.refinement_rounds, replace=False, p=err_eq_normalized.detach().cpu().numpy())
+            self.anchor_points = torch.vstack((self.anchor_points, SV[X_ids]))
+        fixed_grid_sv = self.sample_fixed_grid(epoch)
+        return torch.vstack((fixed_grid_sv, self.anchor_points))
 
     def train_model(self, model_dir: str="./", filename: str=None, full_log=False):
         '''
         The entire loop of training
         '''
 
+        if self.anchor_points is None:
+            self.anchor_points = torch.empty((0, len(self.state_variables)), device=self.device)
+
         min_loss = torch.inf
         epoch_loss_dict = defaultdict(list)
+        min_loss_dict = defaultdict(list)
         all_params = []
         
         model_has_kan = False
@@ -559,7 +699,7 @@ class PDEModel:
         for epoch in pbar:
             epoch_start_time = time.time()
             
-            SV = self.sample()
+            SV = self.sample(epoch)
             for i, sv_name in enumerate(self.state_variables):
                 self.variable_val_dict[sv_name] = SV[:, i:i+1]
 
@@ -579,6 +719,9 @@ class PDEModel:
             if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
                 min_loss = loss_dict["total_loss"].item()
                 self.save_model(model_dir, f"{file_prefix}_best.pt")
+                min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
+                for k, v in loss_dict.items():
+                    min_loss_dict[k].append(v.item())
             # maybe reload the best model when loss is nan.
 
             if epoch % self.loss_log_interval == 0:
@@ -595,6 +738,12 @@ class PDEModel:
         print(f"Best model saved to {model_dir}/{file_prefix}_best.pt if valid")
         self.save_model(model_dir, filename, verbose=True)
         pd.DataFrame(epoch_loss_dict).to_csv(f"{model_dir}/{file_prefix}_loss.csv", index=False)
+        pd.DataFrame(min_loss_dict).to_csv(f"{model_dir}/{file_prefix}_min_loss.csv", index=False)
+
+        if self.anchor_points.shape[0] > 0:
+            anchor_points_np = self.anchor_points.detach().cpu().numpy()
+            np.save(f"{model_dir}/{file_prefix}_anchor_points.npy", anchor_points_np)
+            print(f"Anchor points saved to {model_dir}/{file_prefix}_anchor_points.npy")
 
         return loss_dict
     
@@ -703,10 +852,12 @@ class PDEModel:
         '''
         The entire loop of evaluation
         '''
+        self.anchor_points = torch.empty((0, len(self.state_variables)), device=self.device)
+        
         self.validate_model_setup()
         self.set_all_model_eval()
         print("{0:=^80}".format("Evaluating"))
-        SV = self.sample()
+        SV = self.sample(0)
         for i, sv_name in enumerate(self.state_variables):
             self.variable_val_dict[sv_name] = SV[:, i:i+1]
         loss_dict = self.test_step(SV)
@@ -734,7 +885,7 @@ class PDEModel:
         self.systems,
         '''
         errors = []
-        sv = self.sample()
+        sv = self.sample(0)
         variable_val_dict_ = self.variable_val_dict.copy()
         for i, sv_name in enumerate(self.state_variables):
             variable_val_dict_[sv_name] = sv[:, i:i+1]
