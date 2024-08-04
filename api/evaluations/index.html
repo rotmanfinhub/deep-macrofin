@@ -22,7 +22,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.30">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.31">
     
     
       
@@ -291,7 +291,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../examples/pymacrofin/log_utility/" class="md-tabs__link">
+        <a href="../../examples/macrofinance_models/log_utility/" class="md-tabs__link">
           
   
   Economic Problems
@@ -685,6 +685,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#add_constraint" class="md-nav__link">
+    <span class="md-ellipsis">
+      add_constraint
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#compute_constraint_mask" class="md-nav__link">
     <span class="md-ellipsis">
       compute_constraint_mask
@@ -704,6 +713,15 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#loss-compute-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      Loss Compute Methods
+    </span>
+  </a>
   
 </li>
       
@@ -1068,11 +1086,74 @@
   
   
     <li class="md-nav__item">
-      <a href="../../examples/pymacrofin/log_utility/" class="md-nav__link">
+      <a href="../../examples/macrofinance_models/log_utility/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     Log Utility
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/macrofinance_models/1d_problem/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    1D Problem
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/macrofinance_models/2d_problem/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    2D Problem
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/macrofinance_models/di_tella/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Di Tella (2017)
   </span>
   
 
@@ -1315,6 +1396,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#add_constraint" class="md-nav__link">
+    <span class="md-ellipsis">
+      add_constraint
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#compute_constraint_mask" class="md-nav__link">
     <span class="md-ellipsis">
       compute_constraint_mask
@@ -1334,6 +1424,15 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#loss-compute-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      Loss Compute Methods
+    </span>
+  </a>
   
 </li>
       
@@ -1447,7 +1546,8 @@ This evaluates the function by simple string parsing.</p>
 </span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="sd">&#39;&#39;&#39;</span>
 </span></code></pre></div></p>
 <h3 id="eval_1">eval</h3>
-<div class="language-py highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">available_functions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]):</span>
+<div class="language-py highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">available_functions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">],</span> 
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>                <span class="n">loss_reduction</span><span class="p">:</span> <span class="n">LossReductionMethod</span><span class="o">=</span><span class="n">LossReductionMethod</span><span class="o">.</span><span class="n">MSE</span><span class="p">):</span>
 </span></code></pre></div>
 <p>Computes the loss based on the required conditions:</p>
 <div class="arithmatex">\[\mathcal{L}_{cond} = \frac{1}{|U|} \sum_{x\in U}\|\mathcal{C}(v_i, x)\|_2^2\]</div>
@@ -1474,7 +1574,8 @@ This evaluates the function by simple string parsing.</p>
 </span></code></pre></div>
 <p>Given a string representation of a constraint (equality or inequality), and a set of variables (state, value, prices) in a model, parse the equation to a pytorch function that can be evaluated. If the constraint is an inequality, loss should be penalized whenever the inequality is not satisfied. </p>
 <h3 id="eval_2">eval</h3>
-<div class="language-py highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">available_functions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">],</span> <span class="n">variables</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]):</span>
+<div class="language-py highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">available_functions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">],</span> <span class="n">variables</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> 
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>                <span class="n">loss_reduction</span><span class="p">:</span> <span class="n">LossReductionMethod</span><span class="o">=</span><span class="n">LossReductionMethod</span><span class="o">.</span><span class="n">MSE</span><span class="p">):</span>
 </span></code></pre></div>
 <p><strong>Example</strong>: 
 <div class="language-py highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">Constraint</span><span class="p">(</span><span class="n">lhs</span><span class="o">=</span><span class="s2">&quot;L&quot;</span><span class="p">,</span> <span class="n">comparator</span><span class="o">=</span><span class="n">Comparator</span><span class="o">.</span><span class="n">GEQ</span><span class="p">,</span> <span class="n">rhs</span><span class="o">=</span><span class="s2">&quot;R&quot;</span><span class="p">,</span> <span class="s2">&quot;eg1&quot;</span><span class="p">)</span>
@@ -1490,7 +1591,8 @@ This represents the inequality: <span class="arithmatex">\(L\geq R\)</span>, it 
 </span></code></pre></div>
 <p>Given a string representation of an endogenuous equation, and a set of variables (state, value, prices) in a model. parse the LHS and RHS of the equation to pytorch functions that can be evaluated. This is used to define the algebraic (partial differential) equations as loss functions.</p>
 <h3 id="eval_3">eval</h3>
-<div class="language-py highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">available_functions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">],</span> <span class="n">variables</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]):</span>
+<div class="language-py highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">available_functions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">],</span> <span class="n">variables</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> 
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>                <span class="n">loss_reduction</span><span class="p">:</span> <span class="n">LossReductionMethod</span><span class="o">=</span><span class="n">LossReductionMethod</span><span class="o">.</span><span class="n">MSE</span><span class="p">):</span>
 </span></code></pre></div>
 <p>Computes the loss based on the equation:</p>
 <div class="arithmatex">\[\mathcal{L}_{endog} = \frac{1}{B} \|l(x)-r(x)\|_2^2\]</div>
@@ -1507,7 +1609,8 @@ This represents the inequality: <span class="arithmatex">\(L\geq R\)</span>, it 
 </span></code></pre></div>
 <p>Given a string representation of a Hamilton-Jacobi-Bellman equation, and a set of variables in a model, parse the equation to a pytorch function that can be evaluated.</p>
 <h3 id="eval_5">eval</h3>
-<div class="language-py highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">available_functions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">],</span> <span class="n">variables</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]):</span>
+<div class="language-py highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">available_functions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">],</span> <span class="n">variables</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> 
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>                <span class="n">loss_reduction</span><span class="p">:</span> <span class="n">LossReductionMethod</span><span class="o">=</span><span class="n">LossReductionMethod</span><span class="o">.</span><span class="n">MSE</span><span class="p">):</span>
 </span></code></pre></div>
 <p>Compute the MSE with zero as min/max problem.</p>
 <h2 id="system">System</h2>
@@ -1521,19 +1624,42 @@ This represents the inequality: <span class="arithmatex">\(L\geq R\)</span>, it 
 </span></code></pre></div>
 Add an equation to define a new variable within the system</p>
 <h3 id="add_endog_equation">add_endog_equation</h3>
-<p><div class="language-py highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">def</span> <span class="nf">add_endog_equation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eq</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<p><div class="language-py highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">def</span> <span class="nf">add_endog_equation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eq</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">loss_reduction</span><span class="p">:</span> <span class="n">LossReductionMethod</span><span class="o">=</span><span class="n">LossReductionMethod</span><span class="o">.</span><span class="n">MSE</span><span class="p">)</span>
 </span></code></pre></div>
 Add an equation for loss computation within the system</p>
+<blockquote>
+<p>Note: None reduction is not supported in a system</p>
+</blockquote>
+<h3 id="add_constraint">add_constraint</h3>
+<p><div class="language-py highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="k">def</span> <span class="nf">add_constraint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lhs</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">comparator</span><span class="p">:</span> <span class="n">Comparator</span><span class="p">,</span> <span class="n">rhs</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">loss_reduction</span><span class="p">:</span> <span class="n">LossReductionMethod</span><span class="o">=</span><span class="n">LossReductionMethod</span><span class="o">.</span><span class="n">MSE</span><span class="p">)</span>
+</span></code></pre></div>
+Add an inequality constraint for loss computation within the system</p>
+<blockquote>
+<p>Note: None reduction is not supported in a system</p>
+</blockquote>
 <h3 id="compute_constraint_mask">compute_constraint_mask</h3>
-<p><div class="language-py highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="k">def</span> <span class="nf">compute_constraint_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">available_functions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">],</span> <span class="n">variables</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">])</span>
+<p><div class="language-py highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="k">def</span> <span class="nf">compute_constraint_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">available_functions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">],</span> <span class="n">variables</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">])</span>
 </span></code></pre></div>
 Check if the constraint is satisfied. Need to check for each individual batch element. Get a mask <span class="arithmatex">\(\mathbb{1}_{mask}\)</span> for loss in each batch element.</p>
 <h3 id="eval_6">eval</h3>
-<div class="language-py highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">available_functions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">],</span> <span class="n">variables</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">])</span>
+<div class="language-py highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="k">def</span> <span class="nf">eval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">available_functions</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">],</span> <span class="n">variables</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">])</span>
 </span></code></pre></div>
 <p>Compute the loss based on the system constraint. Only elements in a batch that satisfy the <code>activation_constraints</code> are used in the loss computation.</p>
 <div class="arithmatex">\[\mathcal{L}_{endog, i} = \frac{1}{\sum \mathbb{1}_{mask}} \langle (l-r)^2, \mathbb{1}_{mask}\rangle\]</div>
 <div class="arithmatex">\[\mathcal{L}_{sys} = \sum_{i=1}^N \lambda_i \mathcal{L}_{endog, i}\]</div>
+<h2 id="loss-compute-methods">Loss Compute Methods</h2>
+<p>The constants determine which loss reduction method to use.</p>
+<div class="language-py highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="k">class</span> <span class="nc">LossReductionMethod</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+</span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>    <span class="n">MSE</span> <span class="o">=</span> <span class="s2">&quot;MSE&quot;</span> <span class="c1"># mean squared error</span>
+</span><span id="__span-26-3"><a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>    <span class="n">MAE</span> <span class="o">=</span> <span class="s2">&quot;MAE&quot;</span> <span class="c1"># mean absolute error</span>
+</span><span id="__span-26-4"><a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a>    <span class="n">NONE</span> <span class="o">=</span> <span class="s2">&quot;None&quot;</span> <span class="c1"># no reduction</span>
+</span><span id="__span-26-5"><a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a>
+</span><span id="__span-26-6"><a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a><span class="n">LOSS_REDUCTION_MAP</span> <span class="o">=</span> <span class="p">{</span>
+</span><span id="__span-26-7"><a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a>    <span class="n">LossReductionMethod</span><span class="o">.</span><span class="n">MSE</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="n">x</span><span class="p">)),</span>
+</span><span id="__span-26-8"><a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a>    <span class="n">LossReductionMethod</span><span class="o">.</span><span class="n">MAE</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x</span><span class="p">)),</span>
+</span><span id="__span-26-9"><a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a>    <span class="n">LossReductionMethod</span><span class="o">.</span><span class="n">NONE</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span>
+</span><span id="__span-26-10"><a id="__codelineno-26-10" name="__codelineno-26-10" href="#__codelineno-26-10"></a><span class="p">}</span>
+</span></code></pre></div>
 
 
 
