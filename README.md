@@ -59,3 +59,7 @@ To see the site locally, run the following command:
 ```
 mkdocs serve
 ```
+
+### Citation
+
+Paper to be on Arxiv soon...
