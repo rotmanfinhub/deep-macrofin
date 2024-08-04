@@ -28,13 +28,22 @@ class OptimizerType(str, Enum):
     Adam = "Adam"
     AdamW = "AdamW"
     LBFGS = "LBFGS"
-    
+
+class SamplingMethod(str, Enum):
+    UniformRandom = "UniformRandom"
+    FixedGrid = "FixedGrid"
+    ActiveLearning = "ActiveLearning"
+    RARG = "RAR-G"
+    RARD = "RAR-D"
+
 DEFAULT_CONFIG = {
     "batch_size": 100,
     "num_epochs": 1000,
     "lr": 1e-3,
     "loss_log_interval": 100,
     "optimizer_type": OptimizerType.AdamW,
+    "sampling_method": SamplingMethod.UniformRandom,
+    "refinement_sample_interval": int(0.2*num_epochs),
 }
 
 DEFAULT_LEARNABLE_VAR_CONFIG = {

@@ -112,7 +112,8 @@ The condition is f(0)=f(1)
 
 ### eval
 ```py
-def eval(self, available_functions: Dict[str, Callable]):
+def eval(self, available_functions: Dict[str, Callable], 
+                loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
 ```
 
 Computes the loss based on the required conditions:
@@ -157,7 +158,8 @@ Given a string representation of a constraint (equality or inequality), and a se
 
 ### eval
 ```py
-def eval(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor]):
+def eval(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor], 
+                loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
 ```
 
 **Example**: 
@@ -186,7 +188,8 @@ Given a string representation of an endogenuous equation, and a set of variables
 
 ### eval
 ```py
-def eval(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor]):
+def eval(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor], 
+                loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
 ```
 
 Computes the loss based on the equation:
@@ -218,7 +221,8 @@ Given a string representation of a Hamilton-Jacobi-Bellman equation, and a set o
 
 ### eval
 ```py
-def eval(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor]):
+def eval(self, available_functions: Dict[str, Callable], variables: Dict[str, torch.Tensor], 
+                loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
 ```
 
 Compute the MSE with zero as min/max problem.
@@ -240,9 +244,19 @@ Add an equation to define a new variable within the system
 
 ### add_endog_equation
 ```py
-def add_endog_equation(self, eq: str, label: str=None, weight=1.0)
+def add_endog_equation(self, eq: str, label: str=None, weight=1.0, loss_reduction: LossReductionMethod=LossReductionMethod.MSE)
 ```
 Add an equation for loss computation within the system
+
+> Note: None reduction is not supported in a system
+
+### add_constraint
+```py
+def add_constraint(self, lhs: str, comparator: Comparator, rhs: str, label: str=None, weight=1.0, loss_reduction: LossReductionMethod=LossReductionMethod.MSE)
+```
+Add an inequality constraint for loss computation within the system
+
+> Note: None reduction is not supported in a system
 
 ### compute_constraint_mask
 ```py
@@ -260,3 +274,21 @@ Compute the loss based on the system constraint. Only elements in a batch that s
 $$\mathcal{L}_{endog, i} = \frac{1}{\sum \mathbb{1}_{mask}} \langle (l-r)^2, \mathbb{1}_{mask}\rangle$$
 
 $$\mathcal{L}_{sys} = \sum_{i=1}^N \lambda_i \mathcal{L}_{endog, i}$$
+
+## Loss Compute Methods
+
+The constants determine which loss reduction method to use.
+
+```py
+class LossReductionMethod(str, Enum):
+    MSE = "MSE" # mean squared error
+    MAE = "MAE" # mean absolute error
+    NONE = "None" # no reduction
+
+LOSS_REDUCTION_MAP = {
+    LossReductionMethod.MSE: lambda x: torch.mean(torch.square(x)),
+    LossReductionMethod.MAE: lambda x: torch.mean(torch.abs(x)),
+    LossReductionMethod.NONE: lambda x: x,
+}
+```
+
