@@ -58,6 +58,7 @@ class PDEModel:
         self.loss_log_interval = self.config.get("loss_log_interval", 100)
         self.optimizer_type = self.config.get("optimizer_type", OptimizerType.AdamW)
         self.sampling_method = self.config.get("sampling_method", SamplingMethod.UniformRandom)
+        self.loss_adaption_interval = self.config.get("loss_adaption_interval", -1)
 
         self.SAMPLING_METHOD_MAP = {
             SamplingMethod.UniformRandom: self.sample_uniform,
@@ -533,6 +534,7 @@ class PDEModel:
         self.sample = self.SAMPLING_METHOD_MAP[self.sampling_method]
         self.refinement_sample_interval = self.config.get("refinement_sample_interval", int(0.2 * self.num_epochs))
         self.refinement_rounds = self.num_epochs // self.refinement_sample_interval
+        self.loss_adaption_interval = self.config.get("loss_adaption_interval", -1)
 
     def set_loss_reduction(self, label: str, loss_reduction: LossReductionMethod):
         if label not in self.loss_reduction_dict:
@@ -694,56 +696,137 @@ class PDEModel:
         print("{0:=^80}".format("Training"))
         self.set_all_model_training()
         start_time = time.time()
-        set_seeds(0)
-        pbar = tqdm(range(self.num_epochs))
-        for epoch in pbar:
-            epoch_start_time = time.time()
-            
-            SV = self.sample(epoch)
-            for i, sv_name in enumerate(self.state_variables):
-                self.variable_val_dict[sv_name] = SV[:, i:i+1]
+        if self.loss_adaption_interval < 0:
+            set_seeds(0)
+            pbar = tqdm(range(self.num_epochs))
+            for epoch in pbar:
+                epoch_start_time = time.time()
+                
+                SV = self.sample(epoch)
+                for i, sv_name in enumerate(self.state_variables):
+                    self.variable_val_dict[sv_name] = SV[:, i:i+1]
 
-            self.optimizer.step(lambda: self.closure(SV))
-            total_loss = 0
-            for loss_label, loss in self.loss_val_dict.items():
-                total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
+                self.optimizer.step(lambda: self.closure(SV))
+                total_loss = 0
+                for loss_label, loss in self.loss_val_dict.items():
+                    total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
 
-            loss_dict = self.loss_val_dict.copy()
-            loss_dict["total_loss"] = total_loss
+                loss_dict = self.loss_val_dict.copy()
+                loss_dict["total_loss"] = total_loss
 
-            if full_log:
-                formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
-            else:
-                formatted_train_loss = "%.4f" % loss_dict["total_loss"]
-            
+                if full_log:
+                    formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
+                else:
+                    formatted_train_loss = "%.4f" % loss_dict["total_loss"]
+                
+                if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
+                    min_loss = loss_dict["total_loss"].item()
+                    self.save_model(model_dir, f"{file_prefix}_best.pt")
+                    min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
+                    for k, v in loss_dict.items():
+                        min_loss_dict[k].append(v.item())
+                # maybe reload the best model when loss is nan.
+
+                if epoch % self.loss_log_interval == 0:
+                    epoch_loss_dict["epoch"].append(epoch)
+                    for k, v in loss_dict.items():
+                        epoch_loss_dict[k].append(v.item())
+                    pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
+                print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
+            print(f"training finished, total time :: {time.time() - start_time}")
+            print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
+            log_file.close()
             if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
-                min_loss = loss_dict["total_loss"].item()
                 self.save_model(model_dir, f"{file_prefix}_best.pt")
-                min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
-                for k, v in loss_dict.items():
-                    min_loss_dict[k].append(v.item())
-            # maybe reload the best model when loss is nan.
+            print(f"Best model saved to {model_dir}/{file_prefix}_best.pt if valid")
+            self.save_model(model_dir, filename, verbose=True)
+            pd.DataFrame(epoch_loss_dict).to_csv(f"{model_dir}/{file_prefix}_loss.csv", index=False)
+            pd.DataFrame(min_loss_dict).to_csv(f"{model_dir}/{file_prefix}_min_loss.csv", index=False)
 
-            if epoch % self.loss_log_interval == 0:
-                epoch_loss_dict["epoch"].append(epoch)
-                for k, v in loss_dict.items():
-                    epoch_loss_dict[k].append(v.item())
-                pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
-            print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
-        print(f"training finished, total time :: {time.time() - start_time}")
-        print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
-        log_file.close()
-        if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
-            self.save_model(model_dir, f"{file_prefix}_best.pt")
-        print(f"Best model saved to {model_dir}/{file_prefix}_best.pt if valid")
-        self.save_model(model_dir, filename, verbose=True)
-        pd.DataFrame(epoch_loss_dict).to_csv(f"{model_dir}/{file_prefix}_loss.csv", index=False)
-        pd.DataFrame(min_loss_dict).to_csv(f"{model_dir}/{file_prefix}_min_loss.csv", index=False)
+            if self.anchor_points.shape[0] > 0:
+                anchor_points_np = self.anchor_points.detach().cpu().numpy()
+                np.save(f"{model_dir}/{file_prefix}_anchor_points.npy", anchor_points_np)
+                print(f"Anchor points saved to {model_dir}/{file_prefix}_anchor_points.npy")
+        else:
+            loss_weight_log_dict = defaultdict(list)
+            loss_hist = {}
+            loss_hist_count = 0
+            for label in self.loss_val_dict:
+                loss_hist[label] = torch.zeros(self.loss_adaption_interval, device=self.device)
 
-        if self.anchor_points.shape[0] > 0:
-            anchor_points_np = self.anchor_points.detach().cpu().numpy()
-            np.save(f"{model_dir}/{file_prefix}_anchor_points.npy", anchor_points_np)
-            print(f"Anchor points saved to {model_dir}/{file_prefix}_anchor_points.npy")
+            set_seeds(0)
+            pbar = tqdm(range(self.num_epochs))
+            for epoch in pbar:
+                epoch_start_time = time.time()
+                
+                SV = self.sample(epoch)
+                for i, sv_name in enumerate(self.state_variables):
+                    self.variable_val_dict[sv_name] = SV[:, i:i+1]
+
+                self.optimizer.step(lambda: self.closure(SV))
+                total_loss = 0
+                for loss_label, loss in self.loss_val_dict.items():
+                    total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
+                    loss_hist[loss_label][loss_hist_count] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
+                
+                loss_hist_count += 1
+
+                loss_dict = self.loss_val_dict.copy()
+                loss_dict["total_loss"] = total_loss
+
+                if full_log:
+                    formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
+                else:
+                    formatted_train_loss = "%.4f" % loss_dict["total_loss"]
+                
+                if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
+                    min_loss = loss_dict["total_loss"].item()
+                    self.save_model(model_dir, f"{file_prefix}_best.pt")
+                    min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
+                    for k, v in loss_dict.items():
+                        min_loss_dict[k].append(v.item())
+                # maybe reload the best model when loss is nan.
+
+                if loss_hist_count == self.loss_adaption_interval:
+                    loss_hist_count = 0
+                    rates_of_change = torch.zeros(len(loss_hist))
+                    avg_loss_values = torch.zeros(len(loss_hist))
+                    for i, label in enumerate(loss_hist):
+                        diff = loss_hist[label][1:] - loss_hist[label][:-1]
+                        rates_of_change[i] = torch.mean(diff)
+                        avg_loss_values[i] = torch.mean(loss_hist[label])
+                    rates_of_change = rates_of_change / torch.sum(torch.abs(rates_of_change))
+                    new_weights = torch.nn.functional.softmax(0.1 * avg_loss_values * (rates_of_change - rates_of_change.max()), dim=-1)
+                    new_weights = new_weights / new_weights.min()
+                    for i, label in enumerate(loss_hist):
+                        self.loss_weight_dict[label] = new_weights[i].item()
+                        loss_hist[label] = torch.zeros(self.loss_adaption_interval)
+                    
+                    loss_weight_log_dict["epoch"].append(epoch)
+                    for k, v in self.loss_weight_dict.items():
+                        loss_weight_log_dict[k].append(v)
+
+                if epoch % self.loss_log_interval == 0:
+                    epoch_loss_dict["epoch"].append(epoch)
+                    for k, v in loss_dict.items():
+                        epoch_loss_dict[k].append(v.item())
+                    pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
+                print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
+            print(f"training finished, total time :: {time.time() - start_time}")
+            print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
+            log_file.close()
+            if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
+                self.save_model(model_dir, f"{file_prefix}_best.pt")
+            print(f"Best model saved to {model_dir}/{file_prefix}_best.pt if valid")
+            self.save_model(model_dir, filename, verbose=True)
+            pd.DataFrame(epoch_loss_dict).to_csv(f"{model_dir}/{file_prefix}_loss.csv", index=False)
+            pd.DataFrame(min_loss_dict).to_csv(f"{model_dir}/{file_prefix}_min_loss.csv", index=False)
+            pd.DataFrame(loss_weight_log_dict).to_csv(f"{model_dir}/{file_prefix}_loss_weight.csv", index=False)
+
+            if self.anchor_points.shape[0] > 0:
+                anchor_points_np = self.anchor_points.detach().cpu().numpy()
+                np.save(f"{model_dir}/{file_prefix}_anchor_points.npy", anchor_points_np)
+                print(f"Anchor points saved to {model_dir}/{file_prefix}_anchor_points.npy")
 
         return loss_dict
     
