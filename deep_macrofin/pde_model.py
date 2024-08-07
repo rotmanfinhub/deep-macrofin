@@ -43,7 +43,10 @@ class PDEModel:
             "optimizer_type": OptimizerType.AdamW,
             "sampling_method": SamplingMethod.UniformRandom,
             "refinement_sample_interval": int(0.2*num_epochs),
-            "loss_adaption_interval": -1,
+            "loss_balancing": False,
+            "bernoulli_prob": 0.9999,
+            "loss_balancing_temp": 0.1,
+            "loss_balancing_alpha": 0.999
         }
 
         loss_log_interval: the interval at which loss should be reported/recorded
@@ -59,7 +62,7 @@ class PDEModel:
         self.loss_log_interval = self.config.get("loss_log_interval", 100)
         self.optimizer_type = self.config.get("optimizer_type", OptimizerType.AdamW)
         self.sampling_method = self.config.get("sampling_method", SamplingMethod.UniformRandom)
-        self.loss_adaption_interval = self.config.get("loss_adaption_interval", -1)
+        self.loss_balancing = self.config.get("loss_balancing", False)
 
         self.SAMPLING_METHOD_MAP = {
             SamplingMethod.UniformRandom: self.sample_uniform,
@@ -523,7 +526,10 @@ class PDEModel:
             "optimizer_type": OptimizerType.AdamW,
             "sampling_method": SamplingMethod.UniformRandom,
             "refinement_sample_interval": int(0.2*num_epochs),
-            "loss_adaption_interval": -1,
+            "loss_balancing": False,
+            "bernoulli_prob": 0.9999,
+            "loss_balancing_temp": 0.1,
+            "loss_balancing_alpha": 0.999
         }
         '''
         self.config.update(config)
@@ -536,7 +542,7 @@ class PDEModel:
         self.sample = self.SAMPLING_METHOD_MAP[self.sampling_method]
         self.refinement_sample_interval = self.config.get("refinement_sample_interval", int(0.2 * self.num_epochs))
         self.refinement_rounds = self.num_epochs // self.refinement_sample_interval
-        self.loss_adaption_interval = self.config.get("loss_adaption_interval", -1)
+        self.loss_balancing = self.config.get("loss_balancing", False)
 
     def set_loss_reduction(self, label: str, loss_reduction: LossReductionMethod):
         if label not in self.loss_reduction_dict:
@@ -698,7 +704,7 @@ class PDEModel:
         print("{0:=^80}".format("Training"))
         self.set_all_model_training()
         start_time = time.time()
-        if self.loss_adaption_interval < 0:
+        if not self.loss_balancing:
             set_seeds(0)
             pbar = tqdm(range(self.num_epochs))
             for epoch in pbar:
@@ -751,10 +757,11 @@ class PDEModel:
                 print(f"Anchor points saved to {model_dir}/{file_prefix}_anchor_points.npy")
         else:
             loss_weight_log_dict = defaultdict(list)
-            loss_hist = {}
-            loss_hist_count = 0
-            for label in self.loss_val_dict:
-                loss_hist[label] = torch.zeros(self.loss_adaption_interval, device=self.device)
+            bernoulli_rho = torch.distributions.Bernoulli(self.config.get("bernoulli_prob", 0.9999))
+            temp = self.config.get("loss_balancing_temp", 0.1)
+            alpha = self.config.get("loss_balancing_alpha", 0.999)
+            init_loss_tensor = torch.zeros(len(self.loss_val_dict), device=self.device)
+            prev_loss_tensor = torch.zeros(len(self.loss_val_dict), device=self.device)
 
             set_seeds(0)
             pbar = tqdm(range(self.num_epochs))
@@ -769,9 +776,6 @@ class PDEModel:
                 total_loss = 0
                 for loss_label, loss in self.loss_val_dict.items():
                     total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
-                    loss_hist[loss_label][loss_hist_count] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
-                
-                loss_hist_count += 1
 
                 loss_dict = self.loss_val_dict.copy()
                 loss_dict["total_loss"] = total_loss
@@ -789,32 +793,35 @@ class PDEModel:
                         min_loss_dict[k].append(v.item())
                 # maybe reload the best model when loss is nan.
 
-                if loss_hist_count == self.loss_adaption_interval:
-                    # soft adapt implementation following https://arxiv.org/pdf/1912.12355
-                    # Loss Weighted + normalized
-                    # beta = 0.1
-                    # the idea is to assign higher weight to loss functions that decreases more slowly.
-                    loss_hist_count = 0
-                    rates_of_change = torch.zeros(len(loss_hist))
-                    avg_loss_values = torch.zeros(len(loss_hist))
-                    for i, label in enumerate(loss_hist):
-                        # use the mean rate of change, instead of using finite difference for faster computation
-                        diff = loss_hist[label][1:] - loss_hist[label][:-1]
-                        rates_of_change[i] = torch.mean(diff)
-                        avg_loss_values[i] = torch.mean(loss_hist[label])
-                    # normalization
-                    rates_of_change = rates_of_change / torch.sum(torch.abs(rates_of_change))
-                    # loss weighted softmax
-                    new_weights = torch.nn.functional.softmax(0.1 * avg_loss_values * (rates_of_change - rates_of_change.max()), dim=-1)
-                    # renormalize by the min value, so loss weights are at least 1.
-                    new_weights = new_weights / new_weights.min()
-                    for i, label in enumerate(loss_hist):
-                        self.loss_weight_dict[label] = new_weights[i].item()
-                        loss_hist[label] = torch.zeros(self.loss_adaption_interval)
+                if epoch == 0:
+                    for i, (loss_label, loss) in enumerate(self.loss_val_dict.items()):
+                        init_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
+                        prev_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
+                else:
+                    # relative loss balancing with random lookback
+                    # https://arxiv.org/pdf/2110.09813
+                    curr_loss_tensor = torch.zeros_like(prev_loss_tensor, device=self.device)
+                    prev_loss_weight_tensor = torch.zeros_like(prev_loss_tensor, device=self.device)
+                    for i, (loss_label, loss) in enumerate(self.loss_val_dict.items()):
+                        curr_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
+                        prev_loss_weight_tensor[i] = self.loss_weight_dict[loss_label]
                     
+                    ratio_prev = curr_loss_tensor / (temp * prev_loss_tensor)
+                    ratio_zero = curr_loss_tensor / (temp * prev_loss_tensor)
+                    bal_prev = len(self.loss_val_dict) * torch.nn.functional.softmax(ratio_prev, dim=0)
+                    bal_zero = len(self.loss_val_dict) * torch.nn.functional.softmax(ratio_zero, dim=0)
+                    rho = bernoulli_rho.sample()
+                    weight_hist = rho * prev_loss_weight_tensor + (1 - rho) * bal_zero
+                    new_weight = alpha * weight_hist + (1 - alpha) * bal_prev
+                    for i, k in enumerate(self.loss_weight_dict):
+                        self.loss_weight_dict[k] = new_weight[i].item()
+                        
                     loss_weight_log_dict["epoch"].append(epoch)
                     for k, v in self.loss_weight_dict.items():
                         loss_weight_log_dict[k].append(v)
+                    
+                    for i, (loss_label, loss) in enumerate(self.loss_val_dict.items()):
+                        prev_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss).item()
 
                 if epoch % self.loss_log_interval == 0:
                     epoch_loss_dict["epoch"].append(epoch)
