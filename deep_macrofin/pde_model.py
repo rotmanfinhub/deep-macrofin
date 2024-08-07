@@ -790,15 +790,23 @@ class PDEModel:
                 # maybe reload the best model when loss is nan.
 
                 if loss_hist_count == self.loss_adaption_interval:
+                    # soft adapt implementation following https://arxiv.org/pdf/1912.12355
+                    # Loss Weighted + normalized
+                    # beta = 0.1
+                    # the idea is to assign higher weight to loss functions that decreases more slowly.
                     loss_hist_count = 0
                     rates_of_change = torch.zeros(len(loss_hist))
                     avg_loss_values = torch.zeros(len(loss_hist))
                     for i, label in enumerate(loss_hist):
+                        # use the mean rate of change, instead of using finite difference for faster computation
                         diff = loss_hist[label][1:] - loss_hist[label][:-1]
                         rates_of_change[i] = torch.mean(diff)
                         avg_loss_values[i] = torch.mean(loss_hist[label])
+                    # normalization
                     rates_of_change = rates_of_change / torch.sum(torch.abs(rates_of_change))
+                    # loss weighted softmax
                     new_weights = torch.nn.functional.softmax(0.1 * avg_loss_values * (rates_of_change - rates_of_change.max()), dim=-1)
+                    # renormalize by the min value, so loss weights are at least 1.
                     new_weights = new_weights / new_weights.min()
                     for i, label in enumerate(loss_hist):
                         self.loss_weight_dict[label] = new_weights[i].item()
