@@ -43,6 +43,7 @@ class PDEModel:
             "optimizer_type": OptimizerType.AdamW,
             "sampling_method": SamplingMethod.UniformRandom,
             "refinement_sample_interval": int(0.2*num_epochs),
+            "loss_adaption_interval": -1,
         }
 
         loss_log_interval: the interval at which loss should be reported/recorded
@@ -522,6 +523,7 @@ class PDEModel:
             "optimizer_type": OptimizerType.AdamW,
             "sampling_method": SamplingMethod.UniformRandom,
             "refinement_sample_interval": int(0.2*num_epochs),
+            "loss_adaption_interval": -1,
         }
         '''
         self.config.update(config)
