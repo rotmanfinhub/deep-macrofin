@@ -758,7 +758,7 @@ class PDEModel:
                         prev_loss_weight_tensor[i] = self.loss_weight_dict[loss_label]
                     
                     ratio_prev = curr_loss_tensor / (temp * prev_loss_tensor)
-                    ratio_zero = curr_loss_tensor / (temp * prev_loss_tensor)
+                    ratio_zero = curr_loss_tensor / (temp * init_loss_tensor)
                     bal_prev = len(self.loss_val_dict) * torch.nn.functional.softmax(ratio_prev, dim=-1)
                     bal_zero = len(self.loss_val_dict) * torch.nn.functional.softmax(ratio_zero, dim=-1)
                     rho = bernoulli_rho.sample()
