@@ -11,6 +11,7 @@ import torch
 from tqdm import tqdm
 
 from .evaluations import *
+from .event_handler import *
 from .models import *
 from .utils import *
 
@@ -654,6 +655,94 @@ class PDEModel:
             self.anchor_points = torch.vstack((self.anchor_points, SV[X_ids]))
         fixed_grid_sv = self.sample_fixed_grid(epoch)
         return torch.vstack((fixed_grid_sv, self.anchor_points))
+    
+    def init_loss_balancing(self, *args, **kwargs):
+        '''
+        Initialize variables for relative loss balancing with random lookback
+        https://arxiv.org/pdf/2110.09813
+        '''
+        self.loss_weight_log_dict = defaultdict(list)
+        self.bernoulli_rho = torch.distributions.Bernoulli(self.config.get("bernoulli_prob", 0.9999))
+        self.temp = self.config.get("loss_balancing_temp", 0.1)
+        self.alpha = self.config.get("loss_balancing_alpha", 0.999)
+        self.init_loss_tensor = torch.zeros(len(self.loss_val_dict), device=self.device)
+        self.prev_loss_tensor = torch.zeros(len(self.loss_val_dict), device=self.device)
+
+    def loss_balancing_step(self, *args, **kwargs):
+        epoch = kwargs.get("epoch", 0)
+        if epoch == 0:
+            for i, (loss_label, loss) in enumerate(self.loss_val_dict.items()):
+                self.init_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
+                self.prev_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
+        else:
+            # relative loss balancing with random lookback
+            # https://arxiv.org/pdf/2110.09813
+            curr_loss_tensor = torch.zeros_like(self.prev_loss_tensor, device=self.device)
+            prev_loss_weight_tensor = torch.zeros_like(self.prev_loss_tensor, device=self.device)
+            for i, (loss_label, loss) in enumerate(self.loss_val_dict.items()):
+                curr_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
+                prev_loss_weight_tensor[i] = self.loss_weight_dict[loss_label]
+            
+            ratio_prev = curr_loss_tensor / (self.temp * self.prev_loss_tensor)
+            ratio_zero = curr_loss_tensor / (self.temp * self.init_loss_tensor)
+            bal_prev = len(self.loss_val_dict) * torch.nn.functional.softmax(ratio_prev, dim=-1)
+            bal_zero = len(self.loss_val_dict) * torch.nn.functional.softmax(ratio_zero, dim=-1)
+            rho = self.bernoulli_rho.sample()
+            weight_hist = rho * prev_loss_weight_tensor + (1 - rho) * bal_zero
+            new_weight = self.alpha * weight_hist + (1 - self.alpha) * bal_prev
+            for i, k in enumerate(self.loss_weight_dict):
+                self.loss_weight_dict[k] = new_weight[i].item()
+                
+            self.loss_weight_log_dict["epoch"].append(epoch)
+            for k, v in self.loss_weight_dict.items():
+                self.loss_weight_log_dict[k].append(v)
+            
+            for i, (loss_label, loss) in enumerate(self.loss_val_dict.items()):
+                self.prev_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss).item()
+
+    def init_soft_adapt(self, *args, **kwargs):
+        '''
+        Initialize variables for soft adapt
+        https://arxiv.org/pdf/1912.12355
+        '''
+        self.loss_adaption_interval = self.config.get("soft_adapt_interval", -1)
+        self.beta = self.config.get("loss_balancing_temp", 0.1)
+        self.loss_weight_log_dict = defaultdict(list)
+        self.loss_hist = {}
+        self.loss_hist_count = 0
+        for label in self.loss_val_dict:
+            self.loss_hist[label] = torch.zeros(self.loss_adaption_interval, device=self.device)
+
+    def soft_adapt_step(self, *args, **kwargs):
+        epoch = kwargs.get("epoch", 0)
+        for loss_label, loss in self.loss_val_dict.items():
+            self.loss_hist[loss_label][self.loss_hist_count] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
+        self.loss_hist_count += 1
+        if self.loss_hist_count == self.loss_adaption_interval:
+            # soft adapt implementation following https://arxiv.org/pdf/1912.12355
+            # Loss Weighted + normalized
+            # the idea is to assign higher weight to loss functions that decreases more slowly.
+            self.loss_hist_count = 0
+            rates_of_change = torch.zeros(len(self.loss_hist))
+            avg_loss_values = torch.zeros(len(self.loss_hist))
+            for i, label in enumerate(self.loss_hist):
+                # use the mean rate of change, instead of using finite difference for faster computation
+                diff = self.loss_hist[label][1:] - self.loss_hist[label][:-1]
+                rates_of_change[i] = torch.mean(diff)
+                avg_loss_values[i] = torch.mean(self.loss_hist[label])
+            # normalization
+            rates_of_change = rates_of_change / torch.sum(torch.abs(rates_of_change))
+            # loss weighted softmax
+            new_weights = torch.nn.functional.softmax(self.beta * avg_loss_values * (rates_of_change - rates_of_change.max()), dim=-1)
+            # renormalize by the min value, so loss weights are at least 1.
+            new_weights = new_weights / new_weights.min()
+            for i, label in enumerate(self.loss_hist):
+                self.loss_weight_dict[label] = new_weights[i].item()
+                self.loss_hist[label] = torch.zeros(self.loss_adaption_interval)
+            
+            self.loss_weight_log_dict["epoch"].append(epoch)
+            for k, v in self.loss_weight_dict.items():
+                self.loss_weight_log_dict[k].append(v)
 
     def train_model(self, model_dir: str="./", filename: str=None, full_log=False):
         '''
@@ -706,234 +795,72 @@ class PDEModel:
         print("{0:=^80}".format("Training"))
         self.set_all_model_training()
         start_time = time.time()
+
+        OnTrainingStart = EventHandler()
+        OnTrainingStep = EventHandler()
         if self.loss_balancing:
-            loss_weight_log_dict = defaultdict(list)
-            bernoulli_rho = torch.distributions.Bernoulli(self.config.get("bernoulli_prob", 0.9999))
-            temp = self.config.get("loss_balancing_temp", 0.1)
-            alpha = self.config.get("loss_balancing_alpha", 0.999)
-            init_loss_tensor = torch.zeros(len(self.loss_val_dict), device=self.device)
-            prev_loss_tensor = torch.zeros(len(self.loss_val_dict), device=self.device)
+            OnTrainingStart += self.init_loss_balancing
+            OnTrainingStep += self.loss_balancing_step
+        elif self.config.get("soft_adapt_interval", -1) > 0:
+            OnTrainingStart += self.init_soft_adapt
+            OnTrainingStep += self.soft_adapt_step
+        
+        OnTrainingStart()
+        set_seeds(0)
+        pbar = tqdm(range(self.num_epochs))
+        for epoch in pbar:
+            epoch_start_time = time.time()
+            
+            SV = self.sample(epoch)
+            for i, sv_name in enumerate(self.state_variables):
+                self.variable_val_dict[sv_name] = SV[:, i:i+1]
 
-            set_seeds(0)
-            pbar = tqdm(range(self.num_epochs))
-            for epoch in pbar:
-                epoch_start_time = time.time()
-                
-                SV = self.sample(epoch)
-                for i, sv_name in enumerate(self.state_variables):
-                    self.variable_val_dict[sv_name] = SV[:, i:i+1]
+            self.optimizer.step(lambda: self.closure(SV))
+            total_loss = 0
+            for loss_label, loss in self.loss_val_dict.items():
+                total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
 
-                self.optimizer.step(lambda: self.closure(SV))
-                total_loss = 0
-                for loss_label, loss in self.loss_val_dict.items():
-                    total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
+            loss_dict = self.loss_val_dict.copy()
+            loss_dict["total_loss"] = total_loss
 
-                loss_dict = self.loss_val_dict.copy()
-                loss_dict["total_loss"] = total_loss
-
-                if full_log:
-                    formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
-                else:
-                    formatted_train_loss = "%.4f" % loss_dict["total_loss"]
-                
-                if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
-                    min_loss = loss_dict["total_loss"].item()
-                    self.save_model(model_dir, f"{file_prefix}_best.pt")
-                    min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
-                    for k, v in loss_dict.items():
-                        min_loss_dict[k].append(v.item())
-                # maybe reload the best model when loss is nan.
-
-                if epoch == 0:
-                    for i, (loss_label, loss) in enumerate(self.loss_val_dict.items()):
-                        init_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
-                        prev_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
-                else:
-                    # relative loss balancing with random lookback
-                    # https://arxiv.org/pdf/2110.09813
-                    curr_loss_tensor = torch.zeros_like(prev_loss_tensor, device=self.device)
-                    prev_loss_weight_tensor = torch.zeros_like(prev_loss_tensor, device=self.device)
-                    for i, (loss_label, loss) in enumerate(self.loss_val_dict.items()):
-                        curr_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
-                        prev_loss_weight_tensor[i] = self.loss_weight_dict[loss_label]
-                    
-                    ratio_prev = curr_loss_tensor / (temp * prev_loss_tensor)
-                    ratio_zero = curr_loss_tensor / (temp * init_loss_tensor)
-                    bal_prev = len(self.loss_val_dict) * torch.nn.functional.softmax(ratio_prev, dim=-1)
-                    bal_zero = len(self.loss_val_dict) * torch.nn.functional.softmax(ratio_zero, dim=-1)
-                    rho = bernoulli_rho.sample()
-                    weight_hist = rho * prev_loss_weight_tensor + (1 - rho) * bal_zero
-                    new_weight = alpha * weight_hist + (1 - alpha) * bal_prev
-                    for i, k in enumerate(self.loss_weight_dict):
-                        self.loss_weight_dict[k] = new_weight[i].item()
-                        
-                    loss_weight_log_dict["epoch"].append(epoch)
-                    for k, v in self.loss_weight_dict.items():
-                        loss_weight_log_dict[k].append(v)
-                    
-                    for i, (loss_label, loss) in enumerate(self.loss_val_dict.items()):
-                        prev_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss).item()
-
-                if epoch % self.loss_log_interval == 0:
-                    epoch_loss_dict["epoch"].append(epoch)
-                    for k, v in loss_dict.items():
-                        epoch_loss_dict[k].append(v.item())
-                    pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
-                print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
-            print(f"training finished, total time :: {time.time() - start_time}")
-            print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
-            log_file.close()
+            if full_log:
+                formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
+            else:
+                formatted_train_loss = "%.4f" % loss_dict["total_loss"]
+            
             if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
+                min_loss = loss_dict["total_loss"].item()
                 self.save_model(model_dir, f"{file_prefix}_best.pt")
-            print(f"Best model saved to {model_dir}/{file_prefix}_best.pt if valid")
-            self.save_model(model_dir, filename, verbose=True)
-            pd.DataFrame(epoch_loss_dict).to_csv(f"{model_dir}/{file_prefix}_loss.csv", index=False)
-            pd.DataFrame(min_loss_dict).to_csv(f"{model_dir}/{file_prefix}_min_loss.csv", index=False)
-            pd.DataFrame(loss_weight_log_dict).to_csv(f"{model_dir}/{file_prefix}_loss_weight.csv", index=False)
+                min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
+                for k, v in loss_dict.items():
+                    min_loss_dict[k].append(v.item())
+            # maybe reload the best model when loss is nan.
 
-            if self.anchor_points.shape[0] > 0:
-                anchor_points_np = self.anchor_points.detach().cpu().numpy()
-                np.save(f"{model_dir}/{file_prefix}_anchor_points.npy", anchor_points_np)
-                print(f"Anchor points saved to {model_dir}/{file_prefix}_anchor_points.npy")
-        elif (loss_adaption_interval := self.config.get("soft_adapt_interval", -1)) > 0:
-            beta = self.config.get("loss_balancing_temp", 0.1)
-            loss_weight_log_dict = defaultdict(list)
-            loss_hist = {}
-            loss_hist_count = 0
-            for label in self.loss_val_dict:
-                loss_hist[label] = torch.zeros(loss_adaption_interval, device=self.device)
+            OnTrainingStep(epoch=epoch)
 
-            set_seeds(0)
-            pbar = tqdm(range(self.num_epochs))
-            for epoch in pbar:
-                epoch_start_time = time.time()
-                
-                SV = self.sample(epoch)
-                for i, sv_name in enumerate(self.state_variables):
-                    self.variable_val_dict[sv_name] = SV[:, i:i+1]
+            if epoch % self.loss_log_interval == 0:
+                epoch_loss_dict["epoch"].append(epoch)
+                for k, v in loss_dict.items():
+                    epoch_loss_dict[k].append(v.item())
+                pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
+            print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
+        print(f"training finished, total time :: {time.time() - start_time}")
+        print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
+        log_file.close()
+        if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
+            self.save_model(model_dir, f"{file_prefix}_best.pt")
+        print(f"Best model saved to {model_dir}/{file_prefix}_best.pt if valid")
+        self.save_model(model_dir, filename, verbose=True)
+        pd.DataFrame(epoch_loss_dict).to_csv(f"{model_dir}/{file_prefix}_loss.csv", index=False)
+        pd.DataFrame(min_loss_dict).to_csv(f"{model_dir}/{file_prefix}_min_loss.csv", index=False)
 
-                self.optimizer.step(lambda: self.closure(SV))
-                total_loss = 0
-                for loss_label, loss in self.loss_val_dict.items():
-                    total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
-                    loss_hist[loss_label][loss_hist_count] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
-                
-                loss_hist_count += 1
+        if self.anchor_points.shape[0] > 0:
+            anchor_points_np = self.anchor_points.detach().cpu().numpy()
+            np.save(f"{model_dir}/{file_prefix}_anchor_points.npy", anchor_points_np)
+            print(f"Anchor points saved to {model_dir}/{file_prefix}_anchor_points.npy")
 
-                loss_dict = self.loss_val_dict.copy()
-                loss_dict["total_loss"] = total_loss
-
-                if full_log:
-                    formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
-                else:
-                    formatted_train_loss = "%.4f" % loss_dict["total_loss"]
-                
-                if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
-                    min_loss = loss_dict["total_loss"].item()
-                    self.save_model(model_dir, f"{file_prefix}_best.pt")
-                    min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
-                    for k, v in loss_dict.items():
-                        min_loss_dict[k].append(v.item())
-                # maybe reload the best model when loss is nan.
-
-                if loss_hist_count == loss_adaption_interval:
-                    # soft adapt implementation following https://arxiv.org/pdf/1912.12355
-                    # Loss Weighted + normalized
-                    # the idea is to assign higher weight to loss functions that decreases more slowly.
-                    loss_hist_count = 0
-                    rates_of_change = torch.zeros(len(loss_hist))
-                    avg_loss_values = torch.zeros(len(loss_hist))
-                    for i, label in enumerate(loss_hist):
-                        # use the mean rate of change, instead of using finite difference for faster computation
-                        diff = loss_hist[label][1:] - loss_hist[label][:-1]
-                        rates_of_change[i] = torch.mean(diff)
-                        avg_loss_values[i] = torch.mean(loss_hist[label])
-                    # normalization
-                    rates_of_change = rates_of_change / torch.sum(torch.abs(rates_of_change))
-                    # loss weighted softmax
-                    new_weights = torch.nn.functional.softmax(beta * avg_loss_values * (rates_of_change - rates_of_change.max()), dim=-1)
-                    # renormalize by the min value, so loss weights are at least 1.
-                    new_weights = new_weights / new_weights.min()
-                    for i, label in enumerate(loss_hist):
-                        self.loss_weight_dict[label] = new_weights[i].item()
-                        loss_hist[label] = torch.zeros(loss_adaption_interval)
-                    
-                    loss_weight_log_dict["epoch"].append(epoch)
-                    for k, v in self.loss_weight_dict.items():
-                        loss_weight_log_dict[k].append(v)
-
-                if epoch % self.loss_log_interval == 0:
-                    epoch_loss_dict["epoch"].append(epoch)
-                    for k, v in loss_dict.items():
-                        epoch_loss_dict[k].append(v.item())
-                    pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
-                print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
-            print(f"training finished, total time :: {time.time() - start_time}")
-            print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
-            log_file.close()
-            if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
-                self.save_model(model_dir, f"{file_prefix}_best.pt")
-            print(f"Best model saved to {model_dir}/{file_prefix}_best.pt if valid")
-            self.save_model(model_dir, filename, verbose=True)
-            pd.DataFrame(epoch_loss_dict).to_csv(f"{model_dir}/{file_prefix}_loss.csv", index=False)
-            pd.DataFrame(min_loss_dict).to_csv(f"{model_dir}/{file_prefix}_min_loss.csv", index=False)
-            pd.DataFrame(loss_weight_log_dict).to_csv(f"{model_dir}/{file_prefix}_loss_weight.csv", index=False)
-
-            if self.anchor_points.shape[0] > 0:
-                anchor_points_np = self.anchor_points.detach().cpu().numpy()
-                np.save(f"{model_dir}/{file_prefix}_anchor_points.npy", anchor_points_np)
-                print(f"Anchor points saved to {model_dir}/{file_prefix}_anchor_points.npy")
-        else:
-            set_seeds(0)
-            pbar = tqdm(range(self.num_epochs))
-            for epoch in pbar:
-                epoch_start_time = time.time()
-                
-                SV = self.sample(epoch)
-                for i, sv_name in enumerate(self.state_variables):
-                    self.variable_val_dict[sv_name] = SV[:, i:i+1]
-
-                self.optimizer.step(lambda: self.closure(SV))
-                total_loss = 0
-                for loss_label, loss in self.loss_val_dict.items():
-                    total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
-
-                loss_dict = self.loss_val_dict.copy()
-                loss_dict["total_loss"] = total_loss
-
-                if full_log:
-                    formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
-                else:
-                    formatted_train_loss = "%.4f" % loss_dict["total_loss"]
-                
-                if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
-                    min_loss = loss_dict["total_loss"].item()
-                    self.save_model(model_dir, f"{file_prefix}_best.pt")
-                    min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
-                    for k, v in loss_dict.items():
-                        min_loss_dict[k].append(v.item())
-                # maybe reload the best model when loss is nan.
-
-                if epoch % self.loss_log_interval == 0:
-                    epoch_loss_dict["epoch"].append(epoch)
-                    for k, v in loss_dict.items():
-                        epoch_loss_dict[k].append(v.item())
-                    pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
-                print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
-            print(f"training finished, total time :: {time.time() - start_time}")
-            print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
-            log_file.close()
-            if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
-                self.save_model(model_dir, f"{file_prefix}_best.pt")
-            print(f"Best model saved to {model_dir}/{file_prefix}_best.pt if valid")
-            self.save_model(model_dir, filename, verbose=True)
-            pd.DataFrame(epoch_loss_dict).to_csv(f"{model_dir}/{file_prefix}_loss.csv", index=False)
-            pd.DataFrame(min_loss_dict).to_csv(f"{model_dir}/{file_prefix}_min_loss.csv", index=False)
-
-            if self.anchor_points.shape[0] > 0:
-                anchor_points_np = self.anchor_points.detach().cpu().numpy()
-                np.save(f"{model_dir}/{file_prefix}_anchor_points.npy", anchor_points_np)
-                print(f"Anchor points saved to {model_dir}/{file_prefix}_anchor_points.npy")
+        if hasattr(self, "loss_weight_log_dict"):
+            pd.DataFrame(self.loss_weight_log_dict).to_csv(f"{model_dir}/{file_prefix}_loss_weight.csv", index=False)
 
         return loss_dict
     
