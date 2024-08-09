@@ -48,7 +48,8 @@ class PDEModel:
             "bernoulli_prob": 0.9999,
             "loss_balancing_temp": 0.1,
             "loss_balancing_alpha": 0.999,
-            "soft_adapt_interval": -1
+            "soft_adapt_interval": -1,
+            "loss_soft_attention": False,
         }
 
         loss_log_interval: the interval at which loss should be reported/recorded
@@ -64,7 +65,6 @@ class PDEModel:
         self.loss_log_interval = self.config.get("loss_log_interval", 100)
         self.optimizer_type = self.config.get("optimizer_type", OptimizerType.AdamW)
         self.sampling_method = self.config.get("sampling_method", SamplingMethod.UniformRandom)
-        self.loss_balancing = self.config.get("loss_balancing", False)
 
         self.SAMPLING_METHOD_MAP = {
             SamplingMethod.UniformRandom: self.sample_uniform,
@@ -489,7 +489,45 @@ class PDEModel:
         self.optimizer.zero_grad()
         total_loss.backward()
         return total_loss        
+    
+    def closure_soft_attention(self, SV):
+        self.update_variables(SV)
+        total_loss = 0
+        for label in self.agent_conditions:
+            self.loss_val_dict[label] = torch.square(self.agent_conditions[label].eval(self.local_function_dict, LossReductionMethod.NONE))
+            temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
+            total_loss += torch.where(temp.isnan(), 0.0, temp)
+        
+        for label in self.endog_var_conditions:
+            self.loss_val_dict[label] = torch.square(self.endog_var_conditions[label].eval(self.local_function_dict, LossReductionMethod.NONE))
+            temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
+            total_loss += torch.where(temp.isnan(), 0.0, temp)
 
+        for label in self.endog_equations:
+            self.loss_val_dict[label] = torch.square(self.endog_equations[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.batch_size, 1))
+            temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
+            total_loss += torch.where(temp.isnan(), 0.0, temp)
+
+        for label in self.constraints:
+            self.loss_val_dict[label] = torch.square(self.constraints[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.batch_size, 1))
+            temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
+            total_loss += torch.where(temp.isnan(), 0.0, temp)
+
+        for label in self.hjb_equations:
+            self.loss_val_dict[label] = torch.square(self.hjb_equations[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.batch_size, 1))
+            temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
+            total_loss += torch.where(temp.isnan(), 0.0, temp)
+
+        for label in self.systems:
+            self.loss_val_dict[label] = torch.square(self.systems[label].eval_no_loss({}, self.variable_val_dict, self.batch_size)).reshape((self.batch_size, 1))
+            temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
+            total_loss += torch.where(temp.isnan(), 0.0, temp)
+
+        self.optimizer.zero_grad()
+        total_loss.backward()
+        return total_loss
+
+        
     def test_step(self, SV):
         '''
         initialize random state variable with proper constraints, compute loss
@@ -498,9 +536,12 @@ class PDEModel:
         self.loss_fn()
         total_loss = 0
         for loss_label, loss in self.loss_val_dict.items():
-            total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
+            total_loss += torch.nanmean(self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss))
 
         loss_dict = self.loss_val_dict.copy()
+        if self.config.get("loss_soft_attention", False):
+                for k in loss_dict:
+                    loss_dict[k] = torch.mean(loss_dict[k])
         loss_dict["total_loss"] = total_loss
         return loss_dict
     
@@ -532,7 +573,8 @@ class PDEModel:
             "bernoulli_prob": 0.9999,
             "loss_balancing_temp": 0.1,
             "loss_balancing_alpha": 0.999,
-            "soft_adapt_interval": -1
+            "soft_adapt_interval": -1,
+            "loss_soft_attention": False,
         }
         '''
         self.config.update(config)
@@ -545,7 +587,6 @@ class PDEModel:
         self.sample = self.SAMPLING_METHOD_MAP[self.sampling_method]
         self.refinement_sample_interval = self.config.get("refinement_sample_interval", int(0.2 * self.num_epochs))
         self.refinement_rounds = self.num_epochs // self.refinement_sample_interval
-        self.loss_balancing = self.config.get("loss_balancing", False)
 
     def set_loss_reduction(self, label: str, loss_reduction: LossReductionMethod):
         if label not in self.loss_reduction_dict:
@@ -744,6 +785,50 @@ class PDEModel:
             for k, v in self.loss_weight_dict.items():
                 self.loss_weight_log_dict[k].append(v)
 
+    def init_soft_attention(self, *args, **kwargs):
+        # a random sample to determine batch size
+        assert self.sampling_method == SamplingMethod.FixedGrid, "Soft Attention only works for Fixed Grid sampling."
+        SV = self.sample(0)
+        B = SV.shape[0]
+        self.loss_weight_log_dict = defaultdict(list)
+        all_params = []
+        # start with uniform weights for each training point
+        for k in self.loss_weight_dict:
+            if k in self.agent_conditions or k in self.endog_var_conditions:
+                # it's either in agent condition or in endog var condition
+                cond = self.agent_conditions.get(k, self.endog_var_conditions[k])
+                bs = None
+                for kk, v in cond.lhs_state.items():
+                    if isinstance(v, torch.Tensor):
+                        bs = v.shape[0]
+                        break
+                if bs is None:
+                    for kk, v in cond.rhs_state.items():
+                        if isinstance(v, torch.Tensor):
+                            bs = v.shape[0]
+                            break
+                curr_params = nn.Parameter(torch.ones((bs, 1), device=self.device))
+            else:
+                curr_params = nn.Parameter(torch.ones((B, 1), device=self.device))
+            self.loss_weight_dict[k] = curr_params
+            all_params += [curr_params]
+        # perform gradient ascent, the weights should never go negative.
+        self.optimizer.add_param_group({"params": all_params, "maximize": True})
+
+    def soft_attention_step(self, *args, **kwargs):
+        # The optimization step has been performed in the main loop, so we only need to record the weights
+        epoch = kwargs.get("epoch", 0)
+        SV = kwargs.get("SV")
+        for i in range(SV.shape[0]):
+            self.loss_weight_log_dict["epoch"].append(epoch)
+            for n, sv_name in enumerate(self.state_variables):
+                self.loss_weight_log_dict[sv_name].append(SV[i, n].item())
+            for k, v in self.loss_weight_dict.items():
+                if k in self.agent_conditions or k in self.endog_var_conditions:
+                    continue
+                self.loss_weight_log_dict[k].append(v[i, 0].item())
+
+
     def train_model(self, model_dir: str="./", filename: str=None, full_log=False):
         '''
         The entire loop of training
@@ -798,9 +883,14 @@ class PDEModel:
 
         OnTrainingStart = EventHandler()
         OnTrainingStep = EventHandler()
-        if self.loss_balancing:
+        if self.config.get("loss_balancing", False):
             OnTrainingStart += self.init_loss_balancing
             OnTrainingStep += self.loss_balancing_step
+        elif self.config.get("loss_soft_attention", False):
+            OnTrainingStart += self.init_soft_attention
+            OnTrainingStep += self.soft_attention_step
+            # override the closure function
+            self.closure = self.closure_soft_attention
         elif self.config.get("soft_adapt_interval", -1) > 0:
             OnTrainingStart += self.init_soft_adapt
             OnTrainingStep += self.soft_adapt_step
@@ -818,15 +908,18 @@ class PDEModel:
             self.optimizer.step(lambda: self.closure(SV))
             total_loss = 0
             for loss_label, loss in self.loss_val_dict.items():
-                total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
+                total_loss += torch.nanmean(self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss))
 
             loss_dict = self.loss_val_dict.copy()
+            if self.config.get("loss_soft_attention", False):
+                for k in loss_dict:
+                    loss_dict[k] = torch.mean(loss_dict[k])
             loss_dict["total_loss"] = total_loss
 
             if full_log:
                 formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
             else:
-                formatted_train_loss = "%.4f" % loss_dict["total_loss"]
+                formatted_train_loss = "%.4f" % loss_dict["total_loss"].item()
             
             if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
                 min_loss = loss_dict["total_loss"].item()
@@ -836,13 +929,13 @@ class PDEModel:
                     min_loss_dict[k].append(v.item())
             # maybe reload the best model when loss is nan.
 
-            OnTrainingStep(epoch=epoch)
+            OnTrainingStep(epoch=epoch, SV=SV)
 
             if epoch % self.loss_log_interval == 0:
                 epoch_loss_dict["epoch"].append(epoch)
                 for k, v in loss_dict.items():
                     epoch_loss_dict[k].append(v.item())
-                pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
+                pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"].item()))
             print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
         print(f"training finished, total time :: {time.time() - start_time}")
         print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
@@ -982,7 +1075,7 @@ class PDEModel:
         if full_log:
             formatted_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
         else:
-            formatted_loss = "%.4f" % loss_dict["total_loss"]
+            formatted_loss = "%.4f" % loss_dict["total_loss"].item()
         print(f"loss :: {formatted_loss}")
         return loss_dict
 
