@@ -1274,7 +1274,14 @@ class PDEModel:
         str_repr = "{0:=^80}\n".format(f"Summary of Model {self.name}")
         str_repr += "Config: " + json.dumps(self.config, indent=True) + "\n"
         str_repr += "Latex Variable Mapping:\n" + json.dumps(self.latex_var_mapping, indent=True) + "\n"
-        str_repr += "User Defined Parameters:\n" + json.dumps(self.params, indent=True) + "\n\n"
+        try:
+            str_repr += "User Defined Parameters:\n" + json.dumps(self.params, indent=True) + "\n\n"
+        except:
+            param_copy = self.params.copy()
+            for k, v in param_copy.items():
+                if isinstance(v, torch.Tensor):
+                    param_copy[k] = v.item()
+            str_repr += "User Defined Parameters:\n" + json.dumps(param_copy, indent=True) + "\n\n"
 
         str_repr += "{0:=^80}\n".format("State Variables")
         for sv in self.state_variables:
