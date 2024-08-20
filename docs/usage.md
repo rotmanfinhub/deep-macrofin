@@ -23,6 +23,12 @@ DEFAULT_CONFIG = {
     "optimizer_type": OptimizerType.AdamW,
     "sampling_method": SamplingMethod.UniformRandom,
     "refinement_sample_interval": int(0.2 * num_epochs),
+    "loss_balancing": False,
+    "bernoulli_prob": 0.9999,
+    "loss_balancing_temp": 0.1,
+    "loss_balancing_alpha": 0.999,
+    "soft_adapt_interval": -1,
+    "loss_soft_attention": False,
 }
 ```
 
@@ -37,6 +43,8 @@ from deep_macrofin import PDEModel
 pde_model = PDEModel("model_name", {"num_epochs": 10000})
 ```
 
+#### Optimizers
+
 OptimizerType is a `Enum` object that can be imported from the package. Currently, we support the following optimizer types:
 ```py
 from deep_macrofin import OptimizerType
@@ -46,6 +54,8 @@ from deep_macrofin import OptimizerType
 ```
 
 > Note: when KAN is used as one of the learnable variables, only LBFGS is supported.
+
+#### SamplingMethod
 
 SamplingMethod is a `Enum` object that can be imported from the package. Currently, we support the following sampling methods:
 ```py
@@ -64,6 +74,30 @@ When sampling method is `ActiveLearning`, `RARG`, or `RARD`, additional points t
 > Note: RAR-G and RAR-D are implemented based on Wu et al. 2022[^1], the underlying sampling method for additional residual points is UniformRandom, and the base sampling method for training is FixedGrid. The total number of additional residual points sampled over the entire training period is $B^n$. In each addition, $\frac{B^n}{\text{refinement rounds}}$ points are added.
 
 > Note: ActiveLearning is not yet implemented specifically, and currently uses the logic of RAR-G.
+
+#### Dynamic Loss Weighting
+
+**Loss Balancing** implements the Relative Loss Balancing with Random Lookback (ReLoBRaLo) algorithm in Bischof and Kraus 2021[^2]. The update follows the equations:
+
+$$\lambda_i^{bal}(t,t') = m \frac{\exp\left( \frac{\mathcal{L}_i(t)}{\mathcal{T}\mathcal{L}_i(t')}\right)}{\sum_{j=1}^m \exp\left( \frac{\mathcal{L}_j(t)}{\mathcal{T}\mathcal{L}_j(t')}\right)}$$
+
+$$\lambda_i^{hist}(t)=\rho \lambda_i (t-1) + (1-\rho) \lambda_i^{bal}(t,0)$$
+
+$$\lambda_i(t) = \alpha \lambda_i^{hist} + (1-\alpha) \lambda_i^{bal}(t,t-1)$$
+
+
+$m$ is the number of loss functions. $i\in \{1,...,m\}$ are indices for loss functions. $\mathcal{T}$ (`loss_balancing_temp`) is softmax temperature. $\rho$ is a Bernoulli random variable with $\mathbb{E}(\rho)\approx 1$ (`bernoulli_prob`). $\alpha$ is the exponential decay rate (`loss_balancing_alpha`).
+
+
+**Soft Adapt** implements the algorithm in Heydari et al. 2019[^3]. It merges the loss Weighted and normalized approach. It also uses `loss_balancing_temp` parameter as the softmax temperature.
+
+$$ns_i = \frac{s_i}{\sum_{j=1}^m |s_j|}$$
+
+$$\alpha_i = \frac{\exp(\beta(ns_i - \max(ns_i)))}{\sum_{j=1}^m \exp(\beta(ns_j - \max(ns_j)))}$$
+
+$$\alpha_i = \frac{f_i \alpha_i}{\sum_{j=1}^m f_j \alpha_j}$$
+
+**loss_soft_attention** implements the algorithm in Song et al. 2024[^4]. Specifically, loss weights are linear neural networks applied to individual grid points in the training data.
 
 ### Latex Variable Map
 Economic models may involve a large amount of variables and equations. Each variable can have super-/subscripts. To properly distinguish super-/subscripts from powers/derivatives and parse equations when LaTex formula are provided, we require a mapping from LaTex variables to Python strings. The keys are LaTex strings in raw format `r""`, and the values are the corresponding python string. The following dictionary maps LaTex string $\xi_t^h$ to Python string `"xih"`, and LaTex string $q_t^a$ to Python string `"qa"`.
@@ -296,7 +330,7 @@ After the model is defined, `train_model` ([API](./api/pde_model.md#train_model)
 `train_model` will print out the full model configurations and save the best and final models. Losses are logged every `loss_log_interval` epochs during training in `modelname_loss.csv` file for plotting. Minimum (converging) losses are logged in a separate `modelname_min_loss.csv` file. Examples can be found in [Basic Examples](./examples/approx/discont.md).
 
 ### Print the Model
-For easier debugging on the model setup and equation typing, `print(pde_model)` prints out a detailed configuration of the model. The following is a sample print out of [log utility problem](./examples/pymacrofin/log_utility.md). The same summary is logged in the log file for each model. 
+For easier debugging on the model setup and equation typing, `print(pde_model)` prints out a detailed configuration of the model. The following is a sample print out of [log utility problem](./examples/macrofinance_models/log_utility.md). The same summary is logged in the log file for each model. 
 
 ```
 =====================Summary of Model BruSan14_log_utility======================
@@ -509,3 +543,9 @@ plot_loss_df(fn="./models/1d_prob/1d_prob_loss.csv", loss_plot_fn="./models/1d_p
 ```
 
 [^1]: Chenxi Wu, and Min Zhu, and Qinyang Tan, and Yadhu Kartha, and Lu Lu, *"A comprehensive study of non-adaptive and residual-based adaptive sampling for physics-informed neural networks"*, 2022-07-21, <a href="https://arxiv.org/abs/2207.10289" target="_blank">arXiv:2207.10289</a>  
+
+[^2]: Rafael Bischof, and Michael Kraus, *"Multi-Objective Loss Balancing for Physics-Informed Deep Learning"*, 2021-10-19, <a href="https://arxiv.org/abs/2110.09813">arXiv:2110.09813</a>
+
+[^3]: A. Ali Heydari, and Craig A. Thompson, and Asif Mehmood, *"SoftAdapt: Techniques for Adaptive Loss Weighting of Neural Networks with Multi-Part Loss Functions"*, 2019-12-27, <a href="https://arxiv.org/abs/1912.12355">arXiv:1912.12355</a>
+
+[^4]: Yanjie Song, and He Wang, and He Yang, and Maria Luisa Taccari, and Xiaohui Chen, *"Loss-attentional physics-informed neural networks"*, Journal of Computational Physics, Volume 501, 2024, <a href="https://www.sciencedirect.com/science/article/pii/S0021999124000305">link</a>

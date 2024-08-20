@@ -1,4 +1,4 @@
-# Log Utility Problem
+# 2D Problem
 
 The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/pymacrofin_eg/2d_problem5.ipynb" target="_blank">2d_problem.ipynb</a>.
 

@@ -774,9 +774,9 @@ class PDEModel:
             # normalization
             rates_of_change = rates_of_change / torch.sum(torch.abs(rates_of_change))
             # loss weighted softmax
-            new_weights = torch.nn.functional.softmax(self.beta * avg_loss_values * (rates_of_change - rates_of_change.max()), dim=-1)
-            # renormalize by the min value, so loss weights are at least 1.
-            new_weights = new_weights / new_weights.min()
+            new_weights = torch.nn.functional.softmax(self.beta * (rates_of_change - rates_of_change.max()), dim=-1)
+            new_weights = avg_loss_values * new_weights / torch.sum(avg_loss_values * new_weights)
+            
             for i, label in enumerate(self.loss_hist):
                 self.loss_weight_dict[label] = new_weights[i].item()
                 self.loss_hist[label] = torch.zeros(self.loss_adaption_interval)
