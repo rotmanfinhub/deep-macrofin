@@ -22,7 +22,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.31">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.32">
     
     
       
@@ -566,6 +566,39 @@
       Training Configs
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Training Configs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optimizers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Optimizers
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#samplingmethod" class="md-nav__link">
+    <span class="md-ellipsis">
+      SamplingMethod
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dynamic-loss-weighting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dynamic Loss Weighting
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -1142,6 +1175,39 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Training Configs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optimizers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Optimizers
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#samplingmethod" class="md-nav__link">
+    <span class="md-ellipsis">
+      SamplingMethod
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dynamic-loss-weighting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dynamic Loss Weighting
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1335,7 +1401,13 @@
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="s2">&quot;optimizer_type&quot;</span><span class="p">:</span> <span class="n">OptimizerType</span><span class="o">.</span><span class="n">AdamW</span><span class="p">,</span>
 </span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="s2">&quot;sampling_method&quot;</span><span class="p">:</span> <span class="n">SamplingMethod</span><span class="o">.</span><span class="n">UniformRandom</span><span class="p">,</span>
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="s2">&quot;refinement_sample_interval&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="mf">0.2</span> <span class="o">*</span> <span class="n">num_epochs</span><span class="p">),</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">}</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="s2">&quot;loss_balancing&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="s2">&quot;bernoulli_prob&quot;</span><span class="p">:</span> <span class="mf">0.9999</span><span class="p">,</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="s2">&quot;loss_balancing_temp&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="s2">&quot;loss_balancing_alpha&quot;</span><span class="p">:</span> <span class="mf">0.999</span><span class="p">,</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="s2">&quot;soft_adapt_interval&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    <span class="s2">&quot;loss_soft_attention&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="p">}</span>
 </span></code></pre></div></p>
 <p>This dictionary can be imported:
 <div class="language-py highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span> <span class="nn">deep_macrofin</span> <span class="kn">import</span> <span class="n">DEFAULT_CONFIG</span>
@@ -1344,6 +1416,7 @@
 <div class="language-py highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span> <span class="nn">deep_macrofin</span> <span class="kn">import</span> <span class="n">PDEModel</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">pde_model</span> <span class="o">=</span> <span class="n">PDEModel</span><span class="p">(</span><span class="s2">&quot;model_name&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;num_epochs&quot;</span><span class="p">:</span> <span class="mi">10000</span><span class="p">})</span>
 </span></code></pre></div></p>
+<h4 id="optimizers">Optimizers</h4>
 <p>OptimizerType is a <code>Enum</code> object that can be imported from the package. Currently, we support the following optimizer types:
 <div class="language-py highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span> <span class="nn">deep_macrofin</span> <span class="kn">import</span> <span class="n">OptimizerType</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="c1"># OptimizerType.Adam = &quot;Adam&quot;</span>
@@ -1353,6 +1426,7 @@
 <blockquote>
 <p>Note: when KAN is used as one of the learnable variables, only LBFGS is supported.</p>
 </blockquote>
+<h4 id="samplingmethod">SamplingMethod</h4>
 <p>SamplingMethod is a <code>Enum</code> object that can be imported from the package. Currently, we support the following sampling methods:
 <div class="language-py highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span> <span class="nn">deep_macrofin</span> <span class="kn">import</span> <span class="n">SamplingMethod</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="c1"># SamplingMethod.UniformRandom = &quot;UniformRandom&quot;</span>
@@ -1367,6 +1441,17 @@
 <p>Note: RAR-G and RAR-D are implemented based on Wu et al. 2022<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup>, the underlying sampling method for additional residual points is UniformRandom, and the base sampling method for training is FixedGrid. The total number of additional residual points sampled over the entire training period is <span class="arithmatex">\(B^n\)</span>. In each addition, <span class="arithmatex">\(\frac{B^n}{\text{refinement rounds}}\)</span> points are added.</p>
 <p>Note: ActiveLearning is not yet implemented specifically, and currently uses the logic of RAR-G.</p>
 </blockquote>
+<h4 id="dynamic-loss-weighting">Dynamic Loss Weighting</h4>
+<p><strong>Loss Balancing</strong> implements the Relative Loss Balancing with Random Lookback (ReLoBRaLo) algorithm in Bischof and Kraus 2021<sup id="fnref:2"><a class="footnote-ref" href="#fn:2">2</a></sup>. The update follows the equations:</p>
+<div class="arithmatex">\[\lambda_i^{bal}(t,t') = m \frac{\exp\left( \frac{\mathcal{L}_i(t)}{\mathcal{T}\mathcal{L}_i(t')}\right)}{\sum_{j=1}^m \exp\left( \frac{\mathcal{L}_j(t)}{\mathcal{T}\mathcal{L}_j(t')}\right)}\]</div>
+<div class="arithmatex">\[\lambda_i^{hist}(t)=\rho \lambda_i (t-1) + (1-\rho) \lambda_i^{bal}(t,0)\]</div>
+<div class="arithmatex">\[\lambda_i(t) = \alpha \lambda_i^{hist} + (1-\alpha) \lambda_i^{bal}(t,t-1)\]</div>
+<p><span class="arithmatex">\(m\)</span> is the number of loss functions. <span class="arithmatex">\(i\in \{1,...,m\}\)</span> are indices for loss functions. <span class="arithmatex">\(\mathcal{T}\)</span> (<code>loss_balancing_temp</code>) is softmax temperature. <span class="arithmatex">\(\rho\)</span> is a Bernoulli random variable with <span class="arithmatex">\(\mathbb{E}(\rho)\approx 1\)</span> (<code>bernoulli_prob</code>). <span class="arithmatex">\(\alpha\)</span> is the exponential decay rate (<code>loss_balancing_alpha</code>).</p>
+<p><strong>Soft Adapt</strong> implements the algorithm in Heydari et al. 2019<sup id="fnref:3"><a class="footnote-ref" href="#fn:3">3</a></sup>. It merges the loss Weighted and normalized approach. It also uses <code>loss_balancing_temp</code> parameter as the softmax temperature.</p>
+<div class="arithmatex">\[ns_i = \frac{s_i}{\sum_{j=1}^m |s_j|}\]</div>
+<div class="arithmatex">\[\alpha_i = \frac{\exp(\beta(ns_i - \max(ns_i)))}{\sum_{j=1}^m \exp(\beta(ns_j - \max(ns_j)))}\]</div>
+<div class="arithmatex">\[\alpha_i = \frac{f_i \alpha_i}{\sum_{j=1}^m f_j \alpha_j}\]</div>
+<p><strong>loss_soft_attention</strong> implements the algorithm in Song et al. 2024<sup id="fnref:4"><a class="footnote-ref" href="#fn:4">4</a></sup>. Specifically, loss weights are linear neural networks applied to individual grid points in the training data.</p>
 <h3 id="latex-variable-map">Latex Variable Map</h3>
 <p>Economic models may involve a large amount of variables and equations. Each variable can have super-/subscripts. To properly distinguish super-/subscripts from powers/derivatives and parse equations when LaTex formula are provided, we require a mapping from LaTex variables to Python strings. The keys are LaTex strings in raw format <code>r""</code>, and the values are the corresponding python string. The following dictionary maps LaTex string <span class="arithmatex">\(\xi_t^h\)</span> to Python string <code>"xih"</code>, and LaTex string <span class="arithmatex">\(q_t^a\)</span> to Python string <code>"qa"</code>.</p>
 <div class="language-py highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">latex_var_mapping</span> <span class="o">=</span> <span class="p">{</span>
@@ -1538,7 +1623,7 @@ The following code defines a system that is activated when <span class="arithmat
 <code>load_model</code> (<a href="../api/pde_model/#load_model">API</a>) can be used to load a trained model. It will overwrite existing agent/endogenous variables in the PDEModel.</p>
 <p><code>train_model</code> will print out the full model configurations and save the best and final models. Losses are logged every <code>loss_log_interval</code> epochs during training in <code>modelname_loss.csv</code> file for plotting. Minimum (converging) losses are logged in a separate <code>modelname_min_loss.csv</code> file. Examples can be found in <a href="../examples/approx/discont/">Basic Examples</a>.</p>
 <h3 id="print-the-model">Print the Model</h3>
-<p>For easier debugging on the model setup and equation typing, <code>print(pde_model)</code> prints out a detailed configuration of the model. The following is a sample print out of <a href="./examples/pymacrofin/log_utility.md">log utility problem</a>. The same summary is logged in the log file for each model. </p>
+<p>For easier debugging on the model setup and equation typing, <code>print(pde_model)</code> prints out a detailed configuration of the model. The following is a sample print out of <a href="../examples/macrofinance_models/log_utility/">log utility problem</a>. The same summary is logged in the log file for each model. </p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>=====================Summary of Model BruSan14_log_utility======================
 </span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>Config: {
 </span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a> &quot;batch_size&quot;: 100,
@@ -1736,6 +1821,15 @@ The following code defines a system that is activated when <span class="arithmat
 <li id="fn:1">
 <p>Chenxi Wu, and Min Zhu, and Qinyang Tan, and Yadhu Kartha, and Lu Lu, <em>"A comprehensive study of non-adaptive and residual-based adaptive sampling for physics-informed neural networks"</em>, 2022-07-21, <a href="https://arxiv.org/abs/2207.10289" target="_blank">arXiv:2207.10289</a>&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
 </li>
+<li id="fn:2">
+<p>Rafael Bischof, and Michael Kraus, <em>"Multi-Objective Loss Balancing for Physics-Informed Deep Learning"</em>, 2021-10-19, <a href="https://arxiv.org/abs/2110.09813">arXiv:2110.09813</a>&#160;<a class="footnote-backref" href="#fnref:2" title="Jump back to footnote 2 in the text">&#8617;</a></p>
+</li>
+<li id="fn:3">
+<p>A. Ali Heydari, and Craig A. Thompson, and Asif Mehmood, <em>"SoftAdapt: Techniques for Adaptive Loss Weighting of Neural Networks with Multi-Part Loss Functions"</em>, 2019-12-27, <a href="https://arxiv.org/abs/1912.12355">arXiv:1912.12355</a>&#160;<a class="footnote-backref" href="#fnref:3" title="Jump back to footnote 3 in the text">&#8617;</a></p>
+</li>
+<li id="fn:4">
+<p>Yanjie Song, and He Wang, and He Yang, and Maria Luisa Taccari, and Xiaohui Chen, <em>"Loss-attentional physics-informed neural networks"</em>, Journal of Computational Physics, Volume 501, 2024, <a href="https://www.sciencedirect.com/science/article/pii/S0021999124000305">link</a>&#160;<a class="footnote-backref" href="#fnref:4" title="Jump back to footnote 4 in the text">&#8617;</a></p>
+</li>
 </ol>
 </div>
 
@@ -1797,7 +1891,7 @@ The following code defines a system that is activated when <span class="arithmat
     <script id="__config" type="application/json">{"base": "..", "features": ["navigation.instant", "navigation.sections", "navigation.tabs", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.fe8b6f2b.min.js"></script>
+      <script src="../assets/javascripts/bundle.471ce7a9.min.js"></script>
       
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
       

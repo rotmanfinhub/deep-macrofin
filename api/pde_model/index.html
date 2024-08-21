@@ -22,7 +22,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.31">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.32">
     
     
       
@@ -1418,6 +1418,13 @@
 <li>loss_log_interval: <strong>int</strong>, the interval at which loss should be reported/recorded</li>
 <li>optimizer_type: OptimizerType.Adam, OptimizerType.AdamW or OptimizerType.LBFGS</li>
 <li>sampling_method: SamplingMethod.UniformRandom, SamplingMethod.FixedGrid, SamplingMethod.ActiveLearning</li>
+<li>refinement_sample_interval: <strong>int</strong>,</li>
+<li>loss_balancing: <strong>bool</strong>, use Relative Loss Balancing with Random Lookback (ReLoBRaLo) for loss weight update</li>
+<li>bernoulli_prob: <strong>float</strong>, parameter for loss balancing </li>
+<li>loss_balancing_temp: <strong>float</strong>, parameter for loss balancing</li>
+<li>loss_balancing_alpha: <strong>float</strong>, parameter for loss balancing</li>
+<li>soft_adapt_interval: <strong>int</strong>, if larger than 0, use soft adapt for loss weight update, and the value is set to be the look-back interval.</li>
+<li>loss_soft_attention: <strong>bool</strong>, use soft attention for grid-wise loss weight updates.</li>
 </ul>
 </li>
 <li>latex_var_mapping: <strong>Dict[str, str]</strong>, it should include all possible latex to python name conversions. Otherwise latex parsing will fail. Can be omitted if all the input equations/formula are not in latex form. For details, check <a href="../evaluations/#formula"><code>Formula</code></a>.</li>
@@ -1638,7 +1645,7 @@ Add boundary/initial condition for a specific endogenous variable with associate
     <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.tabs", "navigation.top", "content.code.copy"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.fe8b6f2b.min.js"></script>
+      <script src="../../assets/javascripts/bundle.471ce7a9.min.js"></script>
       
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
       
