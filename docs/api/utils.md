@@ -44,6 +44,12 @@ DEFAULT_CONFIG = {
     "optimizer_type": OptimizerType.AdamW,
     "sampling_method": SamplingMethod.UniformRandom,
     "refinement_sample_interval": int(0.2*num_epochs),
+    "loss_balancing": False,
+    "bernoulli_prob": 0.9999,
+    "loss_balancing_temp": 0.1,
+    "loss_balancing_alpha": 0.999,
+    "soft_adapt_interval": -1,
+    "loss_soft_attention": False,
 }
 
 DEFAULT_LEARNABLE_VAR_CONFIG = {

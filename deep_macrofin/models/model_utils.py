@@ -64,7 +64,13 @@ def get_KAN(config):
     base_fun = activation_function_mapping.get(config["base_fun_type"], nn.SiLU)()
     width = config["width"]
     device = config["device"]
+    grid = config.get("grid", 3)
+    k = config.get("k", 3)
+    grid_range = config.get("grid_range", [-1, 1])
 
     return KAN(width=width,
                base_fun=base_fun,
+               grid=grid,
+               k=k,
+               grid_range=grid_range,
                device=device)

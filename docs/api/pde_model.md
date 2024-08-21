@@ -21,6 +21,13 @@ Initialize a PDEModel with the provided name and config.
     - loss_log_interval: **int**, the interval at which loss should be reported/recorded
     - optimizer_type: OptimizerType.Adam, OptimizerType.AdamW or OptimizerType.LBFGS
     - sampling_method: SamplingMethod.UniformRandom, SamplingMethod.FixedGrid, SamplingMethod.ActiveLearning
+    - refinement_sample_interval: **int**,
+    - loss_balancing: **bool**, use Relative Loss Balancing with Random Lookback (ReLoBRaLo) for loss weight update
+    - bernoulli_prob: **float**, parameter for loss balancing 
+    - loss_balancing_temp: **float**, parameter for loss balancing
+    - loss_balancing_alpha: **float**, parameter for loss balancing
+    - soft_adapt_interval: **int**, if larger than 0, use soft adapt for loss weight update, and the value is set to be the look-back interval.
+    - loss_soft_attention: **bool**, use soft attention for grid-wise loss weight updates.
 - latex_var_mapping: **Dict[str, str]**, it should include all possible latex to python name conversions. Otherwise latex parsing will fail. Can be omitted if all the input equations/formula are not in latex form. For details, check [`Formula`](evaluations.md#formula).
 
 

@@ -38,7 +38,7 @@ Various examples using the library, with comparisons to DeepXDE and PyMacroFin a
 - [`basic_examples`](./examples/basic_examples/): Solutions to basic ODEs/PDEs, diffusion equation, function approximation and systems of ODEs, with some comparisons to DeepXDE.
 - [`initial_examples`](./examples/initial_examples/): Initial scripts for testing deep neural networks for ODE/PDE solutions, and macromodels.
 - [`kan_examples`](./examples/kan_examples/): Solutions to basic ODEs, using KAN as approximators
-- [`macro_problems`](./examples/macro_problems/): 1D problem in the paper. Detailed formulation can be found [here](./).
+- [`macro_problems`](./examples/macro_problems/): Macroeconomic models in different dimensions.
 - [`paper_example`](./examples/paper_example/): Examples in the paper, with PyMacroFin and deepXDE comparisons. Models and log files for reproducing paper results can be found in [Google Drive](https://drive.google.com/drive/folders/1wVtO9JUq_a7IhA9Sult2oYmKOX5GHcPh?usp=sharing).
 - [`pymacrofin_eg`](./examples/pymacrofin_eg/): Examples from PyMacroFin and proposition 2 from Brunnermeier and Sannikov (2014)
 
@@ -60,6 +60,18 @@ To see the site locally, run the following command:
 mkdocs serve
 ```
 
-### Citation
+### Cite Deep-MacroFin
 
-Paper to be on Arxiv soon...
+If you use Deep-MacroFin for academic research, you are encouraged to cite the following paper:
+
+```
+@misc{wu2024deepmacrofin,
+      title={Deep-MacroFin: Informed Equilibrium Neural Network for Continuous Time Economic Models}, 
+      author={Yuntao Wu and Jiayuan Guo and Goutham Gopalakrishna and Zisis Poulos},
+      year={2024},
+      eprint={2408.10368},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2408.10368}, 
+}
+```

@@ -11,6 +11,7 @@ import torch
 from tqdm import tqdm
 
 from .evaluations import *
+from .event_handler import *
 from .models import *
 from .utils import *
 
@@ -43,6 +44,12 @@ class PDEModel:
             "optimizer_type": OptimizerType.AdamW,
             "sampling_method": SamplingMethod.UniformRandom,
             "refinement_sample_interval": int(0.2*num_epochs),
+            "loss_balancing": False,
+            "bernoulli_prob": 0.9999,
+            "loss_balancing_temp": 0.1,
+            "loss_balancing_alpha": 0.999,
+            "soft_adapt_interval": -1,
+            "loss_soft_attention": False,
         }
 
         loss_log_interval: the interval at which loss should be reported/recorded
@@ -482,7 +489,45 @@ class PDEModel:
         self.optimizer.zero_grad()
         total_loss.backward()
         return total_loss        
+    
+    def closure_soft_attention(self, SV):
+        self.update_variables(SV)
+        total_loss = 0
+        for label in self.agent_conditions:
+            self.loss_val_dict[label] = torch.square(self.agent_conditions[label].eval(self.local_function_dict, LossReductionMethod.NONE))
+            temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
+            total_loss += torch.where(temp.isnan(), 0.0, temp)
+        
+        for label in self.endog_var_conditions:
+            self.loss_val_dict[label] = torch.square(self.endog_var_conditions[label].eval(self.local_function_dict, LossReductionMethod.NONE))
+            temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
+            total_loss += torch.where(temp.isnan(), 0.0, temp)
 
+        for label in self.endog_equations:
+            self.loss_val_dict[label] = torch.square(self.endog_equations[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.batch_size, 1))
+            temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
+            total_loss += torch.where(temp.isnan(), 0.0, temp)
+
+        for label in self.constraints:
+            self.loss_val_dict[label] = torch.square(self.constraints[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.batch_size, 1))
+            temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
+            total_loss += torch.where(temp.isnan(), 0.0, temp)
+
+        for label in self.hjb_equations:
+            self.loss_val_dict[label] = torch.square(self.hjb_equations[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.batch_size, 1))
+            temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
+            total_loss += torch.where(temp.isnan(), 0.0, temp)
+
+        for label in self.systems:
+            self.loss_val_dict[label] = torch.square(self.systems[label].eval_no_loss({}, self.variable_val_dict, self.batch_size)).reshape((self.batch_size, 1))
+            temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
+            total_loss += torch.where(temp.isnan(), 0.0, temp)
+
+        self.optimizer.zero_grad()
+        total_loss.backward()
+        return total_loss
+
+        
     def test_step(self, SV):
         '''
         initialize random state variable with proper constraints, compute loss
@@ -491,9 +536,12 @@ class PDEModel:
         self.loss_fn()
         total_loss = 0
         for loss_label, loss in self.loss_val_dict.items():
-            total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
+            total_loss += torch.nanmean(self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss))
 
         loss_dict = self.loss_val_dict.copy()
+        if self.config.get("loss_soft_attention", False):
+                for k in loss_dict:
+                    loss_dict[k] = torch.mean(loss_dict[k])
         loss_dict["total_loss"] = total_loss
         return loss_dict
     
@@ -521,6 +569,12 @@ class PDEModel:
             "optimizer_type": OptimizerType.AdamW,
             "sampling_method": SamplingMethod.UniformRandom,
             "refinement_sample_interval": int(0.2*num_epochs),
+            "loss_balancing": False,
+            "bernoulli_prob": 0.9999,
+            "loss_balancing_temp": 0.1,
+            "loss_balancing_alpha": 0.999,
+            "soft_adapt_interval": -1,
+            "loss_soft_attention": False,
         }
         '''
         self.config.update(config)
@@ -642,6 +696,138 @@ class PDEModel:
             self.anchor_points = torch.vstack((self.anchor_points, SV[X_ids]))
         fixed_grid_sv = self.sample_fixed_grid(epoch)
         return torch.vstack((fixed_grid_sv, self.anchor_points))
+    
+    def init_loss_balancing(self, *args, **kwargs):
+        '''
+        Initialize variables for relative loss balancing with random lookback
+        https://arxiv.org/pdf/2110.09813
+        '''
+        self.loss_weight_log_dict = defaultdict(list)
+        self.bernoulli_rho = torch.distributions.Bernoulli(self.config.get("bernoulli_prob", 0.9999))
+        self.temp = self.config.get("loss_balancing_temp", 0.1)
+        self.alpha = self.config.get("loss_balancing_alpha", 0.999)
+        self.init_loss_tensor = torch.zeros(len(self.loss_val_dict), device=self.device)
+        self.prev_loss_tensor = torch.zeros(len(self.loss_val_dict), device=self.device)
+
+    def loss_balancing_step(self, *args, **kwargs):
+        epoch = kwargs.get("epoch", 0)
+        if epoch == 0:
+            for i, (loss_label, loss) in enumerate(self.loss_val_dict.items()):
+                self.init_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
+                self.prev_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
+        else:
+            # relative loss balancing with random lookback
+            # https://arxiv.org/pdf/2110.09813
+            curr_loss_tensor = torch.zeros_like(self.prev_loss_tensor, device=self.device)
+            prev_loss_weight_tensor = torch.zeros_like(self.prev_loss_tensor, device=self.device)
+            for i, (loss_label, loss) in enumerate(self.loss_val_dict.items()):
+                curr_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
+                prev_loss_weight_tensor[i] = self.loss_weight_dict[loss_label]
+            
+            ratio_prev = curr_loss_tensor / (self.temp * self.prev_loss_tensor)
+            ratio_zero = curr_loss_tensor / (self.temp * self.init_loss_tensor)
+            bal_prev = len(self.loss_val_dict) * torch.nn.functional.softmax(ratio_prev, dim=-1)
+            bal_zero = len(self.loss_val_dict) * torch.nn.functional.softmax(ratio_zero, dim=-1)
+            rho = self.bernoulli_rho.sample()
+            weight_hist = rho * prev_loss_weight_tensor + (1 - rho) * bal_zero
+            new_weight = self.alpha * weight_hist + (1 - self.alpha) * bal_prev
+            for i, k in enumerate(self.loss_weight_dict):
+                self.loss_weight_dict[k] = new_weight[i].item()
+                
+            self.loss_weight_log_dict["epoch"].append(epoch)
+            for k, v in self.loss_weight_dict.items():
+                self.loss_weight_log_dict[k].append(v)
+            
+            for i, (loss_label, loss) in enumerate(self.loss_val_dict.items()):
+                self.prev_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss).item()
+
+    def init_soft_adapt(self, *args, **kwargs):
+        '''
+        Initialize variables for soft adapt
+        https://arxiv.org/pdf/1912.12355
+        '''
+        self.loss_adaption_interval = self.config.get("soft_adapt_interval", -1)
+        self.beta = self.config.get("loss_balancing_temp", 0.1)
+        self.loss_weight_log_dict = defaultdict(list)
+        self.loss_hist = {}
+        self.loss_hist_count = 0
+        for label in self.loss_val_dict:
+            self.loss_hist[label] = torch.zeros(self.loss_adaption_interval, device=self.device)
+
+    def soft_adapt_step(self, *args, **kwargs):
+        epoch = kwargs.get("epoch", 0)
+        for loss_label, loss in self.loss_val_dict.items():
+            self.loss_hist[loss_label][self.loss_hist_count] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
+        self.loss_hist_count += 1
+        if self.loss_hist_count == self.loss_adaption_interval:
+            # soft adapt implementation following https://arxiv.org/pdf/1912.12355
+            # Loss Weighted + normalized
+            # the idea is to assign higher weight to loss functions that decreases more slowly.
+            self.loss_hist_count = 0
+            rates_of_change = torch.zeros(len(self.loss_hist))
+            avg_loss_values = torch.zeros(len(self.loss_hist))
+            for i, label in enumerate(self.loss_hist):
+                # use the mean rate of change, instead of using finite difference for faster computation
+                diff = self.loss_hist[label][1:] - self.loss_hist[label][:-1]
+                rates_of_change[i] = torch.mean(diff)
+                avg_loss_values[i] = torch.mean(self.loss_hist[label])
+            # normalization
+            rates_of_change = rates_of_change / torch.sum(torch.abs(rates_of_change))
+            # loss weighted softmax
+            new_weights = torch.nn.functional.softmax(self.beta * (rates_of_change - rates_of_change.max()), dim=-1)
+            new_weights = avg_loss_values * new_weights / torch.sum(avg_loss_values * new_weights)
+            
+            for i, label in enumerate(self.loss_hist):
+                self.loss_weight_dict[label] = new_weights[i].item()
+                self.loss_hist[label] = torch.zeros(self.loss_adaption_interval)
+            
+            self.loss_weight_log_dict["epoch"].append(epoch)
+            for k, v in self.loss_weight_dict.items():
+                self.loss_weight_log_dict[k].append(v)
+
+    def init_soft_attention(self, *args, **kwargs):
+        # a random sample to determine batch size
+        assert self.sampling_method == SamplingMethod.FixedGrid, "Soft Attention only works for Fixed Grid sampling."
+        SV = self.sample(0)
+        B = SV.shape[0]
+        self.loss_weight_log_dict = defaultdict(list)
+        all_params = []
+        # start with uniform weights for each training point
+        for k in self.loss_weight_dict:
+            if k in self.agent_conditions or k in self.endog_var_conditions:
+                # it's either in agent condition or in endog var condition
+                cond = self.agent_conditions.get(k, self.endog_var_conditions[k])
+                bs = None
+                for kk, v in cond.lhs_state.items():
+                    if isinstance(v, torch.Tensor):
+                        bs = v.shape[0]
+                        break
+                if bs is None:
+                    for kk, v in cond.rhs_state.items():
+                        if isinstance(v, torch.Tensor):
+                            bs = v.shape[0]
+                            break
+                curr_params = nn.Parameter(torch.ones((bs, 1), device=self.device))
+            else:
+                curr_params = nn.Parameter(torch.ones((B, 1), device=self.device))
+            self.loss_weight_dict[k] = curr_params
+            all_params += [curr_params]
+        # perform gradient ascent, the weights should never go negative.
+        self.optimizer.add_param_group({"params": all_params, "maximize": True})
+
+    def soft_attention_step(self, *args, **kwargs):
+        # The optimization step has been performed in the main loop, so we only need to record the weights
+        epoch = kwargs.get("epoch", 0)
+        SV = kwargs.get("SV")
+        for i in range(SV.shape[0]):
+            self.loss_weight_log_dict["epoch"].append(epoch)
+            for n, sv_name in enumerate(self.state_variables):
+                self.loss_weight_log_dict[sv_name].append(SV[i, n].item())
+            for k, v in self.loss_weight_dict.items():
+                if k in self.agent_conditions or k in self.endog_var_conditions:
+                    continue
+                self.loss_weight_log_dict[k].append(v[i, 0].item())
+
 
     def train_model(self, model_dir: str="./", filename: str=None, full_log=False):
         '''
@@ -694,6 +880,22 @@ class PDEModel:
         print("{0:=^80}".format("Training"))
         self.set_all_model_training()
         start_time = time.time()
+
+        OnTrainingStart = EventHandler()
+        OnTrainingStep = EventHandler()
+        if self.config.get("loss_balancing", False):
+            OnTrainingStart += self.init_loss_balancing
+            OnTrainingStep += self.loss_balancing_step
+        elif self.config.get("loss_soft_attention", False):
+            OnTrainingStart += self.init_soft_attention
+            OnTrainingStep += self.soft_attention_step
+            # override the closure function
+            self.closure = self.closure_soft_attention
+        elif self.config.get("soft_adapt_interval", -1) > 0:
+            OnTrainingStart += self.init_soft_adapt
+            OnTrainingStep += self.soft_adapt_step
+        
+        OnTrainingStart()
         set_seeds(0)
         pbar = tqdm(range(self.num_epochs))
         for epoch in pbar:
@@ -706,15 +908,18 @@ class PDEModel:
             self.optimizer.step(lambda: self.closure(SV))
             total_loss = 0
             for loss_label, loss in self.loss_val_dict.items():
-                total_loss += self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss)
+                total_loss += torch.nanmean(self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss))
 
             loss_dict = self.loss_val_dict.copy()
+            if self.config.get("loss_soft_attention", False):
+                for k in loss_dict:
+                    loss_dict[k] = torch.mean(loss_dict[k])
             loss_dict["total_loss"] = total_loss
 
             if full_log:
                 formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
             else:
-                formatted_train_loss = "%.4f" % loss_dict["total_loss"]
+                formatted_train_loss = "%.4f" % loss_dict["total_loss"].item()
             
             if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
                 min_loss = loss_dict["total_loss"].item()
@@ -724,11 +929,13 @@ class PDEModel:
                     min_loss_dict[k].append(v.item())
             # maybe reload the best model when loss is nan.
 
+            OnTrainingStep(epoch=epoch, SV=SV)
+
             if epoch % self.loss_log_interval == 0:
                 epoch_loss_dict["epoch"].append(epoch)
                 for k, v in loss_dict.items():
                     epoch_loss_dict[k].append(v.item())
-                pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
+                pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"].item()))
             print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
         print(f"training finished, total time :: {time.time() - start_time}")
         print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
@@ -744,6 +951,9 @@ class PDEModel:
             anchor_points_np = self.anchor_points.detach().cpu().numpy()
             np.save(f"{model_dir}/{file_prefix}_anchor_points.npy", anchor_points_np)
             print(f"Anchor points saved to {model_dir}/{file_prefix}_anchor_points.npy")
+
+        if hasattr(self, "loss_weight_log_dict"):
+            pd.DataFrame(self.loss_weight_log_dict).to_csv(f"{model_dir}/{file_prefix}_loss_weight.csv", index=False)
 
         return loss_dict
     
@@ -865,7 +1075,7 @@ class PDEModel:
         if full_log:
             formatted_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
         else:
-            formatted_loss = "%.4f" % loss_dict["total_loss"]
+            formatted_loss = "%.4f" % loss_dict["total_loss"].item()
         print(f"loss :: {formatted_loss}")
         return loss_dict
 
@@ -1064,7 +1274,14 @@ class PDEModel:
         str_repr = "{0:=^80}\n".format(f"Summary of Model {self.name}")
         str_repr += "Config: " + json.dumps(self.config, indent=True) + "\n"
         str_repr += "Latex Variable Mapping:\n" + json.dumps(self.latex_var_mapping, indent=True) + "\n"
-        str_repr += "User Defined Parameters:\n" + json.dumps(self.params, indent=True) + "\n\n"
+        try:
+            str_repr += "User Defined Parameters:\n" + json.dumps(self.params, indent=True) + "\n\n"
+        except:
+            param_copy = self.params.copy()
+            for k, v in param_copy.items():
+                if isinstance(v, torch.Tensor):
+                    param_copy[k] = v.item()
+            str_repr += "User Defined Parameters:\n" + json.dumps(param_copy, indent=True) + "\n\n"
 
         str_repr += "{0:=^80}\n".format("State Variables")
         for sv in self.state_variables:

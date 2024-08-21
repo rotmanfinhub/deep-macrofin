@@ -34,7 +34,7 @@ def set_seeds(seed):
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
-def plot_loss_df(fn: str=None, loss_df: pd.DataFrame=None, losses_to_plot: list=None, loss_plot_fn: str= "./plot.jpg"):
+def plot_loss_df(fn: str=None, loss_df: pd.DataFrame=None, losses_to_plot: list=None, loss_plot_fn: str= "./plot.jpg", log_loss=True):
     '''
     Plot the provided loss df, with all losses listed in the losses_to_plot
 
@@ -44,6 +44,7 @@ def plot_loss_df(fn: str=None, loss_df: pd.DataFrame=None, losses_to_plot: list=
     - losses_to_plot: **List[str]**, the losses to plot, 
     if None, all losses in the df will be plotted, default: None
     - loss_plot_fn: **str**, the path to save the loss plot, default: "./plot.jpg"
+    - log_loss: **bool**, whether the loss plot should be in log scale, default: True
     '''
     assert fn is not None or loss_df is not None, "one of fn or loss_df should not be None"
     if fn is not None:
@@ -60,7 +61,8 @@ def plot_loss_df(fn: str=None, loss_df: pd.DataFrame=None, losses_to_plot: list=
     for loss in losses_to_plot:
         ax.plot(epochs, loss_df[loss], label=loss)
     
-    ax.set_yscale('log')
+    if log_loss:
+        ax.set_yscale("log")
     ax.set_xlabel("epoch")
     ax.set_ylabel("Loss")
     ax.legend()
@@ -76,6 +78,12 @@ DEFAULT_CONFIG = {
     "loss_log_interval": 100,
     "optimizer_type": OptimizerType.AdamW,
     "sampling_method": SamplingMethod.UniformRandom,
+    "loss_balancing": False,
+    "bernoulli_prob": 0.9999,
+    "loss_balancing_temp": 0.1,
+    "loss_balancing_alpha": 0.999,
+    "soft_adapt_interval": -1,
+    "loss_soft_attention": False,
 }
 
 DEFAULT_LEARNABLE_VAR_CONFIG = {
