@@ -57,6 +57,21 @@ To see the site locally, run the following command:
 mkdocs serve
 ```
 
+## Cite Deep-MacroFin
+
+If you use Deep-MacroFin for academic research, you are encouraged to cite the following paper:
+
+```
+@misc{wu2024deepmacrofin,
+      title={Deep-MacroFin: Informed Equilibrium Neural Network for Continuous Time Economic Models}, 
+      author={Yuntao Wu and Jiayuan Guo and Goutham Gopalakrishna and Zisis Poulos},
+      year={2024},
+      eprint={2408.10368},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2408.10368}, 
+}
+```
 
 [^1]: Adrien d'Avernas and Damon Petersen and Quentin Vandeweyer, *"Macro-financial Modeling in Python: PyMacroFin"*, 2021-11-18  
 [^2]: Lu, Lu and Meng, Xuhui and Mao, Zhiping and Karniadakis, George Em, *"DeepXDE: A deep learning library for solving differential equations"*, SIAM Review, 63(1): 208–228, 2021
