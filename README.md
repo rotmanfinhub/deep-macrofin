@@ -5,7 +5,7 @@
 [![PyPI Downloads](https://static.pepy.tech/badge/deep-macrofin)](https://pepy.tech/project/deep-macrofin)
 [![PyPI - License](https://img.shields.io/pypi/l/deep-macrofin)](https://github.com/rotmanfinhub/deep-macrofin/blob/main/LICENSE)
 
-Deep-MacroFin is a comprehensive deep-learning framework designed to solve partial differential equations, with a particular focus on models in continuous time economics. 
+Deep-MacroFin is a comprehensive deep-learning framework designed to solve equilibrium economic models in continuous time. The library leverages deep learning to alleviate curse of dimensionality.
 
 **Documentation:** [mkdocs](https://rotmanfinhub.github.io/deep-macrofin)
 
