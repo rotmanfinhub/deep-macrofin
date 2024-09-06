@@ -964,6 +964,7 @@ class PDEModel:
         '''
         min_loss = torch.inf
         epoch_loss_dict = defaultdict(list)
+        min_loss_dict = defaultdict(list)
         all_params = []
         
         model_has_kan = False
@@ -1038,6 +1039,9 @@ class PDEModel:
             if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
                 min_loss = loss_dict["total_loss"].item()
                 self.save_model(model_dir, f"{file_prefix}_best.pt")
+                min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
+                for k, v in loss_dict.items():
+                    min_loss_dict[k].append(v.item())
             # maybe reload the best model when loss is nan.
 
             if epoch % self.loss_log_interval == 0:
@@ -1054,6 +1058,7 @@ class PDEModel:
         print(f"Best model saved to {model_dir}/{file_prefix}_best.pt if valid")
         self.save_model(model_dir, filename, verbose=True)
         pd.DataFrame(epoch_loss_dict).to_csv(f"{model_dir}/{file_prefix}_loss.csv", index=False)
+        pd.DataFrame(min_loss_dict).to_csv(f"{model_dir}/{file_prefix}_min_loss.csv", index=False)
 
         return loss_dict
 

@@ -86,6 +86,18 @@ DEFAULT_CONFIG = {
     "loss_soft_attention": False,
 }
 
+DEFAULT_CONFIG_TIME_STEP = {
+    "batch_size": 100,
+    "num_outer_iterations": 100,
+    "num_inner_iterations": 5000,
+    "lr": 1e-3,
+    "loss_log_interval": 100,
+    "optimizer_type": OptimizerType.Adam,
+    "min_t": 0.0,
+    "max_t": 1.0,
+    "outer_loop_convergence_thres": 1e-4
+}
+
 DEFAULT_LEARNABLE_VAR_CONFIG = {
     "device": "cuda" if torch.cuda.is_available() else "cpu",
     "hidden_units": [30, 30, 30, 30],
