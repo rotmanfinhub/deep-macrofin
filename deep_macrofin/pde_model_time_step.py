@@ -333,7 +333,7 @@ class PDEModelTimeStep(PDEModel):
                 abs_change = all_changes[f"{k}_abs"]
                 rel_change = all_changes[f"{k}_rel"]
                 print(f"{k}: Absolute Change: {abs_change:.5f}, Relative Change: {rel_change: .5f}", file=log_file)
-
+            log_file.flush()
             outer_loop_iter += 1
             
             if outer_loop_iter >= self.config["num_outer_iterations"] or all_changes["total"] < self.config["outer_loop_convergence_thres"]:
@@ -524,7 +524,7 @@ class PDEModelTimeStep(PDEModel):
         for i in range(len(self.state_variables) - 1):
             sv_ls[i] = torch.linspace(self.state_variable_constraints["sv_low"][i], 
                                     self.state_variable_constraints["sv_high"][i], 
-                                    steps=self.batch_size, device=self.device)
+                                    steps=100, device=self.device)
         sv = torch.cartesian_prod(*sv_ls)
         if len(sv.shape) == 1:
             sv = sv.unsqueeze(-1)
