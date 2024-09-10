@@ -1,6 +1,6 @@
 # Di Tella (2017)
 
-The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/develop/examples/pymacrofin_eg/ditella_with_investment.ipynb" target="_blank">ditella_with_investment.ipynb</a>.
+The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/pymacrofin_eg/ditella_with_investment.ipynb" target="_blank">ditella_with_investment.ipynb</a>.
 
 ## Problem Setup
 This is from <a href="https://www.journals.uchicago.edu/doi/10.1086/694290" target="_blank">Di Tella 2017</a>[^1]

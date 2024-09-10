@@ -1,6 +1,6 @@
 # Predator-Prey Model
 
-The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/develop/examples/basic_examples/system_ode.ipynb" target="_blank">system_ode.ipynb</a>.
+The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/basic_examples/system_ode.ipynb" target="_blank">system_ode.ipynb</a>.
 
 ## Problem Setup
 $$\begin{bmatrix}\dot{x} \\ \dot{y}\end{bmatrix} = \begin{bmatrix} \alpha x - \beta xy \\ \delta xy - \gamma y\end{bmatrix}$$

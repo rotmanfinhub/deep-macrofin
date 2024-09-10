@@ -1,6 +1,6 @@
 # Time-dependent Heat Equation
 
-The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/develop/examples/basic_examples/basic_pdes.ipynb" target="_blank">basic_pdes.ipynb</a>.
+The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/basic_examples/basic_pdes.ipynb" target="_blank">basic_pdes.ipynb</a>.
 
 ## Problem Setup
 $$\frac{\partial u}{\partial t} = 0.4 \frac{\partial^2 u}{\partial x^2}, x\in [0,1], t\in[0,1],$$ 

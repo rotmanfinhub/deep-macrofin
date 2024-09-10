@@ -1,6 +1,6 @@
 # Base ODE 2
 
-The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/develop/examples/basic_examples/basic_odes.ipynb" target="_blank">basic_odes.ipynb</a>.
+The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/basic_examples/basic_odes.ipynb" target="_blank">basic_odes.ipynb</a>.
 
 ## Problem Setup
 $$\frac{d x}{d t} = x, x(0)=1$$

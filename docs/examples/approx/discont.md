@@ -1,6 +1,6 @@
 # Discontinuous and Oscillating Function
 
-The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/develop/examples/basic_examples/function_approximation.ipynb" target="_blank">function_approximation.ipynb</a>.
+The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/basic_examples/function_approximation.ipynb" target="_blank">function_approximation.ipynb</a>.
 
 ## Problem Setup
 $$

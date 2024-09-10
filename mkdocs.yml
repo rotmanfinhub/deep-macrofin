@@ -77,8 +77,11 @@ nav:
     - 'deep_macrofin.models': 'api/models.md'
     - 'deep_macrofin.evaluations': 'api/evaluations.md'
     - 'deep_macrofin.pde_model': 'api/pde_model.md'
+    - 'deep_macrofin.pde_model_time_step': 'api/pde_model_time_step.md'
     - 'deep_macrofin.utils': 'api/utils.md'
-  - 'Basic Usage': 'usage.md'
+  - 'Basic Usage': 
+    - 'General Usage': 'usage.md'
+    - 'Time Stepping Scheme': 'usage_timestep.md'
   - 'Basic Examples':
     - 'A simple ODE': 'examples/odes/basic_ode1.md'
     - 'Yet another simple ODE': 'examples/odes/basic_ode2.md'
