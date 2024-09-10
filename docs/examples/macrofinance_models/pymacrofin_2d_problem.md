@@ -1,4 +1,4 @@
-# 2D Problem
+# PyMacroFin 2D Problem
 
 The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/pymacrofin_eg/2d_problem.ipynb" target="_blank">2d_problem.ipynb</a> and <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/time_step/2d_problem.ipynb" target="_blank">2d_problem (time stepping).ipynb</a>.
 
