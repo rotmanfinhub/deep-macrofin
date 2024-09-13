@@ -88,6 +88,7 @@ class PDEModelTimeStep(PDEModel):
         self.variable_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include all local variables/params + current values, initially, all values in this dictionary can be zero
         self.loss_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include loss equation (constraints, endogenous equations, HJB equations) labels + corresponding loss values, initially, all values in this dictionary can be zero.
         self.loss_weight_dict: Dict[str, float] = OrderedDict() # should include loss equation labels + corresponding weight
+        self.initial_guess: Dict[str, float] = OrderedDict() # should include the overrides of initial guesses for agents and endog vars
         self.device = "cpu"
 
     def __set_agent_time_boundary_condition(self, name: str,
@@ -243,6 +244,16 @@ class PDEModelTimeStep(PDEModel):
         total_rel_change = min(max_abs_change, max_rel_change)
         all_changes["total"] = total_rel_change
         return all_changes
+    
+    def set_initial_guess(self, initial_guess: Dict[str, float]):
+        '''
+        Set the initial guess (uniform value across the state variable domain) for agents or endogenous variables.
+
+        initial_guess[agent_name] = agent_initial_guess; initial_guess[endog_var_name] = endog_var_initial_guess
+        '''
+        for k in initial_guess:
+            assert k in self.agents or k in self.endog_vars, f"{k} is not a valid agent/endog var name"
+        self.initial_guess.update(initial_guess)
 
     def train_model(self, model_dir: str="./", filename: str=None, full_log=False):
         '''
@@ -278,9 +289,9 @@ class PDEModelTimeStep(PDEModel):
 
         self.prev_vals = {}
         for agent_name in self.agents:
-            self.prev_vals[agent_name] = torch.ones((self.batch_size ** (len(self.state_variables) - 1), 1), device=self.device)
+            self.prev_vals[agent_name] = torch.ones((self.batch_size ** (len(self.state_variables) - 1), 1), device=self.device) * self.initial_guess.get(agent_name, 1)
         for endog_name in self.endog_vars:
-            self.prev_vals[endog_name] = torch.ones((self.batch_size ** (len(self.state_variables) - 1), 1), device=self.device)
+            self.prev_vals[endog_name] = torch.ones((self.batch_size ** (len(self.state_variables) - 1), 1), device=self.device) * self.initial_guess.get(endog_name, 1)
 
 
         min_loss_dict = defaultdict(list)

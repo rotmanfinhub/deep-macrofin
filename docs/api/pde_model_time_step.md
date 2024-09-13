@@ -14,3 +14,10 @@ Also initialize the neural network architectures for each agent/endogenous varia
 with some config dictionary.
 '''
 ```
+
+### set_initial_guess
+```py
+def set_initial_guess(self, initial_guess: Dict[str, float])
+```
+
+Set the initial guess (uniform value across the state variable domain) for agents or endogenous variables. This is the boundary condition at $t=T$ in the first time iteration.
