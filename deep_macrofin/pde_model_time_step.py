@@ -333,7 +333,7 @@ class PDEModelTimeStep(PDEModel):
                     pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
 
             outer_loop_finish_time = time.time()
-            dict_to_load = torch.load(f=f"{model_dir}/{file_prefix}_temp_best.pt", map_location=self.device)
+            dict_to_load = torch.load(f=f"{model_dir}/{file_prefix}_temp_best.pt", map_location=self.device, weights_only=False)
             self.load_model(dict_to_load)
             all_changes = self.__check_outer_loop_converge(SV_T0)
 
