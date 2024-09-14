@@ -174,7 +174,6 @@ pde_model.add_equation(r"$\hat{r_t^{ka}} = r_t^{ka} + \frac{\mu^O - \mu^a}{\sigm
 pde_model.add_endog_equation(r"$\mu_t^{\eta} = (1-\eta_t) * (\mu_t^{ni} - \mu_t^{nh}) +(\sigma_t^{na})^2  - \sigma_t^{nia} * \sigma_t^{na}$")
 pde_model.add_endog_equation(r"$\sigma_t^{\eta a} = (1-\eta_t) * (\sigma_t^{nia} - \sigma_t^{nha})$")
 pde_model.add_endog_equation(r"$\hat{r_t^{ka}} - r_t = \gamma^i * w_t^{ia} * (\sigma^a  + \sigma_t^{qa})^2 - (1-\gamma^i) * \sigma_t^{\xi ia} * (\sigma^{a}  + \sigma_t^{qa})$")
-# pde_model.add_endog_equation(r"$r_t^{ka} - r_t = \gamma^h * w_t^{ha} * (\sigma^a  + \sigma_t^{qa})^2 + (1-\gamma^h) * \sigma_t^{\xi ha} * (\sigma^{a}  + \sigma_t^{qa})$")
 pde_model.add_endog_equation(r"$1 = w_t^{ia} * \eta_t + w_t^{ha} * (1-\eta_t)$")
 pde_model.add_endog_equation(r"$\alpha^a - \iota_t^a = (c_t^i*\eta_t + c_t^h * (1 - \eta_t)) * q_t^a$")
 

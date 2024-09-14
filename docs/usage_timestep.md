@@ -34,7 +34,18 @@ This dictionary can be imported:
 from deep_macrofin import DEFAULT_CONFIG_TIME_STEP
 ```
 
-### Differences from PDEModel
+## Set Initial Guess
+
+```py
+# This sets an initial guess of 7 uniformly on the domain for variable p.
+pde_model.set_initial_guess({"p": 7.0})
+```
+
+Set the initial guess (uniform value across the state variable domain) for agents or endogenous variables. This is the boundary condition at $t=T$ in the first time iteration.
+
+Note that in most cases, the initial guess has no actual effects on the training. The default value is 1 for any neural network models.
+
+## Differences from PDEModel
 
 - Only Fixed Grid Sampling is supported in time stepping scheme.
 
@@ -43,3 +54,8 @@ from deep_macrofin import DEFAULT_CONFIG_TIME_STEP
 - With the additional `t`, the actual problem dimension is $N+1$, where $N$ is the number of state variables defined by the user. The final sample is of shape $(B^{N+1}, N+1)$
 
 - Currently, no loss weight adjustment algorithm is implemented for time stepping scheme.
+
+- During training, three models are saved
+   - `{file_prefix}_temp_best.pt`: the best model within current outer loop
+   - `{file_prefix}_best.pt`: the best model over all the past outer loops
+   - `{file_prefix}.pt`: the final model in the final outer loop.

@@ -229,9 +229,11 @@ class PDEModelTimeStep(PDEModel):
         max_rel_change = 0.
         all_changes = {}
         for k in self.prev_vals:
+            mean_new_val = torch.mean(new_vals[k]).item()
             abs_change = torch.mean(torch.abs(new_vals[k] - self.prev_vals[k])).item()
             rel_change = torch.mean(torch.abs((new_vals[k] - self.prev_vals[k]) / self.prev_vals[k])).item()
-            print(f"{k}: Absolute Change: {abs_change:.5f}, Relative Change: {rel_change: .5f}")
+            print(f"{k}: Mean Value: {mean_new_val:.5f}, Absolute Change: {abs_change:.5f}, Relative Change: {rel_change: .5f}")
+            all_changes[f"{k}_mean_val"] = mean_new_val
             all_changes[f"{k}_abs"] = abs_change
             all_changes[f"{k}_rel"] = rel_change
             max_abs_change = max(max_abs_change, abs_change)
@@ -295,6 +297,7 @@ class PDEModelTimeStep(PDEModel):
 
 
         min_loss_dict = defaultdict(list)
+        outer_loop_min_loss = torch.inf
 
         outer_loop_iter = 0
         while True:
@@ -320,7 +323,7 @@ class PDEModelTimeStep(PDEModel):
 
                 if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
                     min_loss = loss_dict["total_loss"].item()
-                    self.save_model(model_dir, f"{file_prefix}_best.pt")
+                    self.save_model(model_dir, f"{file_prefix}_temp_best.pt")
                     min_loss_dict["time_loop_iter"].append(outer_loop_iter)
                     min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
                     for k, v in loss_dict.items():
@@ -330,20 +333,31 @@ class PDEModelTimeStep(PDEModel):
                     pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
 
             outer_loop_finish_time = time.time()
-            dict_to_load = torch.load(f=f"{model_dir}/{file_prefix}_best.pt", map_location=self.device)
+            dict_to_load = torch.load(f=f"{model_dir}/{file_prefix}_temp_best.pt", map_location=self.device)
             self.load_model(dict_to_load)
             all_changes = self.__check_outer_loop_converge(SV_T0)
+
+            total_loss = self.closure(SV)
+            if total_loss < outer_loop_min_loss:
+                print(f"Updating min loss from {outer_loop_min_loss:.4f} to {total_loss:.4f}")
+                outer_loop_min_loss = total_loss
+                loss_dict = self.loss_val_dict.copy()
+                loss_dict["total_loss"] = total_loss
+                self.save_model(model_dir, f"{file_prefix}_best.pt")
+
             print(f"Outer Loop {outer_loop_iter} Finished in {outer_loop_finish_time - outer_loop_start_time:.4f}s. Loading best model...")
 
             print(f"Outer Loop {outer_loop_iter} Finished in {outer_loop_finish_time - outer_loop_start_time:.4f}s. Final Result:", file=log_file)
             for k in self.agents:
+                mean_new_val = all_changes[f"{k}_mean_val"]
                 abs_change = all_changes[f"{k}_abs"]
                 rel_change = all_changes[f"{k}_rel"]
-                print(f"{k}: Absolute Change: {abs_change:.5f}, Relative Change: {rel_change: .5f}", file=log_file)
+                print(f"{k}: Mean Value: {mean_new_val:.5f}, Absolute Change: {abs_change:.5f}, Relative Change: {rel_change: .5f}", file=log_file)
             for k in self.endog_vars:
+                mean_new_val = all_changes[f"{k}_mean_val"]
                 abs_change = all_changes[f"{k}_abs"]
                 rel_change = all_changes[f"{k}_rel"]
-                print(f"{k}: Absolute Change: {abs_change:.5f}, Relative Change: {rel_change: .5f}", file=log_file)
+                print(f"{k}: Mean Value: {mean_new_val:.5f}, Absolute Change: {abs_change:.5f}, Relative Change: {rel_change: .5f}", file=log_file)
             log_file.flush()
             outer_loop_iter += 1
             
