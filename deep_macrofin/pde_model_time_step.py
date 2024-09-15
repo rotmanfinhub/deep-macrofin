@@ -531,7 +531,7 @@ class PDEModelTimeStep(PDEModel):
             print(json.dumps(errors, indent=True))
             raise Exception(f"Errors when validating model setup, please check {self.name}-errors.txt for details.")
     
-    def plot_vars(self, vars_to_plot: List[str], ncols: int=4):
+    def plot_vars(self, vars_to_plot: List[str], ncols: int=4, elev=30, azim=-135, roll=0):
         '''
         Inputs:
             vars_to_plot: variable names to plot, can be an equation defining a new variable. If Latex, need to be enclosed by $$ symbols
@@ -692,7 +692,7 @@ class PDEModelTimeStep(PDEModel):
                         curr_ax.set_ylabel(sv_text1)
                         curr_ax.set_zlabel(curr_var)
                         curr_ax.set_title(f"{curr_var} vs ({sv_text0}, {sv_text1})")
-                curr_ax.view_init(30, -135, 0)
+                curr_ax.view_init(elev, azim, roll)
                 curr_ax.set_box_aspect(None, zoom=0.85)
             plt.tight_layout()
             plt.show()
