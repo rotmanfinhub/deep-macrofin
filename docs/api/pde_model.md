@@ -247,4 +247,5 @@ def plot_vars(self, vars_to_plot: List[str], ncols: int=4)
 
 - vars_to_plot: **List[str]**, variable names to plot, can be an equation defining a new variable. If Latex, need to be enclosed by $$ symbols
 - ncols: **int**, number of columns to plot, default: 4
+- elev, azim, roll: view angles for 3D plots. See <a href="https://matplotlib.org/stable/api/toolkits/mplot3d/view_angles.html">Matplotlib Document</a> for details.
 

@@ -97,7 +97,7 @@ $$\alpha_i = \frac{\exp(\beta(ns_i - \max(ns_i)))}{\sum_{j=1}^m \exp(\beta(ns_j 
 
 $$\alpha_i = \frac{f_i \alpha_i}{\sum_{j=1}^m f_j \alpha_j}$$
 
-**loss_soft_attention** implements the algorithm in Song et al. 2024[^4]. Specifically, loss weights are linear neural networks applied to individual grid points in the training data.
+**Soft Attention** implements the algorithm in Song et al. 2024[^4]. Specifically, loss weights are linear neural networks applied to individual grid points in the training data.
 
 ### Latex Variable Map
 Economic models may involve a large amount of variables and equations. Each variable can have super-/subscripts. To properly distinguish super-/subscripts from powers/derivatives and parse equations when LaTex formula are provided, we require a mapping from LaTex variables to Python strings. The keys are LaTex strings in raw format `r""`, and the values are the corresponding python string. The following dictionary maps LaTex string $\xi_t^h$ to Python string `"xih"`, and LaTex string $q_t^a$ to Python string `"qa"`.

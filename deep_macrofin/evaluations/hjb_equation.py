@@ -10,7 +10,7 @@ from .loss_compute_methods import LOSS_REDUCTION_MAP, LossReductionMethod
 
 class HJBEquation:
     '''
-    Given a string representation of a Hamilton-Jacobi-Bellman equation,
+    Given a string representation of a Hamilton-Jacobi-Bellman equation (in residual form),
     and a set of variables in a model,
     parse the equation to a pytorch function that can be evaluated.
 
