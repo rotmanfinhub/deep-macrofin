@@ -82,6 +82,7 @@ nav:
   - 'Basic Usage': 
     - 'General Usage': 'usage.md'
     - 'Time Stepping Scheme': 'usage_timestep.md'
+    - 'Tips and Additional Considerations': 'faq.md'
   - 'Basic Examples':
     - 'A simple ODE': 'examples/odes/basic_ode1.md'
     - 'Yet another simple ODE': 'examples/odes/basic_ode2.md'
