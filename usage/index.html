@@ -18,7 +18,7 @@
         <link rel="prev" href="../api/utils/">
       
       
-        <link rel="next" href="../examples/odes/basic_ode1/">
+        <link rel="next" href="../usage_timestep/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -26,7 +26,7 @@
     
     
       
-        <title>Basic Usage - Deep-MacroFin Wiki</title>
+        <title>General Usage - Deep-MacroFin Wiki</title>
       
     
     
@@ -110,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Basic Usage
+              General Usage
             
           </span>
         </div>
@@ -253,16 +253,17 @@
     
   
   
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
-        
-  
     
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
   
   Basic Usage
 
-      </a>
-    </li>
+        </a>
+      </li>
+    
   
 
       
@@ -477,6 +478,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../api/pde_model_time_step/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    deep_macrofin.pde_model_time_step
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../api/utils/" class="md-nav__link">
         
   
@@ -506,6 +528,51 @@
   
   
   
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Basic Usage
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Basic Usage
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
     <li class="md-nav__item md-nav__item--active">
       
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
@@ -518,7 +585,7 @@
           
   
   <span class="md-ellipsis">
-    Basic Usage
+    General Usage
   </span>
   
 
@@ -529,7 +596,7 @@
         
   
   <span class="md-ellipsis">
-    Basic Usage
+    General Usage
   </span>
   
 
@@ -760,6 +827,56 @@
     </ul>
   
 </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage_timestep/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Time Stepping Scheme
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tips and Additional Considerations
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
       
     </li>
   
@@ -1090,11 +1207,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/macrofinance_models/2d_problem/" class="md-nav__link">
+      <a href="../examples/macrofinance_models/pymacrofin_2d_problem/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    2D Problem
+    PyMacroFin 2D Problem
   </span>
   
 
@@ -1451,7 +1568,7 @@
 <div class="arithmatex">\[ns_i = \frac{s_i}{\sum_{j=1}^m |s_j|}\]</div>
 <div class="arithmatex">\[\alpha_i = \frac{\exp(\beta(ns_i - \max(ns_i)))}{\sum_{j=1}^m \exp(\beta(ns_j - \max(ns_j)))}\]</div>
 <div class="arithmatex">\[\alpha_i = \frac{f_i \alpha_i}{\sum_{j=1}^m f_j \alpha_j}\]</div>
-<p><strong>loss_soft_attention</strong> implements the algorithm in Song et al. 2024<sup id="fnref:4"><a class="footnote-ref" href="#fn:4">4</a></sup>. Specifically, loss weights are linear neural networks applied to individual grid points in the training data.</p>
+<p><strong>Soft Attention</strong> implements the algorithm in Song et al. 2024<sup id="fnref:4"><a class="footnote-ref" href="#fn:4">4</a></sup>. Specifically, loss weights are linear neural networks applied to individual grid points in the training data.</p>
 <h3 id="latex-variable-map">Latex Variable Map</h3>
 <p>Economic models may involve a large amount of variables and equations. Each variable can have super-/subscripts. To properly distinguish super-/subscripts from powers/derivatives and parse equations when LaTex formula are provided, we require a mapping from LaTex variables to Python strings. The keys are LaTex strings in raw format <code>r""</code>, and the values are the corresponding python string. The following dictionary maps LaTex string <span class="arithmatex">\(\xi_t^h\)</span> to Python string <code>"xih"</code>, and LaTex string <span class="arithmatex">\(q_t^a\)</span> to Python string <code>"qa"</code>.</p>
 <div class="language-py highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">latex_var_mapping</span> <span class="o">=</span> <span class="p">{</span>
