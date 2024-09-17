@@ -1,6 +1,6 @@
 # Diffusion Equation
 
-The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/develop/examples/basic_examples/diffusion_equations.ipynb" target="_blank">diffusion_equations.ipynb</a>.
+The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/basic_examples/diffusion_equations.ipynb" target="_blank">diffusion_equations.ipynb</a>.
 
 ## Problem Setup
 $$\frac{\partial y}{\partial t} = \frac{\partial^2 y}{\partial x^2} - e^{-t} (\sin(\pi x) - \pi^2 \sin (\pi x))$$
