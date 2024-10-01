@@ -504,22 +504,22 @@ class PDEModel:
             total_loss += torch.where(temp.isnan(), 0.0, temp)
 
         for label in self.endog_equations:
-            self.loss_val_dict[label] = torch.square(self.endog_equations[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.batch_size, 1))
+            self.loss_val_dict[label] = torch.square(self.endog_equations[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.B, 1))
             temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
             total_loss += torch.where(temp.isnan(), 0.0, temp)
 
         for label in self.constraints:
-            self.loss_val_dict[label] = torch.square(self.constraints[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.batch_size, 1))
+            self.loss_val_dict[label] = torch.square(self.constraints[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.B, 1))
             temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
             total_loss += torch.where(temp.isnan(), 0.0, temp)
 
         for label in self.hjb_equations:
-            self.loss_val_dict[label] = torch.square(self.hjb_equations[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.batch_size, 1))
+            self.loss_val_dict[label] = torch.square(self.hjb_equations[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.B, 1))
             temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
             total_loss += torch.where(temp.isnan(), 0.0, temp)
 
         for label in self.systems:
-            self.loss_val_dict[label] = torch.square(self.systems[label].eval_no_loss({}, self.variable_val_dict, self.batch_size)).reshape((self.batch_size, 1))
+            self.loss_val_dict[label] = torch.square(self.systems[label].eval_no_loss({}, self.variable_val_dict, self.B)).reshape((self.B, 1))
             temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
             total_loss += torch.where(temp.isnan(), 0.0, temp)
 
@@ -790,6 +790,7 @@ class PDEModel:
         assert self.sampling_method == SamplingMethod.FixedGrid, "Soft Attention only works for Fixed Grid sampling."
         SV = self.sample(0)
         B = SV.shape[0]
+        self.B = B
         self.loss_weight_log_dict = defaultdict(list)
         all_params = []
         # start with uniform weights for each training point
