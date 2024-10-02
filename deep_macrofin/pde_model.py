@@ -618,8 +618,8 @@ class PDEModel:
 
         Returns:
             {
-                "SV": sampled state variables, shape (100000, len(self.state_variables))
-                "loss": total loss computed at each sv, shape (100000, 1)
+                "SV": sampled state variables, shape (10000, len(self.state_variables))
+                "loss": total loss computed at each sv, shape (10000, 1)
             }
         '''
         # because we need a set of dense points to compute residual for adaptive sampling
@@ -628,7 +628,7 @@ class PDEModel:
         self.set_all_model_eval()
 
         # Temporarily set a large batch size for each dimension
-        self.batch_size = 100000
+        self.batch_size = 10000
         SV = self.sample_uniform(epoch)
 
         # make a copy of variable value mapping
