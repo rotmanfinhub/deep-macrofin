@@ -161,6 +161,7 @@ cython_debug/
 .vscode/
 *.pt
 examples/**/models/
+examples/**/figures/
 *.pkl
 tests/*.txt
 *-errors.txt

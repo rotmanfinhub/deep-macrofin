@@ -237,11 +237,11 @@ class PDEModelTimeStep(PDEModel):
         model_has_kan = False
         for agent_name, agent in self.agents.items():
             all_params += list(agent.parameters())
-            if agent.config["layer_type"] == LayerType.KAN:
+            if agent.config["layer_type"] in [LayerType.KAN, LayerType.MultKAN]:
                 model_has_kan = True
         for endog_var_name, endog_var in self.endog_vars.items():
             all_params += list(endog_var.parameters())
-            if endog_var.config["layer_type"] == LayerType.KAN:
+            if endog_var.config["layer_type"] in [LayerType.KAN, LayerType.MultKAN]:
                 model_has_kan = True
         
         if model_has_kan:
