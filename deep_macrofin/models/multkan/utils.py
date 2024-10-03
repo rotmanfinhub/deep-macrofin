@@ -2,7 +2,6 @@ import numpy as np
 import torch
 from sklearn.linear_model import LinearRegression
 import sympy
-import yaml
 from sympy.utilities.lambdify import lambdify
 import re
 
