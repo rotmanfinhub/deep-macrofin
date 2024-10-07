@@ -28,7 +28,6 @@ DEFAULT_CONFIG_TIME_STEP = {
     "outer_loop_convergence_thres": 1e-4,
     "sampling_method": SamplingMethod.FixedGrid,
     "time_batch_size": None,
-    "boundary_grid_size": None,
 }
 ```
 

@@ -97,8 +97,7 @@ DEFAULT_CONFIG_TIME_STEP = {
     "max_t": 1.0,
     "outer_loop_convergence_thres": 1e-4,
     "sampling_method": SamplingMethod.FixedGrid,
-    "time_batch_size": None,
-    "boundary_grid_size": None,
+    "time_batch_size": None
 }
 
 DEFAULT_LEARNABLE_VAR_CONFIG = {
