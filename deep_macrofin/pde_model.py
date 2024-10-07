@@ -504,22 +504,22 @@ class PDEModel:
             total_loss += torch.where(temp.isnan(), 0.0, temp)
 
         for label in self.endog_equations:
-            self.loss_val_dict[label] = torch.square(self.endog_equations[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.batch_size, 1))
+            self.loss_val_dict[label] = torch.square(self.endog_equations[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.B, 1))
             temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
             total_loss += torch.where(temp.isnan(), 0.0, temp)
 
         for label in self.constraints:
-            self.loss_val_dict[label] = torch.square(self.constraints[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.batch_size, 1))
+            self.loss_val_dict[label] = torch.square(self.constraints[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.B, 1))
             temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
             total_loss += torch.where(temp.isnan(), 0.0, temp)
 
         for label in self.hjb_equations:
-            self.loss_val_dict[label] = torch.square(self.hjb_equations[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.batch_size, 1))
+            self.loss_val_dict[label] = torch.square(self.hjb_equations[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.B, 1))
             temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
             total_loss += torch.where(temp.isnan(), 0.0, temp)
 
         for label in self.systems:
-            self.loss_val_dict[label] = torch.square(self.systems[label].eval_no_loss({}, self.variable_val_dict, self.batch_size)).reshape((self.batch_size, 1))
+            self.loss_val_dict[label] = torch.square(self.systems[label].eval_no_loss({}, self.variable_val_dict, self.B)).reshape((self.B, 1))
             temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
             total_loss += torch.where(temp.isnan(), 0.0, temp)
 
@@ -618,8 +618,8 @@ class PDEModel:
 
         Returns:
             {
-                "SV": sampled state variables, shape (100000, len(self.state_variables))
-                "loss": total loss computed at each sv, shape (100000, 1)
+                "SV": sampled state variables, shape (10000, len(self.state_variables))
+                "loss": total loss computed at each sv, shape (10000, 1)
             }
         '''
         # because we need a set of dense points to compute residual for adaptive sampling
@@ -628,7 +628,7 @@ class PDEModel:
         self.set_all_model_eval()
 
         # Temporarily set a large batch size for each dimension
-        self.batch_size = 100000
+        self.batch_size = 10000
         SV = self.sample_uniform(epoch)
 
         # make a copy of variable value mapping
@@ -790,6 +790,7 @@ class PDEModel:
         assert self.sampling_method == SamplingMethod.FixedGrid, "Soft Attention only works for Fixed Grid sampling."
         SV = self.sample(0)
         B = SV.shape[0]
+        self.B = B
         self.loss_weight_log_dict = defaultdict(list)
         all_params = []
         # start with uniform weights for each training point
@@ -845,11 +846,11 @@ class PDEModel:
         model_has_kan = False
         for agent_name, agent in self.agents.items():
             all_params += list(agent.parameters())
-            if agent.config["layer_type"] == LayerType.KAN:
+            if agent.config["layer_type"] in [LayerType.KAN, LayerType.MultKAN]:
                 model_has_kan = True
         for endog_var_name, endog_var in self.endog_vars.items():
             all_params += list(endog_var.parameters())
-            if endog_var.config["layer_type"] == LayerType.KAN:
+            if endog_var.config["layer_type"] in [LayerType.KAN, LayerType.MultKAN]:
                 model_has_kan = True
         
         if model_has_kan:
@@ -970,11 +971,11 @@ class PDEModel:
         model_has_kan = False
         for agent_name, agent in self.agents.items():
             all_params += list(agent.parameters())
-            if agent.config["layer_type"] == LayerType.KAN:
+            if agent.config["layer_type"] in [LayerType.KAN, LayerType.MultKAN]:
                 model_has_kan = True
         for endog_var_name, endog_var in self.endog_vars.items():
             all_params += list(endog_var.parameters())
-            if endog_var.config["layer_type"] == LayerType.KAN:
+            if endog_var.config["layer_type"] in [LayerType.KAN, LayerType.MultKAN]:
                 model_has_kan = True
         
         if model_has_kan:

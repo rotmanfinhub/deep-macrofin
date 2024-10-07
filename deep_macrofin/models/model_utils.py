@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 
 from .kan import KAN
+from .multkan import MultKAN
 
 
 class LearnableModelType(str, Enum):
@@ -14,6 +15,7 @@ class LearnableModelType(str, Enum):
 class LayerType(str, Enum):
     MLP="MLP"
     KAN="KAN"
+    MultKAN="MultKAN"
 
 class ActivationType(str, Enum):
     ReLU="relu"
@@ -74,3 +76,19 @@ def get_KAN(config):
                k=k,
                grid_range=grid_range,
                device=device)
+
+def get_MultKAN(config):
+    base_fun = activation_function_mapping.get(config["base_fun_type"], nn.SiLU)()
+    width = config["width"]
+    device = config["device"]
+    grid = config.get("grid", 3)
+    k = config.get("k", 3)
+    grid_range = config.get("grid_range", [-1, 1])
+
+    return MultKAN(width=width,
+               base_fun=base_fun,
+               grid=grid,
+               k=k,
+               grid_range=grid_range,
+               device=device,
+               auto_save=False)

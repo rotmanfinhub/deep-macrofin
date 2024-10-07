@@ -64,7 +64,7 @@ class LearnableVar(nn.Module):
         if "derivative_order" not in config:
             config["derivative_order"] = config["input_size"]
 
-        if config["layer_type"] == LayerType.KAN:
+        if config["layer_type"] in [LayerType.KAN, LayerType.MultKAN ]:
             config = self.check_inputs_KAN(config)
         return config
     
@@ -80,6 +80,8 @@ class LearnableVar(nn.Module):
             self.model = get_MLP_layers(self.config)
         elif self.config["layer_type"] == LayerType.KAN:
             self.model = get_KAN(self.config)
+        elif self.config["layer_type"] == LayerType.MultKAN:
+            self.model = get_MultKAN(self.config)
         else:
             required_model_type = self.config["layer_type"]
             raise NotImplementedError(f"Model type: {required_model_type} is not implemented")

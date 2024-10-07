@@ -174,6 +174,7 @@ from deep_macrofin import ActivationType, LayerType
 
 # LayerType.MLP = "MLP"
 # LayerType.KAN = "KAN"
+# LayerType.MultKAN="MultKAN"
 ```
 
 Similar to PDEModel defintion, we can override any of the settings by passing a dictionary to the `config` parameter.

@@ -48,7 +48,9 @@ class PDEModelTimeStep(PDEModel):
             "optimizer_type": OptimizerType.Adam,
             "min_t": 0.0,
             "max_t": 1.0,
-            "outer_loop_convergence_thres": 1e-4
+            "outer_loop_convergence_thres": 1e-4,
+            "sampling_method": SamplingMethod.FixedGrid,
+            "time_batch_size": None, (if None default to batch_size)
         }
 
         latex_var_mapping should include all possible latex to python name conversions. Otherwise latex parsing will fail. Can be omitted if all the input equations/formula are not in latex form. For details, check `Formula` class defined in `evaluations/formula.py`
@@ -57,11 +59,22 @@ class PDEModelTimeStep(PDEModel):
         self.config = DEFAULT_CONFIG_TIME_STEP.copy()
         self.config.update(config)
         self.batch_size = self.config.get("batch_size", 100)
+        self.time_batch_size = self.config.get("time_batch_size", None)
+        if self.time_batch_size is None:
+            self.time_batch_size = self.batch_size
         self.num_outer_iterations = self.config.get("num_outer_iterations", 100)
         self.num_inner_iterations = self.config.get("num_inner_iterations", 5000)
         self.lr = self.config.get("lr", 1e-3)
         self.loss_log_interval = self.config.get("loss_log_interval", 100)
         self.optimizer_type = self.config.get("optimizer_type", OptimizerType.Adam)
+
+        if self.config["sampling_method"] == SamplingMethod.FixedGrid:
+            self.sample = self.sample_fixed_grid
+            self.__sample_boundary_cond = self.__sample_fixed_grid_boundary_cond
+        else:
+            self.sample = self.sample_uniform
+            self.__sample_boundary_cond = self.__sample_uniform_boundary_cond
+            self.boundary_uniform_points = None
 
         self.latex_var_mapping = latex_var_mapping
         
@@ -103,10 +116,10 @@ class PDEModelTimeStep(PDEModel):
         '''
         assert name in self.agents, f"Agent {name} does not exist"
         assert loss_reduction != LossReductionMethod.NONE, "reduction must be applied for time stepping scheme"
-        assert time_boundary_value.shape == torch.Size((self.batch_size ** (len(self.state_variables) - 1), 1)), "shape of boundary value does not match the state variable grid size B^n"
+        assert time_boundary_value.shape == torch.Size((self.batch_size ** (len(self.state_variables) - 1), 1)) or time_boundary_value.shape == torch.Size((self.batch_size, 1)), "shape of boundary value does not match the state variable grid size"
         label = f"agent_{name}_cond_time_boundary"
         self.agent_conditions[label] = AgentConditions(name, 
-                                                       f"{name}(SV)", {"SV": self.__sample_fixed_grid_boundary_cond(self.config["max_t"])}, 
+                                                       f"{name}(SV)", {"SV": self.__sample_boundary_cond(self.config["max_t"])}, 
                                                        Comparator.EQ, 
                                                        "bd_val", {"bd_val": time_boundary_value},
                                                        label, self.latex_var_mapping)
@@ -126,10 +139,10 @@ class PDEModelTimeStep(PDEModel):
         '''
         assert name in self.endog_vars, f"Endogenous variable {name} does not exist"
         assert loss_reduction != LossReductionMethod.NONE, "reduction must be applied for time stepping scheme"
-        assert time_boundary_value.shape == torch.Size((self.batch_size ** (len(self.state_variables) - 1), 1)), "shape of boundary value does not match the state variable grid size B^n"
+        assert time_boundary_value.shape == torch.Size((self.batch_size ** (len(self.state_variables) - 1), 1)) or time_boundary_value.shape == torch.Size((self.batch_size, 1)), "shape of boundary value does not match the state variable grid size"
         label = f"endogvar_{name}_cond_time_boundary"
         self.endog_var_conditions[label] = EndogVarConditions(name, 
-                                                       f"{name}(SV)", {"SV": self.__sample_fixed_grid_boundary_cond(self.config["max_t"])}, 
+                                                       f"{name}(SV)", {"SV": self.__sample_boundary_cond(self.config["max_t"])}, 
                                                        Comparator.EQ, 
                                                        "bd_val", {"bd_val": time_boundary_value},
                                                        label, self.latex_var_mapping)
@@ -167,6 +180,8 @@ class PDEModelTimeStep(PDEModel):
 
         for name in self.state_variables:
             self.variable_val_dict[name] = torch.zeros((self.batch_size, 1))
+        
+        self.boundary_uniform_points = None
 
     def sample_fixed_grid(self):
         '''
@@ -179,6 +194,19 @@ class PDEModelTimeStep(PDEModel):
                                     self.state_variable_constraints["sv_high"][i], 
                                     steps=self.batch_size, device=self.device)
         return torch.cartesian_prod(*sv_ls)
+    
+    def sample_uniform(self):
+        SV = np.random.uniform(low=self.state_variable_constraints["sv_low"][:-1], 
+                         high=self.state_variable_constraints["sv_high"][:-1], 
+                         size=(self.batch_size, len(self.state_variables) - 1))
+        SV = torch.Tensor(SV)
+        T = torch.linspace(self.state_variable_constraints["sv_low"][-1], 
+                           self.state_variable_constraints["sv_high"][-1], 
+                           self.time_batch_size)
+
+        SV_repeated = SV.repeat(1, T.shape[0]).view(-1, SV.shape[1])
+        T_repeated = T.repeat(1, SV.shape[0]).view(-1, 1)
+        return torch.cat((SV_repeated, T_repeated), dim=1).to(self.device)
     
     def __sample_fixed_grid_boundary_cond(self, time_val: float):
         '''
@@ -195,16 +223,25 @@ class PDEModelTimeStep(PDEModel):
         time_dim = torch.ones((sv.shape[0], 1), device=self.device) * time_val
         return torch.cat([sv, time_dim], dim=-1)
     
+    def __sample_uniform_boundary_cond(self, time_val: float):
+        if self.boundary_uniform_points is None:
+            SV = np.random.uniform(low=self.state_variable_constraints["sv_low"][:-1], 
+                         high=self.state_variable_constraints["sv_high"][:-1], 
+                         size=(self.batch_size, len(self.state_variables) - 1))
+            self.boundary_uniform_points = torch.Tensor(SV).to(self.device)
+        time_dim = torch.ones((self.boundary_uniform_points.shape[0], 1), device=self.device) * time_val
+        return torch.cat([self.boundary_uniform_points, time_dim], dim=-1)
+    
     def __init_optimizer(self):
         all_params = []
         model_has_kan = False
         for agent_name, agent in self.agents.items():
             all_params += list(agent.parameters())
-            if agent.config["layer_type"] == LayerType.KAN:
+            if agent.config["layer_type"] in [LayerType.KAN, LayerType.MultKAN]:
                 model_has_kan = True
         for endog_var_name, endog_var in self.endog_vars.items():
             all_params += list(endog_var.parameters())
-            if endog_var.config["layer_type"] == LayerType.KAN:
+            if endog_var.config["layer_type"] in [LayerType.KAN, LayerType.MultKAN]:
                 model_has_kan = True
         
         if model_has_kan:
@@ -283,17 +320,17 @@ class PDEModelTimeStep(PDEModel):
         self.set_all_model_training()
         start_time = time.time()
 
-        SV = self.sample_fixed_grid()
+        SV = self.sample()
         for i, sv_name in enumerate(self.state_variables):
             self.variable_val_dict[sv_name] = SV[:, i:i+1]
 
-        SV_T0 = self.__sample_fixed_grid_boundary_cond(self.config["min_t"]) # This is used for time step matching
+        SV_T0 = self.__sample_boundary_cond(self.config["min_t"]) # This is used for time step matching
 
         self.prev_vals = {}
         for agent_name in self.agents:
-            self.prev_vals[agent_name] = torch.ones((self.batch_size ** (len(self.state_variables) - 1), 1), device=self.device) * self.initial_guess.get(agent_name, 1)
+            self.prev_vals[agent_name] = torch.ones_like(SV_T0[:, 0:1], device=self.device) * self.initial_guess.get(agent_name, 1)
         for endog_name in self.endog_vars:
-            self.prev_vals[endog_name] = torch.ones((self.batch_size ** (len(self.state_variables) - 1), 1), device=self.device) * self.initial_guess.get(endog_name, 1)
+            self.prev_vals[endog_name] = torch.ones_like(SV_T0[:, 0:1], device=self.device) * self.initial_guess.get(endog_name, 1)
 
 
         min_loss_dict = defaultdict(list)
@@ -308,6 +345,12 @@ class PDEModelTimeStep(PDEModel):
                 self.__set_agent_time_boundary_condition(agent_name, self.prev_vals[agent_name])
             for endog_name in self.endog_vars:
                 self.__set_endog_time_boundary_condition(endog_name, self.prev_vals[endog_name])
+
+            # ensure random exploration of the space if uniform random is used
+            set_seeds(outer_loop_iter)
+            SV = self.sample()
+            for i, sv_name in enumerate(self.state_variables):
+                self.variable_val_dict[sv_name] = SV[:, i:i+1]
 
             set_seeds(0)
             min_loss = torch.inf
@@ -381,7 +424,7 @@ class PDEModelTimeStep(PDEModel):
         self.validate_model_setup()
         self.set_all_model_eval()
         print("{0:=^80}".format("Evaluating"))
-        SV = self.sample_fixed_grid()
+        SV = self.sample()
         for i, sv_name in enumerate(self.state_variables):
             self.variable_val_dict[sv_name] = SV[:, i:i+1]
         loss_dict = self.test_step(SV)
@@ -409,7 +452,7 @@ class PDEModelTimeStep(PDEModel):
         self.systems,
         '''
         errors = []
-        sv = self.sample_fixed_grid()
+        sv = self.sample()
         variable_val_dict_ = self.variable_val_dict.copy()
         for i, sv_name in enumerate(self.state_variables):
             variable_val_dict_[sv_name] = sv[:, i:i+1]

@@ -25,7 +25,9 @@ DEFAULT_CONFIG_TIME_STEP = {
     "optimizer_type": OptimizerType.Adam,
     "min_t": 0.0,
     "max_t": 1.0,
-    "outer_loop_convergence_thres": 1e-4
+    "outer_loop_convergence_thres": 1e-4,
+    "sampling_method": SamplingMethod.FixedGrid,
+    "time_batch_size": None,
 }
 ```
 
@@ -47,11 +49,11 @@ Note that in most cases, the initial guess has no actual effects on the training
 
 ## Differences from PDEModel
 
-- Only Fixed Grid Sampling is supported in time stepping scheme.
+- Only Fixed Grid Sampling and Uniform Random Sampling are supported in time stepping scheme.
 
 - The name `t` is reserved for implicit time dimension (a state variable). Therefore, it cannot be used as user defined variables. It should not be passed into the state variable list by the user either. The only thing the user can change for `t` is `min_t` and `max_t`, defining the size of the finite time interval to simulate infinite horizon.
 
-- With the additional `t`, the actual problem dimension is $N+1$, where $N$ is the number of state variables defined by the user. The final sample is of shape $(B^{N+1}, N+1)$
+- With the additional `t`, the actual problem dimension is $N+1$, where $N$ is the number of state variables defined by the user. The final sample is of shape $(B^{N+1}, N+1)$ for fixed grid sampling, or $(B*B_t, N+1)$ for uniform sampling, where $B_t$ is the `time_batch_size` (default to $B$).
 
 - Currently, no loss weight adjustment algorithm is implemented for time stepping scheme.
 

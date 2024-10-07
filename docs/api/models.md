@@ -184,6 +184,7 @@ class LearnableModelType(str, Enum):
 class LayerType(str, Enum):
     MLP="MLP"
     KAN="KAN"
+    MultKAN="MultKAN"
 
 class ActivationType(str, Enum):
     ReLU="relu"
