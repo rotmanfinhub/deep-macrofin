@@ -78,6 +78,15 @@ class TestFormulaEvaluation(unittest.TestCase):
         expected_result = torch.log(self.variables["X"]) + torch.exp(self.variables["Y"])
         self.assertTrue(torch.allclose(result, expected_result, atol=1e-4), f"Expected {expected_result}, got {result}") # allow some tolerance
 
+    def test_derivative_eval(self):
+        x = torch.tensor([[1.0], [2.0], [3.0]])
+        x.requires_grad_(True)
+        y = 2 * x**2
+        formula = "deriv(y, x)"
+        formula = Formula(formula, "eval")
+        result = formula.eval({}, {"x": x, "y": y})
+        self.assertTrue(torch.allclose(result, 4 * x, atol=1e-4), f"Expected {4 * x}, got {result}") # allow some tolerance
+
 if __name__ == '__main__':
     unittest.main()
 

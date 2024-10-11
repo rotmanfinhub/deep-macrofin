@@ -152,6 +152,7 @@ class PDEModel:
 
         for name in self.state_variables:
             self.variable_val_dict[name] = torch.zeros((self.batch_size, 1))
+        self.variable_val_dict["SV"] = torch.zeros((self.batch_size, len(self.state_variables)))
 
     def set_state_constraints(self, constraints: Dict[str, List] = {}):
         '''
@@ -903,8 +904,10 @@ class PDEModel:
             epoch_start_time = time.time()
             
             SV = self.sample(epoch)
+            SV.requires_grad_(True)
             for i, sv_name in enumerate(self.state_variables):
                 self.variable_val_dict[sv_name] = SV[:, i:i+1]
+            self.variable_val_dict["SV"] = SV
 
             self.optimizer.step(lambda: self.closure(SV))
             total_loss = 0
@@ -1074,8 +1077,10 @@ class PDEModel:
         self.set_all_model_eval()
         print("{0:=^80}".format("Evaluating"))
         SV = self.sample(0)
+        SV.requires_grad_(True)
         for i, sv_name in enumerate(self.state_variables):
             self.variable_val_dict[sv_name] = SV[:, i:i+1]
+        self.variable_val_dict["SV"] = SV
         loss_dict = self.test_step(SV)
 
         if full_log:
@@ -1102,9 +1107,11 @@ class PDEModel:
         '''
         errors = []
         sv = self.sample(0)
+        sv.requires_grad_(True)
         variable_val_dict_ = self.variable_val_dict.copy()
         for i, sv_name in enumerate(self.state_variables):
             variable_val_dict_[sv_name] = sv[:, i:i+1]
+        variable_val_dict_["SV"] = sv
 
         for agent_name in self.agents:
             try:

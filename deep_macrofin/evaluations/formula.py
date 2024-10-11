@@ -119,6 +119,23 @@ torch_func_dict = {
     "arctan": torch.arctan,
 }
 
+def get_derivs_1order(y, x):
+    """ Returns the first order derivatives,
+        Automatic differentiation used
+    """
+    try:
+        dy_dx = torch.autograd.grad(y, x, 
+                                    create_graph=True, 
+                                    retain_graph=True, 
+                                    allow_unused=True,
+                                    grad_outputs=torch.ones_like(y))[0]
+        return dy_dx ## Return 'automatic' gradient.
+    except Exception as e:
+        print(e)
+        # in case the derivative cannot be evaluated, likely a constant/linear function
+        # and higher order derivatives are required
+        return torch.zeros((x.shape[0], 1))
+
 class Formula:
     '''
     Given a string representation of a formula, and a set of variables 
@@ -160,6 +177,7 @@ class Formula:
         if self.evaluation_method == EvaluationMethod.Eval:
             self.local_context = {"__builtins__": None}
             self.local_context.update(torch.__dict__)
+            self.local_context.update({"deriv": get_derivs_1order})
             self.eval = self.eval_str
         else:
             raise NotImplementedError(f"{evaluation_method} is not implemented")
@@ -233,3 +251,9 @@ if __name__ == "__main__":
 
     ltx8 = r'(\frac{\sqrt{3}}{3} * R_b - \frac{\sqrt{3}}{3} * R_c)'
     print(latex_parsing(ltx8, latex_var_map))
+
+    x = torch.tensor([[1.0], [2.0], [3.0]])
+    x.requires_grad_(True)
+    y = 2 * x**2
+    formula = "deriv(y, x)"
+    print(Formula(formula, EvaluationMethod.Eval).eval({}, {"x": x, "y": y}))

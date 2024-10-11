@@ -180,7 +180,7 @@ class PDEModelTimeStep(PDEModel):
 
         for name in self.state_variables:
             self.variable_val_dict[name] = torch.zeros((self.batch_size, 1))
-        
+        self.variable_val_dict["SV"] = torch.zeros((self.batch_size, len(self.state_variables)))
         self.boundary_uniform_points = None
 
     def sample_fixed_grid(self):
@@ -335,6 +335,7 @@ class PDEModelTimeStep(PDEModel):
         SV = self.sample()
         for i, sv_name in enumerate(self.state_variables):
             self.variable_val_dict[sv_name] = SV[:, i:i+1]
+        self.variable_val_dict["SV"] = SV
 
         SV_T0 = self.__sample_boundary_cond(self.config["min_t"]) # This is used for time step matching
 
@@ -366,8 +367,10 @@ class PDEModelTimeStep(PDEModel):
             # ensure random exploration of the space if uniform random is used
             set_seeds(outer_loop_iter)
             SV = self.sample()
+            SV.requires_grad_(True)
             for i, sv_name in enumerate(self.state_variables):
                 self.variable_val_dict[sv_name] = SV[:, i:i+1]
+            self.variable_val_dict["SV"] = SV
 
             set_seeds(0)
             min_loss = torch.inf
@@ -452,8 +455,10 @@ class PDEModelTimeStep(PDEModel):
         self.set_all_model_eval()
         print("{0:=^80}".format("Evaluating"))
         SV = self.sample()
+        SV.requires_grad_(True)
         for i, sv_name in enumerate(self.state_variables):
             self.variable_val_dict[sv_name] = SV[:, i:i+1]
+        self.variable_val_dict["SV"] = SV
         loss_dict = self.test_step(SV)
 
         if full_log:
@@ -480,9 +485,11 @@ class PDEModelTimeStep(PDEModel):
         '''
         errors = []
         sv = self.sample()
+        sv.requires_grad_(True)
         variable_val_dict_ = self.variable_val_dict.copy()
         for i, sv_name in enumerate(self.state_variables):
             variable_val_dict_[sv_name] = sv[:, i:i+1]
+        variable_val_dict_["SV"] = sv
 
         for agent_name in self.agents:
             try:

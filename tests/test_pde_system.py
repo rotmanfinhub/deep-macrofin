@@ -22,6 +22,10 @@ class TestPDESystem(unittest.TestCase):
                                     Comparator.EQ,
                                     "0", {}) # agent_q_cond_1
         pde_sys.add_equation("y = q + 1") # eq_1
+        pde_sys.add_equation("k1 = q + x")
+        pde_sys.add_equation("k2 = r + q + t")
+        pde_sys.add_equation("k1_x = deriv(k1, SV)[:,:1]") # y_t should be same as q_t + 1
+        pde_sys.add_equation("k2_t = deriv(k2, SV)[:,1:2]") # k_x should be r_t + q_t + 1
         pde_sys.add_constraint("q", Comparator.GEQ, "0.5") # constraint_1
         pde_sys.add_endog_equation("y = q") # endogeq_1
         pde_sys.add_endog_equation("y = r") # endogeq_2
@@ -39,8 +43,10 @@ class TestPDESystem(unittest.TestCase):
     
     def run_one_step(self):
         SV = self.pde_sys.sample(0)
+        SV.requires_grad_(True)
         for i, sv_name in enumerate(self.pde_sys.state_variables):
             self.pde_sys.variable_val_dict[sv_name] = SV[:, i:i+1]
+        self.pde_sys.variable_val_dict["SV"] = SV
         self.pde_sys.test_step(SV)
     
     def test_randomsetup(self):
@@ -159,6 +165,19 @@ class TestPDESystem(unittest.TestCase):
         expected = torch.mean(torch.square(sampled_q + sampled_psi))
         result = self.pde_sys.loss_val_dict["hjbeq_1"]
         self.assertTrue(torch.allclose(result, expected), f"hjbeq_1: expected: {expected}, got {result}")
+
+    def test_forward_deriv(self):
+        self.run_one_step()
+        k1_x = self.pde_sys.variable_val_dict["k1_x"]
+        q_x = self.pde_sys.variable_val_dict["q_x"]
+        self.assertTrue(torch.allclose(k1_x, q_x + 1), f"k1_x: expected: {q_x + 1}, got {k1_x}")
+
+    def test_forward_deriv2(self):
+        self.run_one_step()
+        k2_t = self.pde_sys.variable_val_dict["k2_t"]
+        q_t = self.pde_sys.variable_val_dict["q_t"]
+        r_t = self.pde_sys.variable_val_dict["r_t"]
+        self.assertTrue(torch.allclose(k2_t, q_t + r_t + 1), f"k2_t: expected: {q_t + r_t + 1}, got {k2_t}")
 
 if __name__ == "__main__":
     unittest.main()
