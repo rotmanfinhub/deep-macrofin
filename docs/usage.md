@@ -322,6 +322,21 @@ pde_model.add_equation("y=x+1") # eq_1 is y=x+1
 pde_model.add_equation("z=y*2") # eq_2 is z=y*2
 ```
 
+### Defining Derivatives with Equations
+
+By default, only parametrized functions have derivatives w.r.t. state variables as shown in [Define Agent/EndogVar](#define-agentendogvar). However, we can also define implicit derivatives using equations and a function macro `deriv(y, x)`. For derivatives w.r.t. state variables, `x` needs to be set to `SV` explicitly, and array indexing is required in equation strings. 
+
+```py
+pde_model.set_state(["x", "y"])
+pde_model.add_endog("k")
+pde_model.add_equation("q=k/x")
+pde_model.add_equation("p=k*y")
+pde_model.add_equation("q_k=deriv(q, k)") # this computes the derivative dq/dk
+pde_model.add_equation("q_x=deriv(q, SV)[:,:1]") # this computes the derivative dq/dx, which is q w.r.t. the first state variable x
+pde_model.add_equation("q_xy=deriv(q_x, SV)[:,1:2]") # this computes the derivative d^2q/(dxdy)
+pde_model.add_equation("p_y=deriv(p, SV)[:,1:2]") # this computes the derivative dp/dy, which is p w.r.t. the second state variable y
+pde_model.add_equation("p_xy=deriv(p_y, SV)[:,:1]") # this computes the derivative d^2p/(dxdy)
+```
 
 ## Training and Evaluation
 
