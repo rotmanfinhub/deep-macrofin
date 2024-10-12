@@ -258,10 +258,11 @@ class PDEModelTimeStep(PDEModel):
         temp_dict = {}
         for i, sv_name in enumerate(self.state_variables):
             temp_dict[sv_name] = SV_T0[:, i:i+1]
+        temp_dict["SV"] = SV_T0
 
         # update variables, including agent, endogenous variables, their derivatives
         for func_name in self.local_function_dict:
-            temp_dict[func_name] = self.local_function_dict[func_name](SV_T0).detach()
+            temp_dict[func_name] = self.local_function_dict[func_name](SV_T0)
 
         # update variables, using equations
         for eq_name in self.equations:
@@ -270,7 +271,7 @@ class PDEModelTimeStep(PDEModel):
 
         new_vals = {}
         for k in self.prev_vals:
-            new_vals[k] = temp_dict[k]
+            new_vals[k] = temp_dict[k].detach()
         
         max_abs_change = 0.
         max_rel_change = 0.
@@ -326,18 +327,25 @@ class PDEModelTimeStep(PDEModel):
             # make sure the log file is properly closed even after exception
             log_file.close()
 
-        print(str(self), file=log_file)
-        self.validate_model_setup(model_dir)
+        print(str(self), file=log_file, flush=True)
+        try:
+            self.validate_model_setup(model_dir)
+        except Exception as e:
+            # close the file on exception. This should be the only place for it...
+            log_file.close()
+            raise e
         print("{0:=^80}".format("Training"))
         self.set_all_model_training()
         start_time = time.time()
 
         SV = self.sample()
+        SV.requires_grad_(True)
         for i, sv_name in enumerate(self.state_variables):
             self.variable_val_dict[sv_name] = SV[:, i:i+1]
         self.variable_val_dict["SV"] = SV
 
         SV_T0 = self.__sample_boundary_cond(self.config["min_t"]) # This is used for time step matching
+        SV_T0.requires_grad_(True)
 
         self.prev_vals = {}
         for agent_name in self.agents:
@@ -639,9 +647,11 @@ class PDEModelTimeStep(PDEModel):
         if len(self.state_variables) - 1 == 1:
             fig, ax = plt.subplots(nrows, ncols, figsize=(ncols * 4, nrows * 4))
             SV = torch.clone(X)
+            SV.requires_grad_(True)
             X = X.detach().cpu().numpy()[:, :1].reshape(-1)
             for i, sv_name in enumerate(self.state_variables):
                 variable_var_dict_[sv_name] = SV[:, i:i+1]
+            variable_var_dict_["SV"] = SV
             # properly update variables, including agent, endogenous variables, their derivatives
             for func_name in self.local_function_dict:
                 variable_var_dict_[func_name] = self.local_function_dict[func_name](SV)
@@ -705,8 +715,10 @@ class PDEModelTimeStep(PDEModel):
             X, Y = torch.meshgrid(sv_ls[:2], indexing="ij")
             X = X.detach().cpu().numpy()
             Y = Y.detach().cpu().numpy()
+            SV.requires_grad_(True)
             for i, sv_name in enumerate(self.state_variables):
                 variable_var_dict_[sv_name] = SV[:, i:i+1]
+            variable_var_dict_["SV"] = SV
             # properly update variables, including agent, endogenous variables, their derivatives
             for func_name in self.local_function_dict:
                 variable_var_dict_[func_name] = self.local_function_dict[func_name](SV)

@@ -631,7 +631,7 @@ class PDEModel:
         # Temporarily set a large batch size for each dimension
         self.batch_size = 10000
         SV = self.sample_uniform(epoch)
-
+        SV.requires_grad_(True)
         # make a copy of variable value mapping
         # so that we don't break the top level training routine
         variable_val_dict_ = self.variable_val_dict.copy()
@@ -640,6 +640,7 @@ class PDEModel:
         # forward pass
         for i, sv_name in enumerate(self.state_variables):
             variable_val_dict_[sv_name] = SV[:, i:i+1]
+        variable_val_dict_["SV"] = SV
 
         # update variables, including agent, endogenous variables, their derivatives
         for func_name in self.local_function_dict:
@@ -877,7 +878,7 @@ class PDEModel:
             # make sure the log file is properly closed even after exception
             log_file.close()
 
-        print(str(self), file=log_file)
+        print(str(self), file=log_file, flush=True)
         self.validate_model_setup(model_dir)
         print("{0:=^80}".format("Training"))
         self.set_all_model_training()
@@ -1004,8 +1005,13 @@ class PDEModel:
             # make sure the log file is properly closed even after exception
             log_file.close()
 
-        print(str(self), file=log_file)
-        self.validate_model_setup(model_dir)
+        print(str(self), file=log_file, flush=True)
+        try:
+            self.validate_model_setup(model_dir)
+        except Exception as e:
+            # close the file on exception. This should be the only place for it...
+            log_file.close()
+            raise e
         print("{0:=^80}".format("Training"))
         self.set_all_model_training()
         start_time = time.time()
@@ -1024,8 +1030,10 @@ class PDEModel:
                          size=(self.batch_size, len(self.state_variables)))
             SV = torch.Tensor(SV).to(self.device)
             SV = torch.cat([SV, active_learning_grids])
+            SV.requires_grad_(True)
             for i, sv_name in enumerate(self.state_variables):
                 self.variable_val_dict[sv_name] = SV[:, i:i+1]
+            self.variable_val_dict["SV"] = SV
 
             self.optimizer.step(lambda: self.closure(SV))
             total_loss = 0
@@ -1397,9 +1405,11 @@ class PDEModel:
         if len(self.state_variables) == 1:
             fig, ax = plt.subplots(nrows, ncols, figsize=(ncols * 4, nrows * 4))
             SV = X.unsqueeze(-1)
+            SV.requires_grad_(True)
             X = X.detach().cpu().numpy().reshape(-1)
             for i, sv_name in enumerate(self.state_variables):
                 variable_var_dict_[sv_name] = SV[:, i:i+1]
+            variable_var_dict_["SV"] = SV
             # properly update variables, including agent, endogenous variables, their derivatives
             for func_name in self.local_function_dict:
                 variable_var_dict_[func_name] = self.local_function_dict[func_name](SV)
@@ -1463,8 +1473,10 @@ class PDEModel:
             X, Y = torch.meshgrid(sv_ls, indexing="ij")
             X = X.detach().cpu().numpy()
             Y = Y.detach().cpu().numpy()
+            SV.requires_grad_(True)
             for i, sv_name in enumerate(self.state_variables):
                 variable_var_dict_[sv_name] = SV[:, i:i+1]
+            variable_var_dict_["SV"] = SV
             # properly update variables, including agent, endogenous variables, their derivatives
             for func_name in self.local_function_dict:
                 variable_var_dict_[func_name] = self.local_function_dict[func_name](SV)
