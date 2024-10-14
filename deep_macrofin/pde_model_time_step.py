@@ -180,7 +180,7 @@ class PDEModelTimeStep(PDEModel):
 
         for name in self.state_variables:
             self.variable_val_dict[name] = torch.zeros((self.batch_size, 1))
-        
+        self.variable_val_dict["SV"] = torch.zeros((self.batch_size, len(self.state_variables)))
         self.boundary_uniform_points = None
 
     def sample_fixed_grid(self):
@@ -255,12 +255,23 @@ class PDEModelTimeStep(PDEModel):
         '''
         This checks that agent(t=0) converges to agent(t=1) and endog(t=0) converges to endog(t=1) 
         '''
+        temp_dict = {}
+        for i, sv_name in enumerate(self.state_variables):
+            temp_dict[sv_name] = SV_T0[:, i:i+1]
+        temp_dict["SV"] = SV_T0
+
+        # update variables, including agent, endogenous variables, their derivatives
+        for func_name in self.local_function_dict:
+            temp_dict[func_name] = self.local_function_dict[func_name](SV_T0)
+
+        # update variables, using equations
+        for eq_name in self.equations:
+            lhs = self.equations[eq_name].lhs.formula_str
+            temp_dict[lhs] = self.equations[eq_name].eval({}, temp_dict)
+
         new_vals = {}
-        for agent_name, agent in self.agents.items():
-            new_vals[agent_name] = agent(SV_T0).detach()
-        
-        for endog_name, endog in self.endog_vars.items():
-            new_vals[endog_name] = endog(SV_T0).detach()
+        for k in self.prev_vals:
+            new_vals[k] = temp_dict[k].detach()
         
         max_abs_change = 0.
         max_rel_change = 0.
@@ -294,9 +305,11 @@ class PDEModelTimeStep(PDEModel):
             assert k in self.agents or k in self.endog_vars, f"{k} is not a valid agent/endog var name"
         self.initial_guess.update(initial_guess)
 
-    def train_model(self, model_dir: str="./", filename: str=None, full_log=False):
+    def train_model(self, model_dir: str="./", filename: str=None, full_log=False, variables_to_track: List[str]=[]):
         '''
         The entire loop of training
+
+        variables_to_track: additional variables to track changes over each outer loop iteration, any endogenous variable or agent variables are not required. The variables must be included in equation definition.
         '''
         os.makedirs(model_dir, exist_ok=True)
         if filename is None:
@@ -314,25 +327,38 @@ class PDEModelTimeStep(PDEModel):
             # make sure the log file is properly closed even after exception
             log_file.close()
 
-        print(str(self), file=log_file)
-        self.validate_model_setup(model_dir)
+        print(str(self), file=log_file, flush=True)
+        try:
+            self.validate_model_setup(model_dir)
+        except Exception as e:
+            # close the file on exception. This should be the only place for it...
+            log_file.close()
+            raise e
         print("{0:=^80}".format("Training"))
         self.set_all_model_training()
         start_time = time.time()
 
         SV = self.sample()
+        SV.requires_grad_(True)
         for i, sv_name in enumerate(self.state_variables):
             self.variable_val_dict[sv_name] = SV[:, i:i+1]
+        self.variable_val_dict["SV"] = SV
 
         SV_T0 = self.__sample_boundary_cond(self.config["min_t"]) # This is used for time step matching
+        SV_T0.requires_grad_(True)
 
         self.prev_vals = {}
         for agent_name in self.agents:
             self.prev_vals[agent_name] = torch.ones_like(SV_T0[:, 0:1], device=self.device) * self.initial_guess.get(agent_name, 1)
         for endog_name in self.endog_vars:
             self.prev_vals[endog_name] = torch.ones_like(SV_T0[:, 0:1], device=self.device) * self.initial_guess.get(endog_name, 1)
+        variables_to_check_ = []
+        for var in variables_to_track:
+            if var in self.variable_val_dict and var not in self.prev_vals:
+                self.prev_vals[var] = torch.ones_like(SV_T0[:, 0:1], device=self.device)
+                variables_to_check_.append(var)
 
-
+        change_dict = defaultdict(list)
         min_loss_dict = defaultdict(list)
         outer_loop_min_loss = torch.inf
 
@@ -349,8 +375,10 @@ class PDEModelTimeStep(PDEModel):
             # ensure random exploration of the space if uniform random is used
             set_seeds(outer_loop_iter)
             SV = self.sample()
+            SV.requires_grad_(True)
             for i, sv_name in enumerate(self.state_variables):
                 self.variable_val_dict[sv_name] = SV[:, i:i+1]
+            self.variable_val_dict["SV"] = SV
 
             set_seeds(0)
             min_loss = torch.inf
@@ -379,6 +407,7 @@ class PDEModelTimeStep(PDEModel):
             dict_to_load = torch.load(f=f"{model_dir}/{file_prefix}_temp_best.pt", map_location=self.device, weights_only=False)
             self.load_model(dict_to_load)
             all_changes = self.__check_outer_loop_converge(SV_T0)
+            torch.cuda.empty_cache()
 
             total_loss = self.closure(SV)
             if total_loss < outer_loop_min_loss:
@@ -401,7 +430,15 @@ class PDEModelTimeStep(PDEModel):
                 abs_change = all_changes[f"{k}_abs"]
                 rel_change = all_changes[f"{k}_rel"]
                 print(f"{k}: Mean Value: {mean_new_val:.5f}, Absolute Change: {abs_change:.5f}, Relative Change: {rel_change: .5f}", file=log_file)
+            for k in variables_to_check_:
+                mean_new_val = all_changes[f"{k}_mean_val"]
+                abs_change = all_changes[f"{k}_abs"]
+                rel_change = all_changes[f"{k}_rel"]
+                print(f"{k}: Mean Value: {mean_new_val:.5f}, Absolute Change: {abs_change:.5f}, Relative Change: {rel_change: .5f}", file=log_file)
             log_file.flush()
+            change_dict["outer_loop_iter"].append(outer_loop_iter)
+            for k, v in all_changes.items():
+                change_dict[k].append(v)
             outer_loop_iter += 1
             
             if outer_loop_iter >= self.config["num_outer_iterations"] or all_changes["total"] < self.config["outer_loop_convergence_thres"]:
@@ -414,6 +451,7 @@ class PDEModelTimeStep(PDEModel):
         print(f"Best model saved to {model_dir}/{file_prefix}_best.pt if valid")
         self.save_model(model_dir, filename, verbose=True)
         pd.DataFrame(min_loss_dict).to_csv(f"{model_dir}/{file_prefix}_min_loss.csv", index=False)
+        pd.DataFrame(change_dict).to_csv(f"{model_dir}/{file_prefix}_change_dict.csv", index=False)
 
         return loss_dict
     
@@ -425,8 +463,10 @@ class PDEModelTimeStep(PDEModel):
         self.set_all_model_eval()
         print("{0:=^80}".format("Evaluating"))
         SV = self.sample()
+        SV.requires_grad_(True)
         for i, sv_name in enumerate(self.state_variables):
             self.variable_val_dict[sv_name] = SV[:, i:i+1]
+        self.variable_val_dict["SV"] = SV
         loss_dict = self.test_step(SV)
 
         if full_log:
@@ -453,9 +493,11 @@ class PDEModelTimeStep(PDEModel):
         '''
         errors = []
         sv = self.sample()
+        sv.requires_grad_(True)
         variable_val_dict_ = self.variable_val_dict.copy()
         for i, sv_name in enumerate(self.state_variables):
             variable_val_dict_[sv_name] = sv[:, i:i+1]
+        variable_val_dict_["SV"] = sv
 
         for agent_name in self.agents:
             try:
@@ -605,9 +647,11 @@ class PDEModelTimeStep(PDEModel):
         if len(self.state_variables) - 1 == 1:
             fig, ax = plt.subplots(nrows, ncols, figsize=(ncols * 4, nrows * 4))
             SV = torch.clone(X)
+            SV.requires_grad_(True)
             X = X.detach().cpu().numpy()[:, :1].reshape(-1)
             for i, sv_name in enumerate(self.state_variables):
                 variable_var_dict_[sv_name] = SV[:, i:i+1]
+            variable_var_dict_["SV"] = SV
             # properly update variables, including agent, endogenous variables, their derivatives
             for func_name in self.local_function_dict:
                 variable_var_dict_[func_name] = self.local_function_dict[func_name](SV)
@@ -671,8 +715,10 @@ class PDEModelTimeStep(PDEModel):
             X, Y = torch.meshgrid(sv_ls[:2], indexing="ij")
             X = X.detach().cpu().numpy()
             Y = Y.detach().cpu().numpy()
+            SV.requires_grad_(True)
             for i, sv_name in enumerate(self.state_variables):
                 variable_var_dict_[sv_name] = SV[:, i:i+1]
+            variable_var_dict_["SV"] = SV
             # properly update variables, including agent, endogenous variables, their derivatives
             for func_name in self.local_function_dict:
                 variable_var_dict_[func_name] = self.local_function_dict[func_name](SV)
