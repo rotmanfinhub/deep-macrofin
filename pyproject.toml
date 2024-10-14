@@ -7,7 +7,7 @@ packages = ["deep_macrofin", "deep_macrofin.evaluations", "deep_macrofin.models"
 
 [project]
 name = "deep_macrofin"
-version = "0.3.1"
+version = "0.3.2"
 description = "Deep neural network for solving continuous time economic models"
 readme = "README.md"
 license = {text = "MIT License"}
