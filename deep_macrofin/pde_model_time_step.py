@@ -50,7 +50,7 @@ class PDEModelTimeStep(PDEModel):
             "max_t": 1.0,
             "outer_loop_convergence_thres": 1e-4,
             "sampling_method": SamplingMethod.FixedGrid,
-            "time_batch_size": None, (if None default to batch_size)
+            "time_batch_size": None, (if None default to batch_size, if set to a negative number, the total batch size will be batch_size, and time steps are randomly sampled iid with the state variables)
         }
 
         latex_var_mapping should include all possible latex to python name conversions. Otherwise latex parsing will fail. Can be omitted if all the input equations/formula are not in latex form. For details, check `Formula` class defined in `evaluations/formula.py`
@@ -72,7 +72,10 @@ class PDEModelTimeStep(PDEModel):
             self.sample = self.sample_fixed_grid
             self.__sample_boundary_cond = self.__sample_fixed_grid_boundary_cond
         else:
-            self.sample = self.sample_uniform
+            if self.time_batch_size < 0:
+                self.sample = self.sample_unifrom_ts
+            else:
+                self.sample = self.sample_uniform
             self.__sample_boundary_cond = self.__sample_uniform_boundary_cond
             self.boundary_uniform_points = None
 
@@ -195,6 +198,12 @@ class PDEModelTimeStep(PDEModel):
                                     steps=self.batch_size, device=self.device)
         return torch.cartesian_prod(*sv_ls)
     
+    def sample_unifrom_ts(self):
+        SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
+                         high=self.state_variable_constraints["sv_high"], 
+                         size=(self.batch_size, len(self.state_variables)))
+        return torch.Tensor(SV).to(self.device)
+
     def sample_uniform(self):
         SV = np.random.uniform(low=self.state_variable_constraints["sv_low"][:-1], 
                          high=self.state_variable_constraints["sv_high"][:-1], 

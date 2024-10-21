@@ -53,7 +53,10 @@ Note that in most cases, the initial guess has no actual effects on the training
 
 - The name `t` is reserved for implicit time dimension (a state variable). Therefore, it cannot be used as user defined variables. It should not be passed into the state variable list by the user either. The only thing the user can change for `t` is `min_t` and `max_t`, defining the size of the finite time interval to simulate infinite horizon.
 
-- With the additional `t`, the actual problem dimension is $N+1$, where $N$ is the number of state variables defined by the user. The final sample is of shape $(B^{N+1}, N+1)$ for fixed grid sampling, or $(B*B_t, N+1)$ for uniform sampling, where $B_t$ is the `time_batch_size` (default to $B$).
+- With the additional `t`, the actual problem dimension is $N+1$, where $N$ is the number of state variables defined by the user. 
+    - For fixed grid sampling: The final sample is of shape $(B^{N+1}, N+1)$.
+    - For uniform sampling with a non-nagative `time_batch_size`: The final sample is of shape $(B*B_t, N+1)$ , where $B_t$ is the `time_batch_size` (default to $B$ when `None` is provided).
+    - For uniform sampling with a negative `time_batch_size`: The final sample is of shape $(B, N+1)$. In this case, the timesteps are uniformly iid sampled together with the state variables.
 
 - Currently, no loss weight adjustment algorithm is implemented for time stepping scheme.
 
@@ -61,3 +64,7 @@ Note that in most cases, the initial guess has no actual effects on the training
    - `{file_prefix}_temp_best.pt`: the best model within current outer loop
    - `{file_prefix}_best.pt`: the best model over all the past outer loops
    - `{file_prefix}.pt`: the final model in the final outer loop.
+
+- Additional parameter `variables_to_track` for `train_model`:
+   - By default, the changes in each timestep for all endogenous and value variables are tracked.
+   - This additional parameter allows the user to specify additional variables to track. The variables to track must have already been defined by `equations` and available in `variable_val_dict` of the `PDEModelTimeStep` object.
