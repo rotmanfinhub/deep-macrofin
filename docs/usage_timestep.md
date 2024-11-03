@@ -14,20 +14,24 @@ pde_model = PDEModelTimeStep("model_name")
 
 ### Training Configs
 
-The default training configs set batch size = 100, learning rate = $10^{-3}$, and Adam optimizer. In this setting, loss will be logged to a csv file every 100 epochs during training (`loss_log_interval`), and data points are sampled from a fixed grid. 
+The default training configs set batch size = 100, learning rate = $10^{-3}$, and Adam optimizer. In this setting, data points are sampled from a fixed grid. 
 ```py
 DEFAULT_CONFIG_TIME_STEP = {
     "batch_size": 100,
+    "time_batch_size": None,
     "num_outer_iterations": 100,
     "num_inner_iterations": 5000,
     "lr": 1e-3,
-    "loss_log_interval": 100,
     "optimizer_type": OptimizerType.Adam,
     "min_t": 0.0,
     "max_t": 1.0,
     "outer_loop_convergence_thres": 1e-4,
     "sampling_method": SamplingMethod.FixedGrid,
-    "time_batch_size": None,
+    "refinement_rounds": 5,
+    "loss_balancing": False,
+    "bernoulli_prob": 0.9999,
+    "loss_balancing_temp": 0.1,
+    "loss_balancing_alpha": 0.999,
 }
 ```
 
@@ -56,9 +60,10 @@ Note that in most cases, the initial guess has no actual effects on the training
 - With the additional `t`, the actual problem dimension is $N+1$, where $N$ is the number of state variables defined by the user. 
     - For fixed grid sampling: The final sample is of shape $(B^{N+1}, N+1)$.
     - For uniform sampling with a non-nagative `time_batch_size`: The final sample is of shape $(B*B_t, N+1)$ , where $B_t$ is the `time_batch_size` (default to $B$ when `None` is provided).
-    - For uniform sampling with a negative `time_batch_size`: The final sample is of shape $(B, N+1)$. In this case, the timesteps are uniformly iid sampled together with the state variables.
+    - For uniform sampling with a `time_batch_size`$\leq 1$: The final sample is of shape $(B, N+1)$. In this case, the timesteps are uniformly iid sampled together with the state variables.
+    - For RARG sampling, it is default to uniform sampling a `time_batch_size`$\leq 1$. Additional points to help learning are sampled `refinement_rounds` times. The sampling epochs are equally spaced over the inner loops.
 
-- Currently, no loss weight adjustment algorithm is implemented for time stepping scheme.
+- Currently, only loss balancing is implemented for time stepping scheme.
 
 - During training, three models are saved
    - `{file_prefix}_temp_best.pt`: the best model within current outer loop

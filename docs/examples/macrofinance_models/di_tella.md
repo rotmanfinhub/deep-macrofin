@@ -148,12 +148,12 @@ latex_var_mapping = {
 }
 ```
 
-3. Define the problem. We train on a fixed grid of $50\times 50$ points.
+3. Define the problem. We train on a random sampling of 500 points.
 ```py
 set_seeds(0)
 pde_model = PDEModel("ditella", 
-                     {"batch_size": 50, "num_epochs": 10000, "loss_log_interval": 100, 
-                      "optimizer_type": OptimizerType.Adam, "sampling_method": SamplingMethod.FixedGrid}, 
+                     {"batch_size": 1000, "num_epochs": 10000, "loss_log_interval": 100, 
+                      "optimizer_type": OptimizerType.Adam, "sampling_method": SamplingMethod.UniformRandom}, 
                      latex_var_mapping)
 pde_model.set_state(["x", "v"], {"x": [0.05, 0.95], "v": [0.05, 0.95]})
 pde_model.add_agents(["xi", "zeta"], 

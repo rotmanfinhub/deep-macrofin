@@ -41,16 +41,16 @@ class PDEModelTimeStep(PDEModel):
 
         DEFAULT_CONFIG_TIME_STEP = {
             "batch_size": 100,
+            "time_batch_size": None, (if None default to batch_size, if set to a number <= 1, the total batch size will be batch_size, and time steps are randomly sampled iid with the state variables)
             "num_outer_iterations": 100, # number of time stepping iterations
             "num_inner_iterations": 5000, # initial number of training epochs within each time step, it will decay with factor of sqrt{curr_outer_iteration + 1}
             "lr": 1e-3,
-            "loss_log_interval": 100, # the interval at which loss should be reported/recorded on progress bar
             "optimizer_type": OptimizerType.Adam,
             "min_t": 0.0,
             "max_t": 1.0,
             "outer_loop_convergence_thres": 1e-4,
             "sampling_method": SamplingMethod.FixedGrid,
-            "time_batch_size": None, (if None default to batch_size, if set to a negative number, the total batch size will be batch_size, and time steps are randomly sampled iid with the state variables)
+            "refinement_rounds": 5,
         }
 
         latex_var_mapping should include all possible latex to python name conversions. Otherwise latex parsing will fail. Can be omitted if all the input equations/formula are not in latex form. For details, check `Formula` class defined in `evaluations/formula.py`
@@ -65,17 +65,16 @@ class PDEModelTimeStep(PDEModel):
         self.num_outer_iterations = self.config.get("num_outer_iterations", 100)
         self.num_inner_iterations = self.config.get("num_inner_iterations", 5000)
         self.lr = self.config.get("lr", 1e-3)
-        self.loss_log_interval = self.config.get("loss_log_interval", 100)
         self.optimizer_type = self.config.get("optimizer_type", OptimizerType.Adam)
 
         if self.config["sampling_method"] == SamplingMethod.FixedGrid:
             self.sample = self.sample_fixed_grid
             self.__sample_boundary_cond = self.__sample_fixed_grid_boundary_cond
         else:
-            if self.time_batch_size < 0:
-                self.sample = self.sample_unifrom_ts
-            else:
+            if self.time_batch_size <= 1:
                 self.sample = self.sample_uniform
+            else:
+                self.sample = self.sample_uniform_ts
             self.__sample_boundary_cond = self.__sample_uniform_boundary_cond
             self.boundary_uniform_points = None
 
@@ -106,6 +105,10 @@ class PDEModelTimeStep(PDEModel):
         self.loss_weight_dict: Dict[str, float] = OrderedDict() # should include loss equation labels + corresponding weight
         self.initial_guess: Dict[str, float] = OrderedDict() # should include the overrides of initial guesses for agents and endog vars
         self.device = "cpu"
+
+        # for residual-based adaptive refinement (RAR) and active learning
+        self.anchor_points: torch.Tensor = None
+        self.refinement_rounds: int = self.config.get("refinement_rounds", 5)
 
     def __set_agent_time_boundary_condition(self, name: str,
                             time_boundary_value: torch.Tensor,
@@ -198,13 +201,81 @@ class PDEModelTimeStep(PDEModel):
                                     steps=self.batch_size, device=self.device)
         return torch.cartesian_prod(*sv_ls)
     
-    def sample_unifrom_ts(self):
+    def sample_uniform(self):
         SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
                          high=self.state_variable_constraints["sv_high"], 
                          size=(self.batch_size, len(self.state_variables)))
         return torch.Tensor(SV).to(self.device)
+    
+    def __get_refinement_loss_dict(self):
+        '''
+        Sample a dense subset of the problem domain, compute the loss and return total loss for each point sampled. Used for Residual-based Adaptive Refinement and Active Learning
 
-    def sample_uniform(self):
+        Returns:
+            {
+                "SV": sampled state variables, shape (1000, len(self.state_variables))
+                "loss": total loss computed at each sv, shape (1000, 1)
+            }
+        '''
+        # because we need a set of dense points to compute residual for adaptive sampling
+        # we set all models to evaluation models so that gradients won't be computed.
+        # it speeds up the computation and reduces memory usages
+        self.set_all_model_eval()
+
+        # Temporarily set a large batch size
+        self.batch_size = 1000
+        SV = self.sample_uniform()
+        SV.requires_grad_(True)
+        # make a copy of variable value mapping
+        # so that we don't break the top level training routine
+        variable_val_dict_ = self.variable_val_dict.copy()
+        total_loss = torch.zeros((self.batch_size, 1), device=self.device)
+
+        # forward pass
+        for i, sv_name in enumerate(self.state_variables):
+            variable_val_dict_[sv_name] = SV[:, i:i+1]
+        variable_val_dict_["SV"] = SV
+
+        # update variables, including agent, endogenous variables, their derivatives
+        for func_name in self.local_function_dict:
+            variable_val_dict_[func_name] = self.local_function_dict[func_name](SV)
+
+        # update variables, using equations
+        for eq_name in self.equations:
+            lhs = self.equations[eq_name].lhs.formula_str
+            variable_val_dict_[lhs] = self.equations[eq_name].eval({}, variable_val_dict_)
+
+        # compute total losses, without reducing to a single value, keep the original dimension, but summing up using abs values
+        # Note that the conditions (IC/BC, or user pre-defined sampling regions) are not considered
+        # Systems are not considered
+        for label in self.endog_equations:
+            total_loss += torch.abs(self.endog_equations[label].eval_no_loss({}, variable_val_dict_)).reshape((self.batch_size, 1))
+
+        for label in self.constraints:
+            total_loss += torch.abs(self.constraints[label].eval_no_loss({}, variable_val_dict_)).reshape((self.batch_size, 1))
+
+        for label in self.hjb_equations:
+            total_loss += torch.abs(self.hjb_equations[label].eval_no_loss({}, variable_val_dict_)).reshape((self.batch_size, 1))
+
+        for label in self.systems:
+            total_loss += torch.abs(self.systems[label].eval_no_loss({}, variable_val_dict_, self.batch_size)).reshape((self.batch_size, 1))
+
+        self.batch_size = self.config.get("batch_size", 100) # reset the batch size for normal computation
+        self.set_all_model_training() # reset the model for training stage
+
+        return {
+            "SV": SV.detach(),
+            "loss": total_loss,
+        }
+    
+    def sample_rar_greedy(self):
+        refinement_loss_dict = self.__get_refinement_loss_dict()
+        SV = refinement_loss_dict["SV"]
+        all_losses = refinement_loss_dict["loss"]
+        X_ids = torch.topk(all_losses, self.batch_size//self.refinement_rounds, dim=0)[1].squeeze(-1)
+        self.anchor_points = torch.vstack((self.anchor_points, SV[X_ids]))
+
+    def sample_uniform_ts(self):
         SV = np.random.uniform(low=self.state_variable_constraints["sv_low"][:-1], 
                          high=self.state_variable_constraints["sv_high"][:-1], 
                          size=(self.batch_size, len(self.state_variables) - 1))
@@ -304,6 +375,49 @@ class PDEModelTimeStep(PDEModel):
         all_changes["total"] = total_rel_change
         return all_changes
     
+    def init_loss_balancing(self, *args, **kwargs):
+        '''
+        Initialize variables for relative loss balancing with random lookback
+        https://arxiv.org/pdf/2110.09813
+        '''
+        self.loss_weight_log_dict = defaultdict(list)
+        self.init_loss_tensor = torch.zeros(len(self.loss_val_dict), device=self.device)
+        self.prev_loss_tensor = torch.zeros(len(self.loss_val_dict), device=self.device)
+
+    def loss_balancing_step(self, *args, **kwargs):
+        epoch = kwargs.get("epoch", 0)
+        outer_loop_iter = kwargs.get("outer_loop_iter", 0)
+        if epoch == 0:
+            for i, (loss_label, loss) in enumerate(self.loss_val_dict.items()):
+                self.init_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
+                self.prev_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
+        else:
+            # relative loss balancing with random lookback
+            # https://arxiv.org/pdf/2110.09813
+            curr_loss_tensor = torch.zeros_like(self.prev_loss_tensor, device=self.device)
+            prev_loss_weight_tensor = torch.zeros_like(self.prev_loss_tensor, device=self.device)
+            for i, (loss_label, loss) in enumerate(self.loss_val_dict.items()):
+                curr_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
+                prev_loss_weight_tensor[i] = self.loss_weight_dict[loss_label]
+            
+            ratio_prev = curr_loss_tensor / (self.temp * self.prev_loss_tensor)
+            ratio_zero = curr_loss_tensor / (self.temp * self.init_loss_tensor)
+            bal_prev = len(self.loss_val_dict) * torch.nn.functional.softmax(ratio_prev, dim=-1)
+            bal_zero = len(self.loss_val_dict) * torch.nn.functional.softmax(ratio_zero, dim=-1)
+            rho = self.bernoulli_rho.sample()
+            weight_hist = rho * prev_loss_weight_tensor + (1 - rho) * bal_zero
+            new_weight = self.alpha * weight_hist + (1 - self.alpha) * bal_prev
+            for i, k in enumerate(self.loss_weight_dict):
+                self.loss_weight_dict[k] = new_weight[i].item()
+            
+            self.loss_weight_log_dict["outer_loop_iter"].append(outer_loop_iter)
+            self.loss_weight_log_dict["epoch"].append(epoch)
+            for k, v in self.loss_weight_dict.items():
+                self.loss_weight_log_dict[k].append(v)
+            
+            for i, (loss_label, loss) in enumerate(self.loss_val_dict.items()):
+                self.prev_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss).item()
+    
     def set_initial_guess(self, initial_guess: Dict[str, float]):
         '''
         Set the initial guess (uniform value across the state variable domain) for agents or endogenous variables.
@@ -321,6 +435,10 @@ class PDEModelTimeStep(PDEModel):
         variables_to_track: additional variables to track changes over each outer loop iteration, any endogenous variable or agent variables are not required. The variables must be included in equation definition.
         '''
         os.makedirs(model_dir, exist_ok=True)
+        if self.config["sampling_method"] in [SamplingMethod.RARD, SamplingMethod.RARG]:
+            os.makedirs(f"{model_dir}/anchor_points", exist_ok=True)
+        if self.config.get("loss_balancing", False):
+            os.makedirs(f"{model_dir}/loss_weight_logs", exist_ok=True)
         if filename is None:
             filename = self.name
         if "." in filename:
@@ -371,8 +489,17 @@ class PDEModelTimeStep(PDEModel):
         min_loss_dict = defaultdict(list)
         outer_loop_min_loss = torch.inf
 
-        outer_loop_iter = 0
-        while True:
+        OnInnerLoopStart = EventHandler()
+        OnInnerLoopStep = EventHandler()
+        if self.config.get("loss_balancing", False):
+            OnInnerLoopStart += self.init_loss_balancing
+            OnInnerLoopStep += self.loss_balancing_step
+            self.bernoulli_rho = torch.distributions.Bernoulli(self.config.get("bernoulli_prob", 0.9999))
+            self.temp = self.config.get("loss_balancing_temp", 0.1)
+            self.alpha = self.config.get("loss_balancing_alpha", 0.999)
+
+        for outer_loop_iter in range(self.config["num_outer_iterations"]):
+            self.anchor_points = torch.empty((0, len(self.state_variables)), device=self.device)
             set_seeds(0)
             self.__init_optimizer()
             outer_loop_start_time = time.time()
@@ -389,9 +516,11 @@ class PDEModelTimeStep(PDEModel):
                 self.variable_val_dict[sv_name] = SV[:, i:i+1]
             self.variable_val_dict["SV"] = SV
 
+            OnInnerLoopStart()
             set_seeds(0)
             min_loss = torch.inf
-            pbar = tqdm(range(int(self.num_inner_iterations / (np.sqrt(outer_loop_iter + 1)))))
+            num_inner_iters: int = int(self.num_inner_iterations / (np.sqrt(outer_loop_iter + 1)))
+            pbar = tqdm(range(num_inner_iters))
             for epoch in pbar:
                 self.optimizer.step(lambda: self.closure(SV))
                 total_loss = 0
@@ -408,16 +537,34 @@ class PDEModelTimeStep(PDEModel):
                     min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
                     for k, v in loss_dict.items():
                         min_loss_dict[k].append(v.item())
+                    pbar.set_description("Min loss: {0:.4f}".format(min_loss))
 
-                if epoch % self.loss_log_interval == 0:
-                    pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
+                if self.config["sampling_method"] == SamplingMethod.RARG and epoch % (num_inner_iters // self.refinement_rounds) == 0 and epoch > 0:
+                    self.sample_rar_greedy()
+                    SV = torch.vstack([SV, self.anchor_points])
+                    SV.requires_grad_(True)
+                    for i, sv_name in enumerate(self.state_variables):
+                        self.variable_val_dict[sv_name] = SV[:, i:i+1]
+                    self.variable_val_dict["SV"] = SV
+                OnInnerLoopStep(epoch=epoch, outer_loop_iter=outer_loop_iter)
+                torch.cuda.empty_cache()
 
             outer_loop_finish_time = time.time()
             dict_to_load = torch.load(f=f"{model_dir}/{file_prefix}_temp_best.pt", map_location=self.device, weights_only=False)
             self.load_model(dict_to_load)
             all_changes = self.__check_outer_loop_converge(SV_T0)
             torch.cuda.empty_cache()
-
+            if self.anchor_points is not None and len(self.anchor_points) > 0:
+                anchor_points_np = self.anchor_points.detach().cpu().numpy()
+                np.save(os.path.join(model_dir, "anchor_points", f"{file_prefix}_anchor_points_{outer_loop_iter}.npy"), anchor_points_np)
+            if hasattr(self, "loss_weight_log_dict"):
+                pd.DataFrame(self.loss_weight_log_dict).to_csv(f"{model_dir}/loss_weight_logs/{file_prefix}_loss_weight_{outer_loop_iter}.csv", index=False)
+                for k in self.loss_weight_log_dict:
+                    self.loss_weight_log_dict[k].clear()
+                del self.loss_weight_log_dict
+                self.loss_weight_log_dict = None
+                self.init_loss_tensor = torch.fill(self.init_loss_tensor, 0.0) 
+                self.prev_loss_tensor = torch.fill(self.prev_loss_tensor, 0.0) # if not fill 0, seems to crash the program
             total_loss = self.closure(SV)
             if total_loss < outer_loop_min_loss:
                 print(f"Updating min loss from {outer_loop_min_loss:.4f} to {total_loss:.4f}")
@@ -448,9 +595,8 @@ class PDEModelTimeStep(PDEModel):
             change_dict["outer_loop_iter"].append(outer_loop_iter)
             for k, v in all_changes.items():
                 change_dict[k].append(v)
-            outer_loop_iter += 1
             
-            if outer_loop_iter >= self.config["num_outer_iterations"] or all_changes["total"] < self.config["outer_loop_convergence_thres"]:
+            if all_changes["total"] < self.config["outer_loop_convergence_thres"]:
                 break
         print(f"training finished, total time :: {time.time() - start_time}")
         print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
@@ -461,7 +607,6 @@ class PDEModelTimeStep(PDEModel):
         self.save_model(model_dir, filename, verbose=True)
         pd.DataFrame(min_loss_dict).to_csv(f"{model_dir}/{file_prefix}_min_loss.csv", index=False)
         pd.DataFrame(change_dict).to_csv(f"{model_dir}/{file_prefix}_change_dict.csv", index=False)
-
         return loss_dict
     
     def eval_model(self, full_log=False):

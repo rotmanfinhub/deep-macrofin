@@ -67,7 +67,7 @@ from deep_macrofin import SamplingMethod
 # SamplingMethod.RARD = "RAR-D"
 ```
 
-When sampling method is `ActiveLearning`, `RARG`, or `RARD`, additional points to help learning are sampled every `refinement_sample_interval` epochs. It is default to 200 epochs, which is 20% of total epochs.
+When sampling method is `ActiveLearning`, `RARG`, or `RARD`, additional points to help learning are sampled `refinement_rounds` times. The sampling epochs are equally spaced over the entire training period.
 
 > Note: For FixedGrid sampling, the batch size is applied to each dimension, and the final sample is of shape $(B^n, n)$, where $B$ is batch size, $n$ is number of state variables. Batch size should be set to a lower value than in uniform sampling.
 
