@@ -22,7 +22,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.40">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.43">
     
     
       
@@ -30,7 +30,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.8c3ca2c6.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.0253249f.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
@@ -1179,20 +1179,24 @@
 </span></code></pre></div>
 <p><code>PDEModelTimeStep</code> takes three parameters: <code>name: str, config: Dict[str, Any] = DEFAULT_CONFIG_TIME_STEP, latex_var_mapping: Dict[str, str] = {}</code>. Only <code>name</code> is required. The trained models will be saved with filename <code>name</code> by default.</p>
 <h3 id="training-configs">Training Configs</h3>
-<p>The default training configs set batch size = 100, learning rate = <span class="arithmatex">\(10^{-3}\)</span>, and Adam optimizer. In this setting, loss will be logged to a csv file every 100 epochs during training (<code>loss_log_interval</code>), and data points are sampled from a fixed grid. 
+<p>The default training configs set batch size = 100, learning rate = <span class="arithmatex">\(10^{-3}\)</span>, and Adam optimizer. In this setting, data points are sampled from a fixed grid. 
 <div class="language-py highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">DEFAULT_CONFIG_TIME_STEP</span> <span class="o">=</span> <span class="p">{</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="s2">&quot;batch_size&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="s2">&quot;num_outer_iterations&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="s2">&quot;num_inner_iterations&quot;</span><span class="p">:</span> <span class="mi">5000</span><span class="p">,</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">,</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="s2">&quot;loss_log_interval&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="s2">&quot;time_batch_size&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="s2">&quot;num_outer_iterations&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="s2">&quot;num_inner_iterations&quot;</span><span class="p">:</span> <span class="mi">5000</span><span class="p">,</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">,</span>
 </span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="s2">&quot;optimizer_type&quot;</span><span class="p">:</span> <span class="n">OptimizerType</span><span class="o">.</span><span class="n">Adam</span><span class="p">,</span>
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="s2">&quot;min_t&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="s2">&quot;max_t&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span>
 </span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="s2">&quot;outer_loop_convergence_thres&quot;</span><span class="p">:</span> <span class="mf">1e-4</span><span class="p">,</span>
 </span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="s2">&quot;sampling_method&quot;</span><span class="p">:</span> <span class="n">SamplingMethod</span><span class="o">.</span><span class="n">FixedGrid</span><span class="p">,</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="s2">&quot;time_batch_size&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="p">}</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="s2">&quot;refinement_rounds&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="s2">&quot;loss_balancing&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    <span class="s2">&quot;bernoulli_prob&quot;</span><span class="p">:</span> <span class="mf">0.9999</span><span class="p">,</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    <span class="s2">&quot;loss_balancing_temp&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="s2">&quot;loss_balancing_alpha&quot;</span><span class="p">:</span> <span class="mf">0.999</span><span class="p">,</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="p">}</span>
 </span></code></pre></div></p>
 <p>This dictionary can be imported:
 <div class="language-py highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span> <span class="nn">deep_macrofin</span> <span class="kn">import</span> <span class="n">DEFAULT_CONFIG_TIME_STEP</span>
@@ -1212,17 +1216,30 @@
 <p>The name <code>t</code> is reserved for implicit time dimension (a state variable). Therefore, it cannot be used as user defined variables. It should not be passed into the state variable list by the user either. The only thing the user can change for <code>t</code> is <code>min_t</code> and <code>max_t</code>, defining the size of the finite time interval to simulate infinite horizon.</p>
 </li>
 <li>
-<p>With the additional <code>t</code>, the actual problem dimension is <span class="arithmatex">\(N+1\)</span>, where <span class="arithmatex">\(N\)</span> is the number of state variables defined by the user. The final sample is of shape <span class="arithmatex">\((B^{N+1}, N+1)\)</span> for fixed grid sampling, or <span class="arithmatex">\((B*B_t, N+1)\)</span> for uniform sampling, where <span class="arithmatex">\(B_t\)</span> is the <code>time_batch_size</code> (default to <span class="arithmatex">\(B\)</span>).</p>
+<p>With the additional <code>t</code>, the actual problem dimension is <span class="arithmatex">\(N+1\)</span>, where <span class="arithmatex">\(N\)</span> is the number of state variables defined by the user. </p>
+<ul>
+<li>For fixed grid sampling: The final sample is of shape <span class="arithmatex">\((B^{N+1}, N+1)\)</span>.</li>
+<li>For uniform sampling with a non-nagative <code>time_batch_size</code>: The final sample is of shape <span class="arithmatex">\((B*B_t, N+1)\)</span> , where <span class="arithmatex">\(B_t\)</span> is the <code>time_batch_size</code> (default to <span class="arithmatex">\(B\)</span> when <code>None</code> is provided).</li>
+<li>For uniform sampling with a <code>time_batch_size</code><span class="arithmatex">\(\leq 1\)</span>: The final sample is of shape <span class="arithmatex">\((B, N+1)\)</span>. In this case, the timesteps are uniformly iid sampled together with the state variables.</li>
+<li>For RARG sampling, it is default to uniform sampling a <code>time_batch_size</code><span class="arithmatex">\(\leq 1\)</span>. Additional points to help learning are sampled <code>refinement_rounds</code> times. The sampling epochs are equally spaced over the inner loops.</li>
+</ul>
 </li>
 <li>
-<p>Currently, no loss weight adjustment algorithm is implemented for time stepping scheme.</p>
+<p>Currently, only loss balancing is implemented for time stepping scheme.</p>
 </li>
 <li>
 <p>During training, three models are saved</p>
 </li>
 <li><code>{file_prefix}_temp_best.pt</code>: the best model within current outer loop</li>
 <li><code>{file_prefix}_best.pt</code>: the best model over all the past outer loops</li>
-<li><code>{file_prefix}.pt</code>: the final model in the final outer loop.</li>
+<li>
+<p><code>{file_prefix}.pt</code>: the final model in the final outer loop.</p>
+</li>
+<li>
+<p>Additional parameter <code>variables_to_track</code> for <code>train_model</code>:</p>
+</li>
+<li>By default, the changes in each timestep for all endogenous and value variables are tracked.</li>
+<li>This additional parameter allows the user to specify additional variables to track. The variables to track must have already been defined by <code>equations</code> and available in <code>variable_val_dict</code> of the <code>PDEModelTimeStep</code> object.</li>
 </ul>
 
 
@@ -1283,7 +1300,7 @@
     <script id="__config" type="application/json">{"base": "..", "features": ["navigation.instant", "navigation.sections", "navigation.tabs", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.525ec568.min.js"></script>
+      <script src="../assets/javascripts/bundle.83f73b43.min.js"></script>
       
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
       
