@@ -43,7 +43,7 @@ class PDEModel:
             "loss_log_interval": 100,
             "optimizer_type": OptimizerType.AdamW,
             "sampling_method": SamplingMethod.UniformRandom,
-            "refinement_sample_interval": int(0.2*num_epochs),
+            "refinement_rounds": 5,
             "loss_balancing": False,
             "bernoulli_prob": 0.9999,
             "loss_balancing_temp": 0.1,
@@ -104,8 +104,7 @@ class PDEModel:
 
         # for residual-based adaptive refinement (RAR) and active learning
         self.anchor_points: torch.Tensor = None
-        self.refinement_sample_interval: int = self.config.get("refinement_sample_interval", int(0.2 * self.num_epochs))
-        self.refinement_rounds: int = self.num_epochs // self.refinement_sample_interval
+        self.refinement_rounds: int = self.config.get("refinement_rounds", 5)
 
     def check_name_used(self, name: str):
         for self_dicts in [self.state_variables,
@@ -569,7 +568,7 @@ class PDEModel:
             "loss_log_interval": 100,
             "optimizer_type": OptimizerType.AdamW,
             "sampling_method": SamplingMethod.UniformRandom,
-            "refinement_sample_interval": int(0.2*num_epochs),
+            "refinement_rounds": 5,
             "loss_balancing": False,
             "bernoulli_prob": 0.9999,
             "loss_balancing_temp": 0.1,
@@ -586,8 +585,7 @@ class PDEModel:
         self.optimizer_type = self.config.get("optimizer_type", OptimizerType.AdamW)
         self.sampling_method = self.config.get("sampling_method", SamplingMethod.UniformRandom)
         self.sample = self.SAMPLING_METHOD_MAP[self.sampling_method]
-        self.refinement_sample_interval = self.config.get("refinement_sample_interval", int(0.2 * self.num_epochs))
-        self.refinement_rounds = self.num_epochs // self.refinement_sample_interval
+        self.refinement_rounds: int = self.config.get("refinement_rounds", 5)
 
     def set_loss_reduction(self, label: str, loss_reduction: LossReductionMethod):
         if label not in self.loss_reduction_dict:
@@ -613,7 +611,7 @@ class PDEModel:
                                         steps=self.batch_size, device=self.device)
             return torch.cartesian_prod(*sv_ls)
         
-    def get_refinement_loss_dict(self, epoch):
+    def __get_refinement_loss_dict(self, epoch):
         '''
         Sample a dense subset of the problem domain, compute the loss and return total loss for each point sampled. Used for Residual-based Adaptive Refinement and Active Learning
 
@@ -628,8 +626,8 @@ class PDEModel:
         # it speeds up the computation and reduces memory usages
         self.set_all_model_eval()
 
-        # Temporarily set a large batch size for each dimension
-        self.batch_size = 10000
+        # Temporarily set a large batch size
+        self.batch_size = 1000
         SV = self.sample_uniform(epoch)
         SV.requires_grad_(True)
         # make a copy of variable value mapping
@@ -670,33 +668,33 @@ class PDEModel:
         self.set_all_model_training() # reset the model for training stage
 
         return {
-            "SV": SV,
+            "SV": SV.detach(),
             "loss": total_loss,
         }
         
     def sample_rar_greedy(self, epoch):
-        if epoch % self.refinement_sample_interval == 0 and epoch > 0:
+        if epoch % (self.num_epochs // self.refinement_rounds) == 0 and epoch > 0:
             # check epoch > 0 so we don't need to resample in the first epoch
-            refinement_loss_dict = self.get_refinement_loss_dict(epoch)
+            refinement_loss_dict = self.__get_refinement_loss_dict(epoch)
             SV = refinement_loss_dict["SV"]
             all_losses = refinement_loss_dict["loss"]
-            X_ids = torch.topk(all_losses, self.batch_size**len(self.state_variables)//self.refinement_rounds, dim=0)[1].squeeze(-1)
+            X_ids = torch.topk(all_losses, self.batch_size//self.refinement_rounds, dim=0)[1].squeeze(-1)
             self.anchor_points = torch.vstack((self.anchor_points, SV[X_ids]))
-        fixed_grid_sv = self.sample_fixed_grid(epoch)
-        return torch.vstack((fixed_grid_sv, self.anchor_points))
+        sv = self.sample_uniform(epoch)
+        return torch.vstack((sv, self.anchor_points))
         
 
     def sample_rar_distribution(self, epoch):
-        if epoch % self.refinement_sample_interval == 0 and epoch > 0:
+        if epoch % (self.num_epochs // self.refinement_rounds) == 0 and epoch > 0:
             # check epoch > 0 so we don't need to resample in the first epoch
-            refinement_loss_dict = self.get_refinement_loss_dict(epoch)
+            refinement_loss_dict = self.__get_refinement_loss_dict(epoch)
             SV = refinement_loss_dict["SV"]
             all_losses = refinement_loss_dict["loss"] ** 2
             err_eq = all_losses / all_losses.mean()
             err_eq_normalized = (err_eq / err_eq.sum())[:, 0]
-            X_ids = np.random.choice(a=SV.shape[0], size=self.batch_size**len(self.state_variables)//self.refinement_rounds, replace=False, p=err_eq_normalized.detach().cpu().numpy())
+            X_ids = np.random.choice(a=SV.shape[0], size=self.batch_size//self.refinement_rounds, replace=False, p=err_eq_normalized.detach().cpu().numpy())
             self.anchor_points = torch.vstack((self.anchor_points, SV[X_ids]))
-        fixed_grid_sv = self.sample_fixed_grid(epoch)
+        fixed_grid_sv = self.sample_uniform(epoch)
         return torch.vstack((fixed_grid_sv, self.anchor_points))
     
     def init_loss_balancing(self, *args, **kwargs):
@@ -932,6 +930,7 @@ class PDEModel:
                 min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
                 for k, v in loss_dict.items():
                     min_loss_dict[k].append(v.item())
+                pbar.set_description("Min loss: {0:.4f}".format(min_loss))
             # maybe reload the best model when loss is nan.
 
             OnTrainingStep(epoch=epoch, SV=SV)
@@ -940,7 +939,6 @@ class PDEModel:
                 epoch_loss_dict["epoch"].append(epoch)
                 for k, v in loss_dict.items():
                     epoch_loss_dict[k].append(v.item())
-                pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"].item()))
             print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
         print(f"training finished, total time :: {time.time() - start_time}")
         print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
