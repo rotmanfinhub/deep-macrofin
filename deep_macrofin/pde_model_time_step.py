@@ -51,6 +51,10 @@ class PDEModelTimeStep(PDEModel):
             "outer_loop_convergence_thres": 1e-4,
             "sampling_method": SamplingMethod.FixedGrid,
             "refinement_rounds": 5,
+            "loss_balancing": False,
+            "bernoulli_prob": 0.9999,
+            "loss_balancing_temp": 0.1,
+            "loss_balancing_alpha": 0.999,
         }
 
         latex_var_mapping should include all possible latex to python name conversions. Otherwise latex parsing will fail. Can be omitted if all the input equations/formula are not in latex form. For details, check `Formula` class defined in `evaluations/formula.py`
