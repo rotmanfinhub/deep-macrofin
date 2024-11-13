@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["deep_macrofin", "deep_macrofin.evaluations", "deep_macrofin.models", "deep_macrofin.models.kan", "deep_macrofin.models.multkan"]
+
+[project]
+name = "deep_macrofin"
+version = "0.3.3"
+description = "Deep neural network for solving continuous time economic models"
+readme = "README.md"
+license = {text = "MIT License"}
+authors = [
+  {name="Yuntao Wu", email="winstonyt.wu@mail.utoronto.ca" },
+  {name="Jiayuan Guo", email="flora.guo@mail.utoronto.ca" },
+  {name="Zissis Poulos", email="zpoulos@gmail.com" },
+  {name="Goutham Gopalakrishna", email="goutham.gopalakrishna@rotman.utoronto.ca" },
+]
+requires-python = ">=3.9"
+dependencies = [
+  'numpy<2',
+  'pandas',
+  'torch',
+  'sympy',
+  'pyDOE',
+  'tqdm',
+  'matplotlib',
+  'scikit-learn'
+]
+classifiers = [
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX",
+  "Operating System :: Unix",
+  "Operating System :: MacOS",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Homepage = "https://github.com/rotmanfinhub/deep-macrofin"
+Issues = "https://github.com/rotmanfinhub/deep-macrofin/issues"
+Documentation = "https://rotmanfinhub.github.io/deep-macrofin"

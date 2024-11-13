@@ -1,45 +1,38 @@
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-packages = ["deep_macrofin", "deep_macrofin.evaluations", "deep_macrofin.models", "deep_macrofin.models.kan", "deep_macrofin.models.multkan"]
-
-[project]
+[tool.poetry]
 name = "deep_macrofin"
 version = "0.3.3"
 description = "Deep neural network for solving continuous time economic models"
 readme = "README.md"
-license = {text = "MIT License"}
+license = "MIT"
 authors = [
-  {name="Yuntao Wu", email="winstonyt.wu@mail.utoronto.ca" },
-  {name="Jiayuan Guo", email="flora.guo@mail.utoronto.ca" },
-  {name="Zissis Poulos", email="zpoulos@gmail.com" },
-  {name="Goutham Gopalakrishna", email="goutham.gopalakrishna@rotman.utoronto.ca" },
+  "Yuntao Wu <winstonyt.wu@mail.utoronto.ca>",
+  "Jiayuan Guo <flora.guo@mail.utoronto.ca>",
+  "Zissis Poulos <zpoulos@gmail.com>",
+  "Goutham Gopalakrishna <goutham.gopalakrishna@rotman.utoronto.ca>",
 ]
-requires-python = ">=3.9"
-dependencies = [
-  'numpy<2',
-  'pandas',
-  'torch',
-  'sympy',
-  'pyDOE',
-  'tqdm',
-  'matplotlib',
-  'scikit-learn'
-]
-classifiers = [
-  "Operating System :: Microsoft :: Windows",
-  "Operating System :: POSIX",
-  "Operating System :: Unix",
-  "Operating System :: MacOS",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-]
+homepage = "https://github.com/rotmanfinhub/deep-macrofin"
+repository = "https://github.com/rotmanfinhub/deep-macrofin"
+documentation = "https://rotmanfinhub.github.io/deep-macrofin"
 
-[project.urls]
-Homepage = "https://github.com/rotmanfinhub/deep-macrofin"
-Issues = "https://github.com/rotmanfinhub/deep-macrofin/issues"
-Documentation = "https://rotmanfinhub.github.io/deep-macrofin"
+[tool.poetry.dependencies]
+python = "^3.9"
+numpy = "<2"
+pandas = "^2.2.3"
+torch = "^2.5.1"
+sympy = "^1.13.3"
+pyDOE = "^0.3.8"
+tqdm = "^4.67.0"
+matplotlib = "^3.9.2"
+scikit-learn = "^1.5.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.3"
+mkdocs = "^1.6.1"
+mkdocs-git-revision-date-localized-plugin = "^1.3.0"
+pymdown-extensions = "^10.12"
+mkdocs-material = "^9.5.44"
+mkdocs-material-extensions = "^1.3.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
