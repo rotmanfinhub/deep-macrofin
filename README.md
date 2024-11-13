@@ -14,9 +14,21 @@ Deep-MacroFin is a comprehensive deep-learning framework designed to solve equil
 ### Code
 All the code are under [`deep_macrofin`](./deep_macrofin/), and the tests are under [`tests`](./tests/)
 
-To run the code and tests locally
+The project is now configured with [poetry](https://python-poetry.org/) for dependency management and packaging. 
+To install the dependencies and run the code:
 
+```bash
+poetry config virtualenvs.in-project true --local # this sets the virtual environment path to be in the local directory.
+poetry shell # creates the virtual environment
+poetry install --no-interaction # installs the dependencies and the package
+
+## You can now run the tests using the command:
+pytest tests
 ```
+
+To run the code and tests locally without poetry:
+
+```bash
 python -m venv venv
 source venv/bin/activate # venv/Scripts/activate using Windows powershell
 pip install -r requirements.txt
@@ -27,7 +39,7 @@ pip install -r requirements-doc.txt
 For easier testing, you can create a file in the root folder of the project, and import functions from `deep_macrofin`.
 
 To properly run all tests in the `tests/` folder
-```
+```bash
 pip install -e .
 pytest tests/
 ```
