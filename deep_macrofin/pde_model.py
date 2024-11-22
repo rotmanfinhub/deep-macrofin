@@ -200,12 +200,14 @@ class PDEModel:
 
         Config: specifies number of layers/hidden units of the neural network.
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
-            - hidden_units: **List[int]**, number of units in each layer, default: [30,30,30,30]
+            - hidden_units: **List[int]**, number of units in each layer, default: [30, 30, 30, 30]
+            - output_size: **int**, number of output units, default: 1 for MLP, and last hidden unit size for KAN and MultKAN
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
-            - activation_type: **str**, a selection from the ActivationType enum, default: ActivationType.Tanh
-            - positive: **bool**, apply softplus to the output to be always positive if true, default: false
-            - hardcode_function: a lambda function for hardcoded forwarding function.
-            - derivative_order: **int**, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
+            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - positive: **bool**, apply softplus to the output to be always positive if true, default: false (This has no effect for KAN.)
+            - hardcode_function: a lambda function for hardcoded forwarding function, default: None
+            - derivative_order: int, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables
+            - batch_jac_hes: **bool**, whether to use batch jacobian or hessian for computing derivatives, default: False (When True, only name_Jac and name_Hess are included in the derivatives dictionary, and derivative_order is ignored; When False, all derivatives name_x, name_y, etc are included.)
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         if not overwrite:
@@ -230,12 +232,14 @@ class PDEModel:
 
         Config: specifies number of layers/hidden units of the neural network.
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
-            - hidden_units: **List[int]**, number of units in each layer, default: [30,30,30,30]
+            - hidden_units: **List[int]**, number of units in each layer, default: [30, 30, 30, 30]
+            - output_size: **int**, number of output units, default: 1 for MLP, and last hidden unit size for KAN and MultKAN
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
-            - activation_type: **str**, a selection from the ActivationType enum, default: ActivationType.Tanh
-            - positive: **bool**, apply softplus to the output to be always positive if true, default: false
-            - hardcode_function: a lambda function for hardcoded forwarding function.
-            - derivative_order: **int**, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
+            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - positive: **bool**, apply softplus to the output to be always positive if true, default: false (This has no effect for KAN.)
+            - hardcode_function: a lambda function for hardcoded forwarding function, default: None
+            - derivative_order: int, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables
+            - batch_jac_hes: **bool**, whether to use batch jacobian or hessian for computing derivatives, default: False (When True, only name_Jac and name_Hess are included in the derivatives dictionary, and derivative_order is ignored; When False, all derivatives name_x, name_y, etc are included.)
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         for name in names:
@@ -288,12 +292,14 @@ class PDEModel:
 
         Config: specifies number of layers/hidden units of the neural network.
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
-            - hidden_units: **List[int]**, number of units in each layer, default: [30,30,30,30]
+            - hidden_units: **List[int]**, number of units in each layer, default: [30, 30, 30, 30]
+            - output_size: **int**, number of output units, default: 1 for MLP, and last hidden unit size for KAN and MultKAN
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
-            - activation_type: **str**, a selection from the ActivationType enum, default: ActivationType.Tanh
-            - positive: **bool**, apply softplus to the output to be always positive if true, default: false
-            - hardcode_function: a lambda function for hardcoded forwarding function.
-            - derivative_order: **int**, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
+            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - positive: **bool**, apply softplus to the output to be always positive if true, default: false (This has no effect for KAN.)
+            - hardcode_function: a lambda function for hardcoded forwarding function, default: None
+            - derivative_order: int, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables
+            - batch_jac_hes: **bool**, whether to use batch jacobian or hessian for computing derivatives, default: False (When True, only name_Jac and name_Hess are included in the derivatives dictionary, and derivative_order is ignored; When False, all derivatives name_x, name_y, etc are included.)
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         if not overwrite:
@@ -318,12 +324,14 @@ class PDEModel:
 
         Config: specifies number of layers/hidden units of the neural network.
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
-            - hidden_units: **List[int]**, number of units in each layer, default: [30,30,30,30]
+            - hidden_units: **List[int]**, number of units in each layer, default: [30, 30, 30, 30]
+            - output_size: **int**, number of output units, default: 1 for MLP, and last hidden unit size for KAN and MultKAN
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
-            - activation_type: **str**, a selection from the ActivationType enum, default: ActivationType.Tanh
-            - positive: **bool**, apply softplus to the output to be always positive if true, default: false
-            - hardcode_function: a lambda function for hardcoded forwarding function.
-            - derivative_order: **int**, an additional constraint for the number of derivatives to take, default: 2, so for a function with one state variable, we can still take multiple derivatives
+            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - positive: **bool**, apply softplus to the output to be always positive if true, default: false (This has no effect for KAN.)
+            - hardcode_function: a lambda function for hardcoded forwarding function, default: None
+            - derivative_order: int, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables
+            - batch_jac_hes: **bool**, whether to use batch jacobian or hessian for computing derivatives, default: False (When True, only name_Jac and name_Hess are included in the derivatives dictionary, and derivative_order is ignored; When False, all derivatives name_x, name_y, etc are included.)
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         for name in names:
@@ -829,8 +837,47 @@ class PDEModel:
                     continue
                 self.loss_weight_log_dict[k].append(v[i, 0].item())
 
+    def __compute_changes(self, SV):
+        temp_dict = {}
+        for i, sv_name in enumerate(self.state_variables):
+            temp_dict[sv_name] = SV[:, i:i+1]
+        temp_dict["SV"] = SV
 
-    def train_model(self, model_dir: str="./", filename: str=None, full_log=False):
+        # update variables, including agent, endogenous variables, their derivatives
+        for func_name in self.local_function_dict:
+            temp_dict[func_name] = self.local_function_dict[func_name](SV)
+
+        # update variables, using equations
+        for eq_name in self.equations:
+            lhs = self.equations[eq_name].lhs.formula_str
+            temp_dict[lhs] = self.equations[eq_name].eval({}, temp_dict)
+
+        new_vals = {}
+        for k in self.prev_vals:
+            new_vals[k] = temp_dict[k].detach()
+        
+        max_abs_change = 0.
+        max_rel_change = 0.
+        all_changes = {}
+        for k in self.prev_vals:
+            mean_new_val = torch.mean(new_vals[k]).item()
+            abs_change = torch.mean(torch.abs(new_vals[k] - self.prev_vals[k])).item()
+            rel_change = torch.mean(torch.abs((new_vals[k] - self.prev_vals[k]) / self.prev_vals[k])).item()
+            all_changes[f"{k}_mean_val"] = mean_new_val
+            all_changes[f"{k}_abs"] = abs_change
+            all_changes[f"{k}_rel"] = rel_change
+            max_abs_change = max(max_abs_change, abs_change)
+            max_rel_change = max(max_rel_change, rel_change)
+
+        # Update for next iteration
+        for k in self.prev_vals:
+            self.prev_vals[k] = new_vals[k]
+
+        total_rel_change = min(max_abs_change, max_rel_change)
+        all_changes["total"] = total_rel_change
+        return all_changes
+
+    def train_model(self, model_dir: str="./", filename: str=None, full_log=False, variables_to_track: List[str]=[]):
         '''
         The entire loop of training
         '''
@@ -896,6 +943,18 @@ class PDEModel:
             OnTrainingStart += self.init_soft_adapt
             OnTrainingStep += self.soft_adapt_step
         
+        set_seeds(0)
+        SV_CHECK = self.sample_uniform(0)
+        change_dict = defaultdict(list)
+        self.prev_vals = {}
+        for agent_name in self.agents:
+            self.prev_vals[agent_name] = torch.zeros_like(SV_CHECK[:, 0:1], device=self.device)
+        for endog_name in self.endog_vars:
+            self.prev_vals[endog_name] = torch.zeros_like(SV_CHECK[:, 0:1], device=self.device)
+        for var in variables_to_track:
+            if var in self.variable_val_dict and var not in self.prev_vals:
+                self.prev_vals[var] =  torch.zeros_like(SV_CHECK[:, 0:1], device=self.device)
+
         OnTrainingStart()
         set_seeds(0)
         pbar = tqdm(range(self.num_epochs))
@@ -935,6 +994,11 @@ class PDEModel:
 
             OnTrainingStep(epoch=epoch, SV=SV)
 
+            all_changes = self.__compute_changes(SV_CHECK)
+            change_dict["epoch"].append(epoch)
+            for k, v in all_changes.items():
+                change_dict[k].append(v)
+
             if epoch % self.loss_log_interval == 0:
                 epoch_loss_dict["epoch"].append(epoch)
                 for k, v in loss_dict.items():
@@ -949,6 +1013,7 @@ class PDEModel:
         self.save_model(model_dir, filename, verbose=True)
         pd.DataFrame(epoch_loss_dict).to_csv(f"{model_dir}/{file_prefix}_loss.csv", index=False)
         pd.DataFrame(min_loss_dict).to_csv(f"{model_dir}/{file_prefix}_min_loss.csv", index=False)
+        pd.DataFrame(change_dict).to_csv(f"{model_dir}/{file_prefix}_change_dict.csv", index=False)
 
         if self.anchor_points.shape[0] > 0:
             anchor_points_np = self.anchor_points.detach().cpu().numpy()

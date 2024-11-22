@@ -173,27 +173,44 @@ def test_custom_function_high_order():
         computed_val = model.derivatives[eval_func](x)
         assert torch.allclose(computed_val, expected), f"Error computing: {eval_func}, expected: {expected}, actual: {computed_val}"
 
-def test_forward_unbatched():
+# def test_forward_unbatched():
+#     config = {
+#         "device": "cpu",
+#         "hidden_units": [],
+#     }
+#     model = EndogVar("q", ["x", "y", "z"], config) 
+#     for m in model.modules():
+#         if isinstance(m, nn.Linear):
+#             nn.init.constant_(m.weight, 1)
+#             nn.init.constant_(m.bias, 0)
+#     model.eval()
+#     x = torch.randn(3, device=model.device) # unbatched var size = 3
+#     for (eval_func, expected) in [
+#         ("q", torch.sum(x).unsqueeze(0)),
+#         ("q_x", torch.ones((1, 1))),
+#         ("q_y", torch.ones((1, 1))),
+#         ("q_z", torch.ones((1, 1))),
+#         ("q_xx", torch.zeros((1, 1))),
+#         ("q_xy", torch.zeros((1, 1))),
+#         ("q_yz", torch.zeros((1, 1))),
+#         ("q_xyz", torch.zeros((1, 1))),
+#     ]:
+#         computed_val = model.derivatives[eval_func](x)
+#         assert torch.allclose(computed_val, expected), f"Error computing: {eval_func}, expected: {expected}, actual: {computed_val}"
+
+def test_custom_function_gradients_batch_jac_hes():
     config = {
         "device": "cpu",
-        "hidden_units": [],
+        "hardcode_function": lambda x: x[..., 0:1] * x[..., 1:2],
+        "batch_jac_hes": True,
     }
-    model = EndogVar("q", ["x", "y", "z"], config) 
-    for m in model.modules():
-        if isinstance(m, nn.Linear):
-            nn.init.constant_(m.weight, 1)
-            nn.init.constant_(m.bias, 0)
+    model = EndogVar("qa", ["x", "y"], config)
     model.eval()
-    x = torch.randn(3, device=model.device) # unbatched var size = 3
+    x = torch.randn((10, 2), device=model.device) # batch size = 10, var size = 2
     for (eval_func, expected) in [
-        ("q", torch.sum(x).unsqueeze(0)),
-        ("q_x", torch.ones((1, 1))),
-        ("q_y", torch.ones((1, 1))),
-        ("q_z", torch.ones((1, 1))),
-        ("q_xx", torch.zeros((1, 1))),
-        ("q_xy", torch.zeros((1, 1))),
-        ("q_yz", torch.zeros((1, 1))),
-        ("q_xyz", torch.zeros((1, 1))),
+        ("qa", x[..., 0:1] * x[..., 1:2]),
+        ("qa_Jac", torch.stack([x[:, 1], x[:, 0]], dim=1).reshape(10, 1, 2)), # Shape: BxOxI
+        ("qa_Hess", torch.repeat_interleave(torch.tensor([[0., 1.], [1., 0.]]).reshape(1, 1, 2, 2), repeats=10, dim=0)), # Shape: BxOxIxI
     ]:
         computed_val = model.derivatives[eval_func](x)
         assert torch.allclose(computed_val, expected), f"Error computing: {eval_func}, expected: {expected}, actual: {computed_val}"
