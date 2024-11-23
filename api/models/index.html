@@ -22,7 +22,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.45">
     
     
       
@@ -1336,13 +1336,15 @@
 <li>name: <strong>str</strong>, The name of the model.  </li>
 <li>state_variables: <strong>List[str]</strong>, List of state variables.  </li>
 <li>config: <strong>Dict[str, Any]</strong>, specifies number of layers/hidden units of the neural network and highest order of derivatives to take. <ul>
-<li>device: <strong>str</strong>, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available  </li>
-<li>hidden_units: <strong>List[int]</strong>, number of units in each layer, default: [30, 30, 30, 30]  </li>
-<li>layer_type: <strong>str</strong>, a selection from the LayerType enum, default: LayerType.MLP  </li>
-<li>activation_type: <strong>str</strong>, a selection from the ActivationType enum, default: ActivationType.Tanh  </li>
-<li>positive: <strong>bool</strong>, apply softplus to the output to be always positive if true, default: false  </li>
-<li>hardcode_function: a lambda function for hardcoded forwarding function, default: None  </li>
-<li>derivative_order: <strong>int</strong>, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables  </li>
+<li>device: <strong>str</strong>, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available</li>
+<li>hidden_units: <strong>List[int]</strong>, number of units in each layer, default: [30, 30, 30, 30]</li>
+<li>output_size: <strong>int</strong>, number of output units, default: 1 for MLP, and last hidden unit size for KAN and MultKAN</li>
+<li>layer_type: <strong>str</strong>, a selection from the LayerType enum, default: LayerType.MLP</li>
+<li>activation_type: <em>str</em>*, a selection from the ActivationType enum, default: ActivationType.Tanh</li>
+<li>positive: <strong>bool</strong>, apply softplus to the output to be always positive if true, default: false (This has no effect for KAN.)</li>
+<li>hardcode_function: a lambda function for hardcoded forwarding function, default: None</li>
+<li>derivative_order: <strong>int</strong>, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables</li>
+<li>batch_jac_hes: <strong>bool</strong>, whether to use batch jacobian or hessian for computing derivatives, default: False (When True, only name_Jac and name_Hess are included in the derivatives dictionary, and derivative_order is ignored; When False, all derivatives name_x, name_y, etc are included.)</li>
 </ul>
 </li>
 </ul>
@@ -1362,9 +1364,15 @@
 </span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="sd">        &quot;qa_te&quot;: lambda x:self.compute_derivative(x, &quot;te&quot;),</span>
 </span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="sd">    }</span>
 </span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="sd">    Note that the last two will be the same for C^2 functions, </span>
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="sd">    but we keep them for completeness. </span>
-</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="sd">    &#39;&#39;&#39;</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="sd">    If &quot;batch_jac_hes&quot; is True, it will only include the name_Jac and name_Hess in the dictionary. </span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="sd">    {</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="sd">        &quot;qa_Jac&quot;: lambda x:vmap(jacrev(self.forward))(x),</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="sd">        &quot;qa_Hess&quot;: lambda x:vmap(hessian(self.forward))(x),</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="sd">    }</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="sd">    Note that the last two will be the same for C^2 functions, </span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="sd">    but we keep them for completeness. </span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="sd">    &#39;&#39;&#39;</span>
 </span></code></pre></div>
 <h3 id="plot">plot</h3>
 <p>Plot a specific function attached to the learnable variable over the domain.</p>

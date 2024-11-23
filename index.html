@@ -20,7 +20,7 @@
       
       
       <link rel="icon" href="assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.45">
     
     
       
@@ -418,13 +418,22 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#build-from-source" class="md-nav__link">
+  <a href="#build-from-source-with-poetry" class="md-nav__link">
     <span class="md-ellipsis">
-      Build from Source
+      Build from Source (with poetry)
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Build from Source">
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-from-source-without-poetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      Build from Source (without poetry)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Build from Source (without poetry)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1138,13 +1147,22 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#build-from-source" class="md-nav__link">
+  <a href="#build-from-source-with-poetry" class="md-nav__link">
     <span class="md-ellipsis">
-      Build from Source
+      Build from Source (with poetry)
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Build from Source">
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-from-source-without-poetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      Build from Source (without poetry)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Build from Source (without poetry)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1200,8 +1218,9 @@
 <p>The stable version of the package can be installed from PyPI.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>deep-macrofin
 </span></code></pre></div>
-<h3 id="build-from-source">Build from Source</h3>
-<p>For developers, you should clone the folder to your local machine and install from the local folder.</p>
+<h3 id="build-from-source-with-poetry">Build from Source (with poetry)</h3>
+<p>The project is now configured with <a href="https://python-poetry.org/">poetry</a> for dependency management and packaging. 
+To install the dependencies and run the code:</p>
 <ol>
 <li>
 <p>Clone the repository
@@ -1209,46 +1228,65 @@
 </span></code></pre></div></p>
 </li>
 <li>
+<p>Install poetry by following the official documentation <a href="https://python-poetry.org/docs/#installation">here</a></p>
+</li>
+<li>
+<p>Create a poetry virtual environment and install the dependencies and the package
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>poetry<span class="w"> </span>config<span class="w"> </span>virtualenvs.in-project<span class="w"> </span><span class="nb">true</span><span class="w"> </span>--local<span class="w"> </span><span class="c1"># this sets the virtual environment path to be in the local directory.</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>poetry<span class="w"> </span>shell<span class="w"> </span><span class="c1"># creates the virtual environment</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>poetry<span class="w"> </span>install<span class="w"> </span>--no-interaction<span class="w"> </span><span class="c1"># installs the dependencies and the package</span>
+</span></code></pre></div></p>
+</li>
+</ol>
+<h3 id="build-from-source-without-poetry">Build from Source (without poetry)</h3>
+<p>For developers, you should clone the folder to your local machine and install from the local folder.</p>
+<ol>
+<li>
+<p>Clone the repository
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/rotmanfinhub/deep-macrofin.git
+</span></code></pre></div></p>
+</li>
+<li>
 <p>Create a virtual environment (Optional, but recommended)
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>venv
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">source</span><span class="w"> </span>venv/bin/activate<span class="w"> </span><span class="c1"># venv/Scripts/activate using Windows powershell</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>venv
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">source</span><span class="w"> </span>venv/bin/activate<span class="w"> </span><span class="c1"># venv/Scripts/activate using Windows powershell</span>
 </span></code></pre></div></p>
 </li>
 <li>
 <p>Install dependencies
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements.txt
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements-dev.txt
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements-doc.txt
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements.txt
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements-dev.txt
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements-doc.txt
 </span></code></pre></div></p>
 </li>
 <li>
 <p>Install the package
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
 </span></code></pre></div></p>
 </li>
 </ol>
 <h4 id="docs">Docs</h4>
 <p>The documentation site is based on <a href="https://www.mkdocs.org/">mkdocs</a> and <a href="https://squidfunk.github.io/mkdocs-material/">mkdocs-mateiral</a>.</p>
 <p>Layouts
-<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mkdocs.yml    # The configuration file.
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>docs/
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    index.md  # The documentation homepage.
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    ...       # Other markdown pages, images and other files.
+<div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mkdocs.yml    # The configuration file.
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>docs/
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    index.md  # The documentation homepage.
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    ...       # Other markdown pages, images and other files.
 </span></code></pre></div></p>
 <p>To see the site locally, run the following command:
-<div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mkdocs serve
+<div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mkdocs serve
 </span></code></pre></div></p>
 <h2 id="cite-deep-macrofin">Cite Deep-MacroFin</h2>
 <p>If you use Deep-MacroFin for academic research, you are encouraged to cite the following paper:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>@misc{wu2024deepmacrofin,
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>      title={Deep-MacroFin: Informed Equilibrium Neural Network for Continuous Time Economic Models}, 
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>      author={Yuntao Wu and Jiayuan Guo and Goutham Gopalakrishna and Zisis Poulos},
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>      year={2024},
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>      eprint={2408.10368},
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>      archivePrefix={arXiv},
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>      primaryClass={cs.LG},
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>      url={https://arxiv.org/abs/2408.10368}, 
-</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>}
+<div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>@misc{wu2024deepmacrofin,
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>      title={Deep-MacroFin: Informed Equilibrium Neural Network for Continuous Time Economic Models}, 
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>      author={Yuntao Wu and Jiayuan Guo and Goutham Gopalakrishna and Zisis Poulos},
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>      year={2024},
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>      eprint={2408.10368},
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>      archivePrefix={arXiv},
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>      primaryClass={cs.LG},
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>      url={https://arxiv.org/abs/2408.10368}, 
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>}
 </span></code></pre></div>
 <!-- [^1]: Adrien d'Avernas and Damon Petersen and Quentin Vandeweyer, *"Macro-financial Modeling in Python: PyMacroFin"*, 2021-11-18  
 [^2]: Lu, Lu and Meng, Xuhui and Mao, Zhiping and Karniadakis, George Em, *"DeepXDE: A deep learning library for solving differential equations"*, SIAM Review, 63(1): 208–228, 2021 -->

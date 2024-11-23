@@ -22,7 +22,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.44">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.45">
     
     
       
@@ -1660,7 +1660,7 @@ Add boundary/initial condition for a specific endogenous variable with associate
 </span></code></pre></div>
 <p>This function overwrites the existing configurations. Can be used for L-BFGS finetuning</p>
 <h3 id="train_model">train_model</h3>
-<div class="language-py highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">def</span> <span class="nf">train_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_dir</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;./&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">full_log</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<div class="language-py highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">def</span> <span class="nf">train_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_dir</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;./&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">full_log</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">variables_to_track</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="p">[]):</span>
 </span></code></pre></div>
 <p>The entire loop of training</p>
 <p><strong>Parameters</strong>:</p>
@@ -1668,6 +1668,7 @@ Add boundary/initial condition for a specific endogenous variable with associate
 <li>model_dir: <strong>str</strong>, the directory to save the model. If the directory doesn't exist, it will be created automatically.</li>
 <li>filename: <strong>str</strong>, the filename of the model, it will be the prefix for loss table and log file.</li>
 <li>full_log: <strong>bool</strong>, whether or not log all individual losses in the log file.</li>
+<li>variables_to_track: <strong>List[str]</strong>, variables to keep track of.</li>
 </ul>
 <h3 id="eval_model">eval_model</h3>
 <div class="language-py highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="k">def</span> <span class="nf">eval_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">full_log</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
