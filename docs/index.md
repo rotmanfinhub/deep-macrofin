@@ -12,7 +12,25 @@ The stable version of the package can be installed from PyPI.
 pip install deep-macrofin
 ```
 
-### Build from Source
+### Build from Source (with poetry)
+The project is now configured with [poetry](https://python-poetry.org/) for dependency management and packaging. 
+To install the dependencies and run the code:
+
+1. Clone the repository
+```bash
+git clone https://github.com/rotmanfinhub/deep-macrofin.git
+```
+
+2. Install poetry by following the official documentation [here](https://python-poetry.org/docs/#installation)
+
+3. Create a poetry virtual environment and install the dependencies and the package
+```bash
+poetry config virtualenvs.in-project true --local # this sets the virtual environment path to be in the local directory.
+poetry shell # creates the virtual environment
+poetry install --no-interaction # installs the dependencies and the package
+```
+
+### Build from Source (without poetry)
 
 For developers, you should clone the folder to your local machine and install from the local folder.
 

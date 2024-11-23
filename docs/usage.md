@@ -151,10 +151,12 @@ By default, `positive=False`, each model can output any values $(-\infty,\infty)
 DEFAULT_LEARNABLE_VAR_CONFIG = {
     "device": "cuda" if torch.cuda.is_available() else "cpu",
     "hidden_units": [30, 30, 30, 30],
+    "output_size": 1,
     "layer_type": LayerType.MLP,
     "activation_type": ActivationType.Tanh,
     "positive": False,
     "derivative_order": 2,
+    "batch_jac_hes": False,
 }
 ```
 
@@ -197,6 +199,18 @@ pde_model.add_endog("qa",
         "layer_type": LayerType.KAN}
 )
 ```
+
+### Batched Derivative Computation
+
+If the learnable variable has multiple outputs, `config["output_size"] > 1`, or if we want to achieve higher parallelism, it is suggested that we use batched derivative computation. This can be done by setting `config["batch_jac_hes"] = True`. This will use PyTorch's `vmap`, `jacrev` and `hessian` for efficient computation. Specifically,
+
+```python
+name_Jac: lambda x:vmap(jacrev(self.forward))(x),
+name_Hess: lambda x:vmap(hessian(self.forward))(x),
+```
+
+The computed Jacobian `name_Jac` has shape $B\times O\times I$, and the computed Hessian `name_Hess` has shape $B\times O\times I\times I$, where $B$ is the batch size, $O$ is the number of outputs, and $I$ is the number of inputs.
+
 
 ### Defining Multiple Agents/EndogVars
 Multiple agents and endogenous variables with different configurations can be added to PDEModel at the same time using `add_agents` ([API](./api/pde_model.md#add_agents)) and `add_endogs` ([API](./api/pde_model.md#add_endogs)). The following code adds two agents `"xii", "xih"`, and five endogenous variables `"mue", "qa", "wia", "wha", "sigea"` to a PDEModel.

@@ -192,7 +192,7 @@ This function overwrites the existing configurations. Can be used for L-BFGS fin
 
 ### train_model
 ```py
-def train_model(self, model_dir: str="./", filename: str=None, full_log=False)
+def train_model(self, model_dir: str="./", filename: str=None, full_log=False, variables_to_track: List[str]=[]):
 ```
 
 The entire loop of training
@@ -202,6 +202,7 @@ The entire loop of training
 - model_dir: **str**, the directory to save the model. If the directory doesn't exist, it will be created automatically.
 - filename: **str**, the filename of the model, it will be the prefix for loss table and log file.
 - full_log: **bool**, whether or not log all individual losses in the log file.
+- variables_to_track: **List[str]**, variables to keep track of.
 
 ### eval_model
 ```py

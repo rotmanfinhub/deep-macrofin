@@ -14,13 +14,15 @@ Base class for agents and endogenous variables. This is a subclass of `torch.nn`
 - name: **str**, The name of the model.  
 - state_variables: **List[str]**, List of state variables.  
 - config: **Dict[str, Any]**, specifies number of layers/hidden units of the neural network and highest order of derivatives to take. 
-    - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available  
-    - hidden_units: **List[int]**, number of units in each layer, default: [30, 30, 30, 30]  
-    - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP  
-    - activation_type: **str**, a selection from the ActivationType enum, default: ActivationType.Tanh  
-    - positive: **bool**, apply softplus to the output to be always positive if true, default: false  
-    - hardcode_function: a lambda function for hardcoded forwarding function, default: None  
-    - derivative_order: **int**, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables  
+    - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
+    - hidden_units: **List[int]**, number of units in each layer, default: [30, 30, 30, 30]
+    - output_size: **int**, number of output units, default: 1 for MLP, and last hidden unit size for KAN and MultKAN
+    - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
+    - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+    - positive: **bool**, apply softplus to the output to be always positive if true, default: false (This has no effect for KAN.)
+    - hardcode_function: a lambda function for hardcoded forwarding function, default: None
+    - derivative_order: **int**, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables
+    - batch_jac_hes: **bool**, whether to use batch jacobian or hessian for computing derivatives, default: False (When True, only name_Jac and name_Hess are included in the derivatives dictionary, and derivative_order is ignored; When False, all derivatives name_x, name_y, etc are included.)
 
 ### get_all_derivatives
 Get all derivatives of the current variable, upto a specific order defined by the user with `derivative_order`. The construction of derivatives can be found in [derivative_utils](#derivative_utils).
@@ -38,6 +40,12 @@ def get_all_derivatives(self):
         "qa_tt": lambda x:self.compute_derivative(x, "tt"),
         "qa_et": lambda x:self.compute_derivative(x, "et"),
         "qa_te": lambda x:self.compute_derivative(x, "te"),
+    }
+
+    If "batch_jac_hes" is True, it will only include the name_Jac and name_Hess in the dictionary. 
+    {
+        "qa_Jac": lambda x:vmap(jacrev(self.forward))(x),
+        "qa_Hess": lambda x:vmap(hessian(self.forward))(x),
     }
 
     Note that the last two will be the same for C^2 functions, 
