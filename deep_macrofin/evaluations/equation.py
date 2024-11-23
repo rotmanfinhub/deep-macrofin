@@ -21,7 +21,7 @@ class Equation:
         assert "=" in eq, f"The equation ({eq}) does not contain '='."
         self.label = label
         self.eq = eq.replace("==", "=")  # Ensure single equals for assignment
-        eq_splitted = self.eq.split("=")
+        eq_splitted = self.eq.split("=", maxsplit=1)
         self.lhs = Formula(eq_splitted[0], EvaluationMethod.Eval, latex_var_mapping)
         self.rhs = Formula(eq_splitted[1], EvaluationMethod.Eval, latex_var_mapping)
 

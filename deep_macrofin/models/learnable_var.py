@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.func import hessian, jacrev, vmap
 
 from .derivative_utils import *
 from .model_utils import *
@@ -26,17 +27,18 @@ class LearnableVar(nn.Module):
         Config: specifies number of layers/hidden units of the neural network and highest order of derivatives to take.
             - device: **str**, the device to run the model on (e.g., "cpu", "cuda"), default will be chosen based on whether or not GPU is available
             - hidden_units: **List[int]**, number of units in each layer, default: [30, 30, 30, 30]
+            - output_size: **int**, number of output units, default: 1 for MLP, and last hidden unit size for KAN and MultKAN
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
             - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
-            - positive: **bool**, apply softplus to the output to be always positive if true, default: false
+            - positive: **bool**, apply softplus to the output to be always positive if true, default: false (This has no effect for KAN.)
             - hardcode_function: a lambda function for hardcoded forwarding function, default: None
             - derivative_order: int, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables
+            - batch_jac_hes: **bool**, whether to use batch jacobian or hessian for computing derivatives, default: False (When True, only name_Jac and name_Hess are included in the derivatives dictionary, and derivative_order is ignored; When False, all derivatives name_x, name_y, etc are included.)
         '''
         super(LearnableVar, self).__init__()
         self.name = name
         self.state_variables = state_variables
         config["input_size"] = len(self.state_variables)
-        config["output_size"] = 1
         self.config = self.check_inputs(config)
         self.device = self.config["device"]
         self.build_network()
@@ -60,9 +62,15 @@ class LearnableVar(nn.Module):
         
         if "hardcode_function" not in config and "hidden_units" not in config:
             config["hidden_units"] = [30, 30, 30, 30]
+        
+        if "output_size" not in config:
+            config["output_size"] = 1
 
         if "derivative_order" not in config:
             config["derivative_order"] = config["input_size"]
+
+        if "batch_jac_hes" not in config:
+            config["batch_jac_hes"] = False
 
         if config["layer_type"] in [LayerType.KAN, LayerType.MultKAN ]:
             config = self.check_inputs_KAN(config)
@@ -88,9 +96,10 @@ class LearnableVar(nn.Module):
     
     def forward(self, X: torch.Tensor):
         X = X.to(self.device)
-        if len(X.shape) == 1: 
-            # always have the shape (B, num_inputs)
-            X = X.unsqueeze(0) 
+        # The if check will never be true.
+        # if len(X.shape) == 1: 
+        #     # always have the shape (B, num_inputs)
+        #     X = X.unsqueeze(0) 
         return self.model(X)
 
     def compute_derivative(self, X: torch.Tensor, target_derivative: str):
@@ -120,14 +129,24 @@ class LearnableVar(nn.Module):
             "qa_et": lambda x:self.compute_derivative(x, "et"),
             "qa_te": lambda x:self.compute_derivative(x, "te"),
         }
+        
+        If "batch_jac_hes" is True, it will only include the name_Jac and name_Hess in the dictionary. 
+        {
+            "qa_Jac": lambda x:vmap(jacrev(self.forward))(x),
+            "qa_Hess": lambda x:vmap(hessian(self.forward))(x),
+        }
 
         Note that the last two will be the same for C^2 functions, 
         but we keep them for completeness. 
         '''
         self.derivatives = {}
         self.derivatives[self.name] = self.forward
-        for deriv_name in self.derives_template:
-            self.derivatives[deriv_name] = lambda x, target_deriv=deriv_name: self.compute_derivative(x, target_deriv) 
+        if self.config["batch_jac_hes"]:
+            self.derivatives[self.name + "_Jac"] = lambda x: vmap(jacrev(self.forward))(x)
+            self.derivatives[self.name + "_Hess"] = lambda x: vmap(hessian(self.forward))(x)
+        else:
+            for deriv_name in self.derives_template:
+                self.derivatives[deriv_name] = lambda x, target_deriv=deriv_name: self.compute_derivative(x, target_deriv) 
 
     def to_dict(self):
         '''

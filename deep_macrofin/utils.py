@@ -108,8 +108,10 @@ DEFAULT_CONFIG_TIME_STEP = {
 DEFAULT_LEARNABLE_VAR_CONFIG = {
     "device": "cuda" if torch.cuda.is_available() else "cpu",
     "hidden_units": [30, 30, 30, 30],
+    "output_size": 1,
     "layer_type": LayerType.MLP,
     "activation_type": ActivationType.Tanh,
     "positive": False,
     "derivative_order": 2,
+    "batch_jac_hes": False,
 }
