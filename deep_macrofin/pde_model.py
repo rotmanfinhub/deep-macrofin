@@ -92,6 +92,7 @@ class PDEModel:
         self.systems: Dict[str, System] = OrderedDict()
         
         self.local_function_dict: Dict[str, Callable] = OrderedDict() # should include all functions available from agents and endogenous vars (direct evaluation and derivatives)
+        self.custom_function_dict: Dict[str, Callable] = OrderedDict() # user-defined functions
 
         self.loss_reduction_dict: Dict[str, LossReductionMethod] = OrderedDict() # used to store all loss function label to reduction method mappings
 
@@ -111,6 +112,7 @@ class PDEModel:
                            self.agents, 
                            self.endog_vars, 
                            self.local_function_dict, 
+                           self.custom_function_dict,
                            self.variable_val_dict,
                            self.loss_val_dict,
                            self.loss_weight_dict]:
@@ -121,6 +123,7 @@ class PDEModel:
                            self.agents, 
                            self.endog_vars, 
                            self.local_function_dict, 
+                           self.custom_function_dict,
                            self.variable_val_dict,
                            self.loss_val_dict,
                            self.loss_weight_dict]:
@@ -222,6 +225,7 @@ class PDEModel:
         new_agent = Agent(name, self.state_variables, agent_config)
         self.agents[name] = new_agent
         self.local_function_dict.update(new_agent.derivatives)
+        self.custom_function_dict.update({f"compute_{k}": v for k, v in new_agent.derivatives.items()})
         for func_name in new_agent.derivatives:
             self.variable_val_dict[func_name] = torch.zeros((self.batch_size, 1), device=self.device)
     
@@ -314,6 +318,7 @@ class PDEModel:
         new_endog_var = EndogVar(name, self.state_variables, endog_var_config)
         self.endog_vars[name] = new_endog_var
         self.local_function_dict.update(new_endog_var.derivatives)
+        self.custom_function_dict.update({f"compute_{k}": v for k, v in new_endog_var.derivatives.items()})
         for func_name in new_endog_var.derivatives:
             self.variable_val_dict[func_name] = torch.zeros((self.batch_size, 1), device=self.device)
 
@@ -384,6 +389,10 @@ class PDEModel:
         self.equations[label] = new_eq
         self.variable_val_dict[new_eq.lhs.formula_str] = torch.zeros((self.batch_size, 1), device=self.device)
 
+    def add_equations(self, eqs: List[str]):
+        for eq in eqs:
+            self.add_equation(eq)
+
     def add_endog_equation(self, eq: str, label: str=None, weight=1.0, 
                 loss_reduction: LossReductionMethod=LossReductionMethod.MSE):
         '''
@@ -443,6 +452,10 @@ class PDEModel:
         self.loss_val_dict[label] = torch.zeros(1, device=self.device)
         self.loss_weight_dict[label] = weight
 
+    def register_function(self, func: Callable):
+        self.check_name_used(func.__name__)
+        self.custom_function_dict[func.__name__] = func
+
     def update_variables(self, SV):
         '''
         update the agent/endogenous variables and variables defined by users using equations
@@ -454,7 +467,7 @@ class PDEModel:
         # properly update variables, using equations
         for eq_name in self.equations:
             lhs = self.equations[eq_name].lhs.formula_str
-            self.variable_val_dict[lhs] = self.equations[eq_name].eval({}, self.variable_val_dict)
+            self.variable_val_dict[lhs] = self.equations[eq_name].eval(self.custom_function_dict, self.variable_val_dict)
     
     def loss_fn(self):
         '''
@@ -476,16 +489,16 @@ class PDEModel:
 
         # for all other formula/equations, we can use the pre-computed values of a specific state to compute the loss
         for label in self.endog_equations:
-            self.loss_val_dict[label] = self.endog_equations[label].eval({}, self.variable_val_dict, self.loss_reduction_dict[label])
+            self.loss_val_dict[label] = self.endog_equations[label].eval(self.custom_function_dict, self.variable_val_dict, self.loss_reduction_dict[label])
 
         for label in self.constraints:
-            self.loss_val_dict[label] = self.constraints[label].eval({}, self.variable_val_dict, self.loss_reduction_dict[label])
+            self.loss_val_dict[label] = self.constraints[label].eval(self.custom_function_dict, self.variable_val_dict, self.loss_reduction_dict[label])
 
         for label in self.hjb_equations:
-            self.loss_val_dict[label] = self.hjb_equations[label].eval({}, self.variable_val_dict, self.loss_reduction_dict[label])
+            self.loss_val_dict[label] = self.hjb_equations[label].eval(self.custom_function_dict, self.variable_val_dict, self.loss_reduction_dict[label])
 
         for label in self.systems:
-            self.loss_val_dict[label] = self.systems[label].eval({}, self.variable_val_dict)
+            self.loss_val_dict[label] = self.systems[label].eval(self.custom_function_dict, self.variable_val_dict)
 
     def closure(self, SV):
         self.update_variables(SV)
@@ -512,22 +525,22 @@ class PDEModel:
             total_loss += torch.where(temp.isnan(), 0.0, temp)
 
         for label in self.endog_equations:
-            self.loss_val_dict[label] = torch.square(self.endog_equations[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.B, 1))
+            self.loss_val_dict[label] = torch.square(self.endog_equations[label].eval_no_loss(self.custom_function_dict, self.variable_val_dict)).reshape((self.B, 1))
             temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
             total_loss += torch.where(temp.isnan(), 0.0, temp)
 
         for label in self.constraints:
-            self.loss_val_dict[label] = torch.square(self.constraints[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.B, 1))
+            self.loss_val_dict[label] = torch.square(self.constraints[label].eval_no_loss(self.custom_function_dict, self.variable_val_dict)).reshape((self.B, 1))
             temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
             total_loss += torch.where(temp.isnan(), 0.0, temp)
 
         for label in self.hjb_equations:
-            self.loss_val_dict[label] = torch.square(self.hjb_equations[label].eval_no_loss({}, self.variable_val_dict)).reshape((self.B, 1))
+            self.loss_val_dict[label] = torch.square(self.hjb_equations[label].eval_no_loss(self.custom_function_dict, self.variable_val_dict)).reshape((self.B, 1))
             temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
             total_loss += torch.where(temp.isnan(), 0.0, temp)
 
         for label in self.systems:
-            self.loss_val_dict[label] = torch.square(self.systems[label].eval_no_loss({}, self.variable_val_dict, self.B)).reshape((self.B, 1))
+            self.loss_val_dict[label] = torch.square(self.systems[label].eval_no_loss(self.custom_function_dict, self.variable_val_dict, self.B)).reshape((self.B, 1))
             temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
             total_loss += torch.where(temp.isnan(), 0.0, temp)
 
@@ -655,22 +668,22 @@ class PDEModel:
         # update variables, using equations
         for eq_name in self.equations:
             lhs = self.equations[eq_name].lhs.formula_str
-            variable_val_dict_[lhs] = self.equations[eq_name].eval({}, variable_val_dict_)
+            variable_val_dict_[lhs] = self.equations[eq_name].eval(self.custom_function_dict, variable_val_dict_)
 
         # compute total losses, without reducing to a single value, keep the original dimension, but summing up using abs values
         # Note that the conditions (IC/BC, or user pre-defined sampling regions) are not considered
         # Systems are not considered
         for label in self.endog_equations:
-            total_loss += torch.abs(self.endog_equations[label].eval_no_loss({}, variable_val_dict_)).reshape((self.batch_size, 1))
+            total_loss += torch.abs(self.endog_equations[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((self.batch_size, 1))
 
         for label in self.constraints:
-            total_loss += torch.abs(self.constraints[label].eval_no_loss({}, variable_val_dict_)).reshape((self.batch_size, 1))
+            total_loss += torch.abs(self.constraints[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((self.batch_size, 1))
 
         for label in self.hjb_equations:
-            total_loss += torch.abs(self.hjb_equations[label].eval_no_loss({}, variable_val_dict_)).reshape((self.batch_size, 1))
+            total_loss += torch.abs(self.hjb_equations[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((self.batch_size, 1))
 
         for label in self.systems:
-            total_loss += torch.abs(self.systems[label].eval_no_loss({}, variable_val_dict_, self.batch_size)).reshape((self.batch_size, 1))
+            total_loss += torch.abs(self.systems[label].eval_no_loss(self.custom_function_dict, variable_val_dict_, self.batch_size)).reshape((self.batch_size, 1))
 
         self.batch_size = self.config.get("batch_size", 100) # reset the batch size for normal computation
         self.set_all_model_training() # reset the model for training stage
@@ -850,7 +863,7 @@ class PDEModel:
         # update variables, using equations
         for eq_name in self.equations:
             lhs = self.equations[eq_name].lhs.formula_str
-            temp_dict[lhs] = self.equations[eq_name].eval({}, temp_dict)
+            temp_dict[lhs] = self.equations[eq_name].eval(self.custom_function_dict, temp_dict)
 
         new_vals = {}
         for k in self.prev_vals:
@@ -1187,7 +1200,7 @@ class PDEModel:
         for agent_name in self.agents:
             try:
                 y = self.agents[agent_name].forward(sv)
-                assert y.shape[0] == sv.shape[0] and y.shape[1] == 1
+                assert y.shape[0] == sv.shape[0] and y.shape[1] == self.agents[agent_name].config["output_size"]
             except Exception as e:
                 errors.append({
                     "label": agent_name, 
@@ -1197,7 +1210,7 @@ class PDEModel:
         for endog_var_name in self.endog_vars:
             try:
                 y = self.endog_vars[endog_var_name].forward(sv)
-                assert y.shape[0] == sv.shape[0] and y.shape[1] == 1
+                assert y.shape[0] == sv.shape[0] and y.shape[1] == self.endog_vars[endog_var_name].config["output_size"]
             except Exception as e:
                 errors.append({
                     "label": endog_var_name,
@@ -1235,7 +1248,7 @@ class PDEModel:
         for label in self.equations:
             try:
                 lhs = self.equations[label].lhs.formula_str
-                variable_val_dict_[lhs] = self.equations[label].eval({}, variable_val_dict_)
+                variable_val_dict_[lhs] = self.equations[label].eval(self.custom_function_dict, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
@@ -1248,7 +1261,7 @@ class PDEModel:
 
         for label in self.endog_equations:
             try:
-                self.endog_equations[label].eval({}, variable_val_dict_)
+                self.endog_equations[label].eval(self.custom_function_dict, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
@@ -1260,7 +1273,7 @@ class PDEModel:
 
         for label in self.constraints:
             try:
-                self.constraints[label].eval({}, variable_val_dict_)
+                self.constraints[label].eval(self.custom_function_dict, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
@@ -1271,7 +1284,7 @@ class PDEModel:
 
         for label in self.hjb_equations:
             try:
-                self.hjb_equations[label].eval({}, variable_val_dict_)
+                self.hjb_equations[label].eval(self.custom_function_dict, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
@@ -1283,7 +1296,7 @@ class PDEModel:
 
         for label in self.systems:
             try:
-                self.systems[label].eval({}, variable_val_dict_)
+                self.systems[label].eval(self.custom_function_dict, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     # it's fine to have zero division. All other errors should be raised
@@ -1364,7 +1377,7 @@ class PDEModel:
             param_copy = self.params.copy()
             for k, v in param_copy.items():
                 if isinstance(v, torch.Tensor):
-                    param_copy[k] = v.item()
+                    param_copy[k] = v.tolist()
             str_repr += "User Defined Parameters:\n" + json.dumps(param_copy, indent=True) + "\n\n"
 
         str_repr += "{0:=^80}\n".format("State Variables")
@@ -1480,7 +1493,7 @@ class PDEModel:
             # properly update variables, using equations
             for eq_name in self.equations:
                 lhs = self.equations[eq_name].lhs.formula_str
-                variable_var_dict_[lhs] = self.equations[eq_name].eval({}, variable_var_dict_)
+                variable_var_dict_[lhs] = self.equations[eq_name].eval(self.custom_function_dict, variable_var_dict_)
 
             sv_text = self.state_variables[0]
             if self.state_variables[0] in var_to_latex:
@@ -1501,7 +1514,7 @@ class PDEModel:
                     if "=" in curr_var:
                         curr_eq = Equation(curr_var, f"plot_eq{i}", self.latex_var_mapping)
                         lhs = curr_eq.lhs.formula_str
-                        variable_var_dict_[lhs] = curr_eq.eval({}, variable_var_dict_)
+                        variable_var_dict_[lhs] = curr_eq.eval(self.custom_function_dict, variable_var_dict_)
                         curr_ax.plot(X, variable_var_dict_[lhs].detach().cpu().numpy().reshape(-1))
                         curr_ax.set_xlabel(sv_text)
                         lhs_unparsed = curr_var.split("=")[0].replace("$", "").strip()
@@ -1518,7 +1531,7 @@ class PDEModel:
                     if "=" in curr_var:
                         curr_eq = Equation(curr_var, f"plot_eq{i}", self.latex_var_mapping)
                         lhs = curr_eq.lhs.formula_str
-                        variable_var_dict_[lhs] = curr_eq.eval({}, variable_var_dict_)
+                        variable_var_dict_[lhs] = curr_eq.eval(self.custom_function_dict, variable_var_dict_)
                         curr_ax.plot(X, variable_var_dict_[lhs].detach().cpu().numpy().reshape(-1))
                         curr_ax.set_xlabel(sv_text)
                         curr_ax.set_ylabel(lhs)
@@ -1547,7 +1560,7 @@ class PDEModel:
             # properly update variables, using equations
             for eq_name in self.equations:
                 lhs = self.equations[eq_name].lhs.formula_str
-                variable_var_dict_[lhs] = self.equations[eq_name].eval({}, variable_var_dict_)
+                variable_var_dict_[lhs] = self.equations[eq_name].eval(self.custom_function_dict, variable_var_dict_)
 
             sv_text0 = self.state_variables[0]
             sv_text1 = self.state_variables[1]
@@ -1571,7 +1584,7 @@ class PDEModel:
                     if "=" in curr_var:
                         curr_eq = Equation(curr_var, f"plot_eq{i}", self.latex_var_mapping)
                         lhs = curr_eq.lhs.formula_str
-                        variable_var_dict_[lhs] = curr_eq.eval({}, variable_var_dict_)
+                        variable_var_dict_[lhs] = curr_eq.eval(self.custom_function_dict, variable_var_dict_)
                         curr_ax.plot_surface(X, Y, variable_var_dict_[lhs].detach().cpu().numpy().reshape(100, 100))
                         curr_ax.set_xlabel(sv_text0)
                         curr_ax.set_ylabel(sv_text1)
@@ -1590,7 +1603,7 @@ class PDEModel:
                     if "=" in curr_var:
                         curr_eq = Equation(curr_var, f"plot_eq{i}", self.latex_var_mapping)
                         lhs = curr_eq.lhs.formula_str
-                        variable_var_dict_[lhs] = curr_eq.eval({}, variable_var_dict_)
+                        variable_var_dict_[lhs] = curr_eq.eval(self.custom_function_dict, variable_var_dict_)
                         curr_ax.plot_surface(X, Y, variable_var_dict_[lhs].detach().cpu().numpy().reshape(100, 100))
                         curr_ax.set_xlabel(sv_text0)
                         curr_ax.set_ylabel(sv_text1)
