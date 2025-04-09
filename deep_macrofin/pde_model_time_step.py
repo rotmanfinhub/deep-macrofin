@@ -99,6 +99,7 @@ class PDEModelTimeStep(PDEModel):
         self.systems: Dict[str, System] = OrderedDict()
         
         self.local_function_dict: Dict[str, Callable] = OrderedDict() # should include all functions available from agents and endogenous vars (direct evaluation and derivatives)
+        self.custom_function_dict: Dict[str, Callable] = OrderedDict() # user-defined functions
 
         self.loss_reduction_dict: Dict[str, LossReductionMethod] = OrderedDict() # used to store all loss function label to reduction method mappings
 
@@ -125,8 +126,9 @@ class PDEModelTimeStep(PDEModel):
         using this function
         '''
         assert name in self.agents, f"Agent {name} does not exist"
+        output_size = self.agents[name].config["output_size"]
         assert loss_reduction != LossReductionMethod.NONE, "reduction must be applied for time stepping scheme"
-        assert time_boundary_value.shape == torch.Size((self.batch_size ** (len(self.state_variables) - 1), 1)) or time_boundary_value.shape == torch.Size((self.batch_size, 1)), "shape of boundary value does not match the state variable grid size"
+        assert time_boundary_value.shape == torch.Size((self.batch_size ** (len(self.state_variables) - 1), output_size)) or time_boundary_value.shape == torch.Size((self.batch_size, output_size)), "shape of boundary value does not match the state variable grid size"
         label = f"agent_{name}_cond_time_boundary"
         self.agent_conditions[label] = AgentConditions(name, 
                                                        f"{name}(SV)", {"SV": self.__sample_boundary_cond(self.config["max_t"])}, 
@@ -148,8 +150,9 @@ class PDEModelTimeStep(PDEModel):
         using this function
         '''
         assert name in self.endog_vars, f"Endogenous variable {name} does not exist"
+        output_size = self.endog_vars[name].config["output_size"]
         assert loss_reduction != LossReductionMethod.NONE, "reduction must be applied for time stepping scheme"
-        assert time_boundary_value.shape == torch.Size((self.batch_size ** (len(self.state_variables) - 1), 1)) or time_boundary_value.shape == torch.Size((self.batch_size, 1)), "shape of boundary value does not match the state variable grid size"
+        assert time_boundary_value.shape == torch.Size((self.batch_size ** (len(self.state_variables) - 1), output_size)) or time_boundary_value.shape == torch.Size((self.batch_size, output_size)), "shape of boundary value does not match the state variable grid size"
         label = f"endogvar_{name}_cond_time_boundary"
         self.endog_var_conditions[label] = EndogVarConditions(name, 
                                                        f"{name}(SV)", {"SV": self.__sample_boundary_cond(self.config["max_t"])}, 
@@ -247,22 +250,22 @@ class PDEModelTimeStep(PDEModel):
         # update variables, using equations
         for eq_name in self.equations:
             lhs = self.equations[eq_name].lhs.formula_str
-            variable_val_dict_[lhs] = self.equations[eq_name].eval({}, variable_val_dict_)
+            variable_val_dict_[lhs] = self.equations[eq_name].eval(self.custom_function_dict, variable_val_dict_)
 
         # compute total losses, without reducing to a single value, keep the original dimension, but summing up using abs values
         # Note that the conditions (IC/BC, or user pre-defined sampling regions) are not considered
         # Systems are not considered
         for label in self.endog_equations:
-            total_loss += torch.abs(self.endog_equations[label].eval_no_loss({}, variable_val_dict_)).reshape((self.batch_size, 1))
+            total_loss += torch.abs(self.endog_equations[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((self.batch_size, 1))
 
         for label in self.constraints:
-            total_loss += torch.abs(self.constraints[label].eval_no_loss({}, variable_val_dict_)).reshape((self.batch_size, 1))
+            total_loss += torch.abs(self.constraints[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((self.batch_size, 1))
 
         for label in self.hjb_equations:
-            total_loss += torch.abs(self.hjb_equations[label].eval_no_loss({}, variable_val_dict_)).reshape((self.batch_size, 1))
+            total_loss += torch.abs(self.hjb_equations[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((self.batch_size, 1))
 
         for label in self.systems:
-            total_loss += torch.abs(self.systems[label].eval_no_loss({}, variable_val_dict_, self.batch_size)).reshape((self.batch_size, 1))
+            total_loss += torch.abs(self.systems[label].eval_no_loss(self.custom_function_dict, variable_val_dict_, self.batch_size)).reshape((self.batch_size, 1))
 
         self.batch_size = self.config.get("batch_size", 100) # reset the batch size for normal computation
         self.set_all_model_training() # reset the model for training stage
@@ -351,7 +354,7 @@ class PDEModelTimeStep(PDEModel):
         # update variables, using equations
         for eq_name in self.equations:
             lhs = self.equations[eq_name].lhs.formula_str
-            temp_dict[lhs] = self.equations[eq_name].eval({}, temp_dict)
+            temp_dict[lhs] = self.equations[eq_name].eval(self.custom_function_dict, temp_dict)
 
         new_vals = {}
         for k in self.prev_vals:
@@ -479,10 +482,13 @@ class PDEModelTimeStep(PDEModel):
         SV_T0.requires_grad_(True)
 
         self.prev_vals = {}
+        B = SV_T0.shape[0]
         for agent_name in self.agents:
-            self.prev_vals[agent_name] = torch.ones_like(SV_T0[:, 0:1], device=self.device) * self.initial_guess.get(agent_name, 1)
+            output_size = self.agents[agent_name].config["output_size"]
+            self.prev_vals[agent_name] = torch.ones((B, output_size), device=self.device) * self.initial_guess.get(agent_name, 1)
         for endog_name in self.endog_vars:
-            self.prev_vals[endog_name] = torch.ones_like(SV_T0[:, 0:1], device=self.device) * self.initial_guess.get(endog_name, 1)
+            output_size = self.endog_vars[endog_name].config["output_size"]
+            self.prev_vals[endog_name] = torch.ones((B, output_size), device=self.device) * self.initial_guess.get(endog_name, 1)
         variables_to_check_ = []
         for var in variables_to_track:
             if var in self.variable_val_dict and var not in self.prev_vals:
@@ -660,7 +666,7 @@ class PDEModelTimeStep(PDEModel):
         for agent_name in self.agents:
             try:
                 y = self.agents[agent_name].forward(sv)
-                assert y.shape[0] == sv.shape[0] and y.shape[1] == 1
+                assert y.shape[0] == sv.shape[0] and y.shape[1] == self.agents[agent_name].config["output_size"]
             except Exception as e:
                 errors.append({
                     "label": agent_name, 
@@ -670,7 +676,7 @@ class PDEModelTimeStep(PDEModel):
         for endog_var_name in self.endog_vars:
             try:
                 y = self.endog_vars[endog_var_name].forward(sv)
-                assert y.shape[0] == sv.shape[0] and y.shape[1] == 1
+                assert y.shape[0] == sv.shape[0] and y.shape[1] == self.endog_vars[endog_var_name].config["output_size"]
             except Exception as e:
                 errors.append({
                     "label": endog_var_name,
@@ -708,7 +714,7 @@ class PDEModelTimeStep(PDEModel):
         for label in self.equations:
             try:
                 lhs = self.equations[label].lhs.formula_str
-                variable_val_dict_[lhs] = self.equations[label].eval({}, variable_val_dict_)
+                variable_val_dict_[lhs] = self.equations[label].eval(self.custom_function_dict, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
@@ -721,7 +727,7 @@ class PDEModelTimeStep(PDEModel):
 
         for label in self.endog_equations:
             try:
-                self.endog_equations[label].eval({}, variable_val_dict_)
+                self.endog_equations[label].eval(self.custom_function_dict, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
@@ -733,7 +739,7 @@ class PDEModelTimeStep(PDEModel):
 
         for label in self.constraints:
             try:
-                self.constraints[label].eval({}, variable_val_dict_)
+                self.constraints[label].eval(self.custom_function_dict, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
@@ -744,7 +750,7 @@ class PDEModelTimeStep(PDEModel):
 
         for label in self.hjb_equations:
             try:
-                self.hjb_equations[label].eval({}, variable_val_dict_)
+                self.hjb_equations[label].eval(self.custom_function_dict, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
@@ -756,7 +762,7 @@ class PDEModelTimeStep(PDEModel):
 
         for label in self.systems:
             try:
-                self.systems[label].eval({}, variable_val_dict_)
+                self.systems[label].eval(self.custom_function_dict, variable_val_dict_)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     # it's fine to have zero division. All other errors should be raised
@@ -817,7 +823,7 @@ class PDEModelTimeStep(PDEModel):
             # properly update variables, using equations
             for eq_name in self.equations:
                 lhs = self.equations[eq_name].lhs.formula_str
-                variable_var_dict_[lhs] = self.equations[eq_name].eval({}, variable_var_dict_)
+                variable_var_dict_[lhs] = self.equations[eq_name].eval(self.custom_function_dict, variable_var_dict_)
 
             sv_text = self.state_variables[0]
             if self.state_variables[0] in var_to_latex:
@@ -838,7 +844,7 @@ class PDEModelTimeStep(PDEModel):
                     if "=" in curr_var:
                         curr_eq = Equation(curr_var, f"plot_eq{i}", self.latex_var_mapping)
                         lhs = curr_eq.lhs.formula_str
-                        variable_var_dict_[lhs] = curr_eq.eval({}, variable_var_dict_)
+                        variable_var_dict_[lhs] = curr_eq.eval(self.custom_function_dict, variable_var_dict_)
                         curr_ax.plot(X, variable_var_dict_[lhs].detach().cpu().numpy().reshape(-1))
                         curr_ax.set_xlabel(sv_text)
                         lhs_unparsed = curr_var.split("=")[0].replace("$", "").strip()
@@ -855,7 +861,7 @@ class PDEModelTimeStep(PDEModel):
                     if "=" in curr_var:
                         curr_eq = Equation(curr_var, f"plot_eq{i}", self.latex_var_mapping)
                         lhs = curr_eq.lhs.formula_str
-                        variable_var_dict_[lhs] = curr_eq.eval({}, variable_var_dict_)
+                        variable_var_dict_[lhs] = curr_eq.eval(self.custom_function_dict, variable_var_dict_)
                         curr_ax.plot(X, variable_var_dict_[lhs].detach().cpu().numpy().reshape(-1))
                         curr_ax.set_xlabel(sv_text)
                         curr_ax.set_ylabel(lhs)
@@ -884,7 +890,7 @@ class PDEModelTimeStep(PDEModel):
             # properly update variables, using equations
             for eq_name in self.equations:
                 lhs = self.equations[eq_name].lhs.formula_str
-                variable_var_dict_[lhs] = self.equations[eq_name].eval({}, variable_var_dict_)
+                variable_var_dict_[lhs] = self.equations[eq_name].eval(self.custom_function_dict, variable_var_dict_)
 
             sv_text0 = self.state_variables[0]
             sv_text1 = self.state_variables[1]
@@ -908,7 +914,7 @@ class PDEModelTimeStep(PDEModel):
                     if "=" in curr_var:
                         curr_eq = Equation(curr_var, f"plot_eq{i}", self.latex_var_mapping)
                         lhs = curr_eq.lhs.formula_str
-                        variable_var_dict_[lhs] = curr_eq.eval({}, variable_var_dict_)
+                        variable_var_dict_[lhs] = curr_eq.eval(self.custom_function_dict, variable_var_dict_)
                         curr_ax.plot_surface(X, Y, variable_var_dict_[lhs].detach().cpu().numpy().reshape(100, 100))
                         curr_ax.set_xlabel(sv_text0)
                         curr_ax.set_ylabel(sv_text1)
@@ -927,7 +933,7 @@ class PDEModelTimeStep(PDEModel):
                     if "=" in curr_var:
                         curr_eq = Equation(curr_var, f"plot_eq{i}", self.latex_var_mapping)
                         lhs = curr_eq.lhs.formula_str
-                        variable_var_dict_[lhs] = curr_eq.eval({}, variable_var_dict_)
+                        variable_var_dict_[lhs] = curr_eq.eval(self.custom_function_dict, variable_var_dict_)
                         curr_ax.plot_surface(X, Y, variable_var_dict_[lhs].detach().cpu().numpy().reshape(100, 100))
                         curr_ax.set_xlabel(sv_text0)
                         curr_ax.set_ylabel(sv_text1)

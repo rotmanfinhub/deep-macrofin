@@ -72,6 +72,9 @@ class LearnableVar(nn.Module):
         if "batch_jac_hes" not in config:
             config["batch_jac_hes"] = False
 
+        if config["output_size"] > 1:
+            config["batch_jac_hes"] = True
+
         if config["layer_type"] in [LayerType.KAN, LayerType.MultKAN ]:
             config = self.check_inputs_KAN(config)
         return config

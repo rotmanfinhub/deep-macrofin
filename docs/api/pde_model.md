@@ -154,6 +154,12 @@ def add_equation(self, eq: str, label: str=None)
 
 Add an [equation](evaluations.md#equation) to define a new variable. 
 
+### add_equations
+```py
+def add_equations(self, eqs: List[str])
+```
+
+Add multiple [equation](evaluations.md#equation) to define new variables. 
 
 ### add_endog_equation
 ```py
@@ -182,6 +188,13 @@ def add_system(self, system: System, weight=1.0)
 ```
 
 Add a [System](evaluations.md#system) for loss computation.
+
+### register_function
+```py
+def register_function(self, func: Callable)
+```
+
+Register a custom callable function for variable or loss computation.
 
 ### set_config
 ```py
