@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "deep_macrofin"
-version = "0.3.5"
+version = "0.3.6"
 description = "Deep neural network for solving continuous time economic models"
 readme = "README.md"
 license = "MIT"
