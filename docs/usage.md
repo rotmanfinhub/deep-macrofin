@@ -328,6 +328,22 @@ s.add_endog_equation("y+z = 1")
 pde_model.add_system(s) # add the system to PDEModel
 ```
 
+### Add multiple equations at the same time
+
+We can add multiple equations at once using list of strings. The equations will be labelled eq1, eq2,...
+
+```py
+model.add_equations([
+    "z = SV[:, :-1]",
+    "z_last = 1 - torch.sum(z, dim=1).unsqueeze(1)",
+    "z_all = torch.cat([z, z_last], dim=1)",
+    "dk_dz = k_Jac[:, :, :-1]",
+    "dk_dt = k_Jac[:, :, -1]",
+    "dk_dzz = k_Hess[:,:,:-1,:-1]",
+    "q = compute_q(SV, compute_k)",
+])
+```
+
 
 ### About Labels
 For all equations, conditions, etc added to the model, there is an optional parameter `label` used to identify the equations. This can be automatically set based on the sequence the equation is added to the system, and usually doesn't need to be set by the user. 
@@ -350,6 +366,26 @@ pde_model.add_equation("q_x=deriv(q, SV)[:,:1]") # this computes the derivative 
 pde_model.add_equation("q_xy=deriv(q_x, SV)[:,1:2]") # this computes the derivative d^2q/(dxdy)
 pde_model.add_equation("p_y=deriv(p, SV)[:,1:2]") # this computes the derivative dp/dy, which is p w.r.t. the second state variable y
 pde_model.add_equation("p_xy=deriv(p_y, SV)[:,:1]") # this computes the derivative d^2p/(dxdy)
+```
+
+### Register Custom Functions
+
+In some cases, the equations we want to add may be complicated and is better encapsulated as a python function. Then we can register the function and use it.
+
+All functions to compute endogenous, agent variables and their derivatives can be accessed by `compute_{name}`. E.g. if we have a variable $k$ with state variable $z$, then `compute_k`, `compute_k_z`, `compute_k_zz` can be used to compute $k$, $k_z$ and $k_{zz}$. If batch_jac_hess is enabled for the variable, then `compute_k_Jac`, `compute_k_Hess` can be used to compute jacobian and hessian with respect to the state variables.
+
+```py
+# define a function to compute q, based on k, 
+# note that compute_k must be passed in as a parameter so that we can properly evaluate
+def compute_q(SV, compute_k):
+    z = SV[..., :-1]
+    z_last = 1 - torch.sum(z, dim=-1).unsqueeze(-1)
+    z_all = torch.cat([z, z_last], dim=-1) # (B, N)
+    return z_all / compute_k(SV)
+
+# register the function so that we can use it in the computation
+model.register_function(compute_q)
+model.add_equations("q = compute_q(SV, compute_k)")
 ```
 
 ## Training and Evaluation
