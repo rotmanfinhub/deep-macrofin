@@ -21,12 +21,14 @@ DEFAULT_CONFIG_TIME_STEP = {
     "time_batch_size": None,
     "num_outer_iterations": 100,
     "num_inner_iterations": 5000,
+    "min_inner_iterations": 1000,
     "lr": 1e-3,
     "optimizer_type": OptimizerType.Adam,
     "min_t": 0.0,
     "max_t": 1.0,
+    "time_boundary_loss_reduction": LossReductionMethod.MSE,
     "outer_loop_convergence_thres": 1e-4,
-    "sampling_method": SamplingMethod.FixedGrid,
+    "sampling_method": SamplingMethod.UniformRandom,
     "refinement_rounds": 5,
     "loss_balancing": False,
     "bernoulli_prob": 0.9999,
@@ -45,6 +47,12 @@ from deep_macrofin import DEFAULT_CONFIG_TIME_STEP
 ```py
 # This sets an initial guess of 7 uniformly on the domain for variable p.
 pde_model.set_initial_guess({"p": 7.0})
+
+# This sets an initial guess using a function for variable q.
+def q_init(SV):
+    x = SV[:, :-1]
+    return torch.sum(x**2, dim=1, keepdim=True)
+pde_model.set_initial_guess({"q": q_init})
 ```
 
 Set the initial guess (uniform value across the state variable domain) for agents or endogenous variables. This is the boundary condition at $t=T$ in the first time iteration.

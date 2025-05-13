@@ -1,4 +1,5 @@
 import atexit
+import gc
 import json
 import os
 import time
@@ -455,6 +456,10 @@ class PDEModel:
     def register_function(self, func: Callable):
         self.check_name_used(func.__name__)
         self.custom_function_dict[func.__name__] = func
+    
+    def register_functions(self, funcs: List[Callable]):
+        for func in funcs:
+            self.register_function(func)
 
     def update_variables(self, SV):
         '''
@@ -937,7 +942,14 @@ class PDEModel:
             log_file.close()
 
         print(str(self), file=log_file, flush=True)
-        self.validate_model_setup(model_dir)
+        try:
+            self.validate_model_setup(model_dir)
+        except Exception as e:
+            # close the file on exception. This should be the only place for it...
+            log_file.close()
+            raise e
+        gc.collect()
+        torch.cuda.empty_cache()
         print("{0:=^80}".format("Training"))
         self.set_all_model_training()
         start_time = time.time()
