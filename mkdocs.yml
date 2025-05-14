@@ -98,3 +98,5 @@ nav:
     - '1D Problem': 'examples/macrofinance_models/1d_problem.md'
     - 'PyMacroFin 2D Problem': 'examples/macrofinance_models/pymacrofin_2d_problem.md'
     - 'Di Tella (2017)': 'examples/macrofinance_models/di_tella.md'
+    - 'Bewley-Huggett-Aiyagari': 'examples/macrofinance_models/bewley_huggett_aiyagari.md'
+    - 'Neoclassical Growth': 'examples/macrofinance_models/neoclassical_growth.md'

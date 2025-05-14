@@ -1,10 +1,11 @@
 import atexit
+import gc
 import json
 import os
 import time
 from collections import OrderedDict, defaultdict
 from copy import deepcopy
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Union
 
 import pandas as pd
 import torch
@@ -44,12 +45,14 @@ class PDEModelTimeStep(PDEModel):
             "time_batch_size": None, (if None default to batch_size, if set to a number <= 1, the total batch size will be batch_size, and time steps are randomly sampled iid with the state variables)
             "num_outer_iterations": 100, # number of time stepping iterations
             "num_inner_iterations": 5000, # initial number of training epochs within each time step, it will decay with factor of sqrt{curr_outer_iteration + 1}
+            "min_inner_iterations": 1000, # minimum number of training epochs within each time step, number of inner iterations will not decrease below this value
             "lr": 1e-3,
             "optimizer_type": OptimizerType.Adam,
             "min_t": 0.0,
             "max_t": 1.0,
+            "time_boundary_loss_reduction": LossReductionMethod.MSE,
             "outer_loop_convergence_thres": 1e-4,
-            "sampling_method": SamplingMethod.FixedGrid,
+            "sampling_method": SamplingMethod.UniformRandom,
             "refinement_rounds": 5,
             "loss_balancing": False,
             "bernoulli_prob": 0.9999,
@@ -68,18 +71,20 @@ class PDEModelTimeStep(PDEModel):
             self.time_batch_size = self.batch_size
         self.num_outer_iterations = self.config.get("num_outer_iterations", 100)
         self.num_inner_iterations = self.config.get("num_inner_iterations", 5000)
+        self.min_inner_iterations = self.config.get("min_inner_iterations", 1000)
+        self.time_boundary_loss_reduction = self.config.get("time_boundary_loss_reduction", LossReductionMethod.MSE)
         self.lr = self.config.get("lr", 1e-3)
         self.optimizer_type = self.config.get("optimizer_type", OptimizerType.Adam)
 
         if self.config["sampling_method"] == SamplingMethod.FixedGrid:
             self.sample = self.sample_fixed_grid
-            self.__sample_boundary_cond = self.__sample_fixed_grid_boundary_cond
+            self.sample_boundary_cond = self.__sample_fixed_grid_boundary_cond
         else:
             if self.time_batch_size <= 1:
                 self.sample = self.sample_uniform
             else:
                 self.sample = self.sample_uniform_ts
-            self.__sample_boundary_cond = self.__sample_uniform_boundary_cond
+            self.sample_boundary_cond = self.__sample_uniform_boundary_cond
             self.boundary_uniform_points = None
 
         self.latex_var_mapping = latex_var_mapping
@@ -108,7 +113,7 @@ class PDEModelTimeStep(PDEModel):
         self.variable_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include all local variables/params + current values, initially, all values in this dictionary can be zero
         self.loss_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include loss equation (constraints, endogenous equations, HJB equations) labels + corresponding loss values, initially, all values in this dictionary can be zero.
         self.loss_weight_dict: Dict[str, float] = OrderedDict() # should include loss equation labels + corresponding weight
-        self.initial_guess: Dict[str, float] = OrderedDict() # should include the overrides of initial guesses for agents and endog vars
+        self.initial_guess: Dict[str, Union[float, Callable]] = OrderedDict() # should include the overrides of initial guesses for agents and endog vars
         self.device = "cpu"
 
         # for residual-based adaptive refinement (RAR) and active learning
@@ -131,7 +136,7 @@ class PDEModelTimeStep(PDEModel):
         assert time_boundary_value.shape == torch.Size((self.batch_size ** (len(self.state_variables) - 1), output_size)) or time_boundary_value.shape == torch.Size((self.batch_size, output_size)), "shape of boundary value does not match the state variable grid size"
         label = f"agent_{name}_cond_time_boundary"
         self.agent_conditions[label] = AgentConditions(name, 
-                                                       f"{name}(SV)", {"SV": self.__sample_boundary_cond(self.config["max_t"])}, 
+                                                       f"{name}(SV)", {"SV": self.sample_boundary_cond(self.config["max_t"])}, 
                                                        Comparator.EQ, 
                                                        "bd_val", {"bd_val": time_boundary_value},
                                                        label, self.latex_var_mapping)
@@ -155,7 +160,7 @@ class PDEModelTimeStep(PDEModel):
         assert time_boundary_value.shape == torch.Size((self.batch_size ** (len(self.state_variables) - 1), output_size)) or time_boundary_value.shape == torch.Size((self.batch_size, output_size)), "shape of boundary value does not match the state variable grid size"
         label = f"endogvar_{name}_cond_time_boundary"
         self.endog_var_conditions[label] = EndogVarConditions(name, 
-                                                       f"{name}(SV)", {"SV": self.__sample_boundary_cond(self.config["max_t"])}, 
+                                                       f"{name}(SV)", {"SV": self.sample_boundary_cond(self.config["max_t"])}, 
                                                        Comparator.EQ, 
                                                        "bd_val", {"bd_val": time_boundary_value},
                                                        label, self.latex_var_mapping)
@@ -256,16 +261,16 @@ class PDEModelTimeStep(PDEModel):
         # Note that the conditions (IC/BC, or user pre-defined sampling regions) are not considered
         # Systems are not considered
         for label in self.endog_equations:
-            total_loss += torch.abs(self.endog_equations[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((self.batch_size, 1))
+            total_loss += torch.mean(torch.abs(self.endog_equations[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)), dim=1, keepdim=True)
 
         for label in self.constraints:
-            total_loss += torch.abs(self.constraints[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((self.batch_size, 1))
+            total_loss += torch.mean(torch.abs(self.constraints[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)), dim=1, keepdim=True)
 
         for label in self.hjb_equations:
-            total_loss += torch.abs(self.hjb_equations[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((self.batch_size, 1))
+            total_loss += torch.mean(torch.abs(self.hjb_equations[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)), dim=1, keepdim=True)
 
         for label in self.systems:
-            total_loss += torch.abs(self.systems[label].eval_no_loss(self.custom_function_dict, variable_val_dict_, self.batch_size)).reshape((self.batch_size, 1))
+            total_loss += torch.mean(torch.abs(self.systems[label].eval_no_loss(self.custom_function_dict, variable_val_dict_, self.batch_size)), dim=1, keepdim=True)
 
         self.batch_size = self.config.get("batch_size", 100) # reset the batch size for normal computation
         self.set_all_model_training() # reset the model for training stage
@@ -425,7 +430,7 @@ class PDEModelTimeStep(PDEModel):
             for i, (loss_label, loss) in enumerate(self.loss_val_dict.items()):
                 self.prev_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss).item()
     
-    def set_initial_guess(self, initial_guess: Dict[str, float]):
+    def set_initial_guess(self, initial_guess: Dict[str, Union[float, Callable]]):
         '''
         Set the initial guess (uniform value across the state variable domain) for agents or endogenous variables.
 
@@ -468,6 +473,8 @@ class PDEModelTimeStep(PDEModel):
             # close the file on exception. This should be the only place for it...
             log_file.close()
             raise e
+        gc.collect()
+        torch.cuda.empty_cache()
         print("{0:=^80}".format("Training"))
         self.set_all_model_training()
         start_time = time.time()
@@ -478,17 +485,23 @@ class PDEModelTimeStep(PDEModel):
             self.variable_val_dict[sv_name] = SV[:, i:i+1]
         self.variable_val_dict["SV"] = SV
 
-        SV_T0 = self.__sample_boundary_cond(self.config["min_t"]) # This is used for time step matching
+        SV_T0 = self.sample_boundary_cond(self.config["min_t"]) # This is used for time step matching
         SV_T0.requires_grad_(True)
 
         self.prev_vals = {}
         B = SV_T0.shape[0]
         for agent_name in self.agents:
             output_size = self.agents[agent_name].config["output_size"]
-            self.prev_vals[agent_name] = torch.ones((B, output_size), device=self.device) * self.initial_guess.get(agent_name, 1)
+            curr_init_guess = self.initial_guess.get(agent_name, 1)
+            if isinstance(curr_init_guess, Callable):
+                curr_init_guess = curr_init_guess(SV_T0)
+            self.prev_vals[agent_name] = torch.ones((B, output_size), device=self.device) * curr_init_guess
         for endog_name in self.endog_vars:
             output_size = self.endog_vars[endog_name].config["output_size"]
-            self.prev_vals[endog_name] = torch.ones((B, output_size), device=self.device) * self.initial_guess.get(endog_name, 1)
+            curr_init_guess = self.initial_guess.get(endog_name, 1)
+            if isinstance(curr_init_guess, Callable):
+                curr_init_guess = curr_init_guess(SV_T0)
+            self.prev_vals[endog_name] = torch.ones((B, output_size), device=self.device) * curr_init_guess
         variables_to_check_ = []
         for var in variables_to_track:
             if var in self.variable_val_dict and var not in self.prev_vals:
@@ -514,9 +527,11 @@ class PDEModelTimeStep(PDEModel):
             self.__init_optimizer()
             outer_loop_start_time = time.time()
             for agent_name in self.agents:
-                self.__set_agent_time_boundary_condition(agent_name, self.prev_vals[agent_name])
+                self.__set_agent_time_boundary_condition(agent_name, self.prev_vals[agent_name], 
+                                                         loss_reduction=self.time_boundary_loss_reduction)
             for endog_name in self.endog_vars:
-                self.__set_endog_time_boundary_condition(endog_name, self.prev_vals[endog_name])
+                self.__set_endog_time_boundary_condition(endog_name, self.prev_vals[endog_name], 
+                                                         loss_reduction=self.time_boundary_loss_reduction)
 
             # ensure random exploration of the space if uniform random is used
             set_seeds(outer_loop_iter)
@@ -529,7 +544,7 @@ class PDEModelTimeStep(PDEModel):
             OnInnerLoopStart()
             set_seeds(0)
             min_loss = torch.inf
-            num_inner_iters: int = int(self.num_inner_iterations / (np.sqrt(outer_loop_iter + 1)))
+            num_inner_iters: int = max(int(self.num_inner_iterations / (np.sqrt(outer_loop_iter + 1))), self.min_inner_iterations)
             pbar = tqdm(range(num_inner_iters))
             for epoch in pbar:
                 self.optimizer.step(lambda: self.closure(SV))
