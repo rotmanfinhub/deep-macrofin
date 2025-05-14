@@ -2,90 +2,98 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/faq/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/usage/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/usage_timestep/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/api/evaluations/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/api/models/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/api/pde_model/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/api/pde_model_time_step/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/api/utils/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/examples/approx/discont/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/examples/macrofinance_models/1d_problem/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
+    </url>
+    <url>
+         <loc>https://rotmanfinhub.github.io/deep-macrofin/examples/macrofinance_models/bewley_huggett_aiyagari/</loc>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/examples/macrofinance_models/di_tella/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/examples/macrofinance_models/log_utility/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
+    </url>
+    <url>
+         <loc>https://rotmanfinhub.github.io/deep-macrofin/examples/macrofinance_models/neoclassical_growth/</loc>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/examples/macrofinance_models/pymacrofin_2d_problem/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/examples/odes/basic_ode1/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/examples/odes/basic_ode2/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/examples/odes/cauchy-euler/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/examples/odes/predator_prey/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/examples/odes/second_order/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/examples/pdes/diffusion/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/examples/pdes/heat/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
     <url>
          <loc>https://rotmanfinhub.github.io/deep-macrofin/examples/pdes/laplace/</loc>
-         <lastmod>2025-04-09</lastmod>
+         <lastmod>2025-05-14</lastmod>
     </url>
 </urlset>
