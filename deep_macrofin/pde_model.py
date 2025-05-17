@@ -212,6 +212,10 @@ class PDEModel:
             - hardcode_function: a lambda function for hardcoded forwarding function, default: None
             - derivative_order: int, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables
             - batch_jac_hes: **bool**, whether to use batch jacobian or hessian for computing derivatives, default: False (When True, only name_Jac and name_Hess are included in the derivatives dictionary, and derivative_order is ignored; When False, all derivatives name_x, name_y, etc are included.)
+            - input_size_sym: int, number of dimensions that should impose symmetry, for layer_type==LayerType.DeepSet
+            - input_size_ext: int, number of extra dimensions, for layer_type==LayerType.DeepSet
+            - hidden_units_phi: List[int], number of hidden units in phi, for layer_type==LayerType.DeepSet
+            - hidden_units_rho: List[int], number of hidden units in rho, for layer_type==LayerType.DeepSet
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         if not overwrite:
@@ -245,6 +249,10 @@ class PDEModel:
             - hardcode_function: a lambda function for hardcoded forwarding function, default: None
             - derivative_order: int, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables
             - batch_jac_hes: **bool**, whether to use batch jacobian or hessian for computing derivatives, default: False (When True, only name_Jac and name_Hess are included in the derivatives dictionary, and derivative_order is ignored; When False, all derivatives name_x, name_y, etc are included.)
+            - input_size_sym: int, number of dimensions that should impose symmetry, for layer_type==LayerType.DeepSet
+            - input_size_ext: int, number of extra dimensions, for layer_type==LayerType.DeepSet
+            - hidden_units_phi: List[int], number of hidden units in phi, for layer_type==LayerType.DeepSet
+            - hidden_units_rho: List[int], number of hidden units in rho, for layer_type==LayerType.DeepSet
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         for name in names:
@@ -305,6 +313,10 @@ class PDEModel:
             - hardcode_function: a lambda function for hardcoded forwarding function, default: None
             - derivative_order: int, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables
             - batch_jac_hes: **bool**, whether to use batch jacobian or hessian for computing derivatives, default: False (When True, only name_Jac and name_Hess are included in the derivatives dictionary, and derivative_order is ignored; When False, all derivatives name_x, name_y, etc are included.)
+            - input_size_sym: int, number of dimensions that should impose symmetry, for layer_type==LayerType.DeepSet
+            - input_size_ext: int, number of extra dimensions, for layer_type==LayerType.DeepSet
+            - hidden_units_phi: List[int], number of hidden units in phi, for layer_type==LayerType.DeepSet
+            - hidden_units_rho: List[int], number of hidden units in rho, for layer_type==LayerType.DeepSet
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         if not overwrite:
@@ -338,6 +350,10 @@ class PDEModel:
             - hardcode_function: a lambda function for hardcoded forwarding function, default: None
             - derivative_order: int, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables
             - batch_jac_hes: **bool**, whether to use batch jacobian or hessian for computing derivatives, default: False (When True, only name_Jac and name_Hess are included in the derivatives dictionary, and derivative_order is ignored; When False, all derivatives name_x, name_y, etc are included.)
+            - input_size_sym: int, number of dimensions that should impose symmetry, for layer_type==LayerType.DeepSet
+            - input_size_ext: int, number of extra dimensions, for layer_type==LayerType.DeepSet
+            - hidden_units_phi: List[int], number of hidden units in phi, for layer_type==LayerType.DeepSet
+            - hidden_units_rho: List[int], number of hidden units in rho, for layer_type==LayerType.DeepSet
         '''
         assert len(self.state_variables) > 0, "Please set the state variables first"
         for name in names:

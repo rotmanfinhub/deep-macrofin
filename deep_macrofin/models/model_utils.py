@@ -4,6 +4,8 @@ from enum import Enum
 import torch
 import torch.nn as nn
 
+from .activation_types import *
+from .deepset import DeepSet
 from .kan import KAN
 from .multkan import MultKAN
 
@@ -16,31 +18,7 @@ class LayerType(str, Enum):
     MLP="MLP"
     KAN="KAN"
     MultKAN="MultKAN"
-
-class ActivationType(str, Enum):
-    ReLU="relu"
-    SiLU="silu"
-    Sigmoid="sigmoid"
-    Tanh="tanh"
-    Wavelet="wavelet"
-
-class Wavelet(nn.Module):
-    def __init__(self):
-        super(Wavelet, self).__init__() 
-        self.w1 = nn.Parameter(torch.ones(1), requires_grad=True)
-        self.w2 = nn.Parameter(torch.ones(1), requires_grad=True)
-
-    def forward(self, x):
-        return self.w1 * torch.sin(x)+ self.w2 * torch.cos(x)
-
-
-activation_function_mapping = {
-    ActivationType.ReLU: nn.ReLU,
-    ActivationType.SiLU: nn.SiLU,
-    ActivationType.Sigmoid: nn.Sigmoid,
-    ActivationType.Tanh: nn.Tanh,
-    ActivationType.Wavelet: Wavelet
-}
+    DeepSet="DeepSet"
 
 def get_MLP_layers(config):
     act_func = activation_function_mapping.get(config["activation_type"], nn.Tanh)
@@ -92,3 +70,6 @@ def get_MultKAN(config):
                grid_range=grid_range,
                device=device,
                auto_save=False)
+
+def get_DeepSet(config):
+    return DeepSet(config)

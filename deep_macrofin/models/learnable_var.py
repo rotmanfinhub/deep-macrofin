@@ -93,6 +93,8 @@ class LearnableVar(nn.Module):
             self.model = get_KAN(self.config)
         elif self.config["layer_type"] == LayerType.MultKAN:
             self.model = get_MultKAN(self.config)
+        elif self.config["layer_type"] == LayerType.DeepSet:
+            self.model = get_DeepSet(self.config)
         else:
             required_model_type = self.config["layer_type"]
             raise NotImplementedError(f"Model type: {required_model_type} is not implemented")
