@@ -10,6 +10,7 @@ from typing import Any, Dict, List
 import pandas as pd
 import torch
 from tqdm import tqdm
+from torch import nn
 
 from .evaluations import *
 from .event_handler import *

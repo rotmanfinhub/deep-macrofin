@@ -56,10 +56,10 @@ class DGMLayer(nn.Module):
                                                            output_size]),
                                                gain=gain))
 
-        self.bz = nn.Parameter(torch.zeros([1, output_size]))
-        self.bg = nn.Parameter(torch.zeros([1, output_size]))
-        self.br = nn.Parameter(torch.zeros([1, output_size]))
-        self.bh = nn.Parameter(torch.zeros([1, output_size]))
+        self.bz = nn.Parameter(torch.zeros(output_size))
+        self.bg = nn.Parameter(torch.zeros(output_size))
+        self.br = nn.Parameter(torch.zeros(output_size))
+        self.bh = nn.Parameter(torch.zeros(output_size))
 
         # Set the non-linear activation functions
         self.act1 = activation_function_mapping[act_func]()

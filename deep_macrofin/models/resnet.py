@@ -20,18 +20,15 @@ class ResidualBlock(nn.Module):
         super().__init__()
         self.downsample = downsample
 
-        self.fc1 = nn.Sequential(nn.Linear(input_dim, output_dim, bias=False),
-                                 nn.BatchNorm1d(output_dim))
-
-        self.fc2 = nn.Sequential(nn.Linear(output_dim, output_dim, bias=False),
-                                 nn.BatchNorm1d(output_dim))
-
+        self.fc = nn.Sequential(nn.Linear(input_dim, output_dim, bias=False),
+                                 nn.ReLU(),
+                                 nn.Linear(output_dim, output_dim, bias=False),
+                                 nn.ReLU())
         self.relu = nn.ReLU()
 
     def forward(self, x):
         residual = x
-        out = self.relu(self.fc1(x))
-        out = self.relu(self.fc2(out))
+        out = self.fc(x)
 
         if self.downsample is not None:
             residual = self.downsample(x)
