@@ -95,6 +95,10 @@ class LearnableVar(nn.Module):
             self.model = get_MultKAN(self.config)
         elif self.config["layer_type"] == LayerType.DeepSet:
             self.model = get_DeepSet(self.config)
+        elif self.config["layer_type"] == LayerType.DGM:
+            self.model = get_DGM(self.config)
+        elif self.config["layer_type"] == LayerType.ResNet:
+            self.model = get_ResNet(self.config)
         else:
             required_model_type = self.config["layer_type"]
             raise NotImplementedError(f"Model type: {required_model_type} is not implemented")

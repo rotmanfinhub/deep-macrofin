@@ -6,8 +6,10 @@ import torch.nn as nn
 
 from .activation_types import *
 from .deepset import DeepSet
+from .dgm import DGM
 from .kan import KAN
 from .multkan import MultKAN
+from .resnet import ResNet
 
 
 class LearnableModelType(str, Enum):
@@ -19,6 +21,8 @@ class LayerType(str, Enum):
     KAN="KAN"
     MultKAN="MultKAN"
     DeepSet="DeepSet"
+    DGM="DGM"
+    ResNet="ResNet"
 
 def get_MLP_layers(config):
     act_func = activation_function_mapping.get(config["activation_type"], nn.Tanh)
@@ -73,3 +77,9 @@ def get_MultKAN(config):
 
 def get_DeepSet(config):
     return DeepSet(config)
+
+def get_DGM(config):
+    return DGM(config)
+
+def get_ResNet(config):
+    return ResNet(config)
