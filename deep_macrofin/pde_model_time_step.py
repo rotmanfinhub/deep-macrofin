@@ -703,7 +703,7 @@ class PDEModelTimeStep(PDEModel):
 
         for label in self.agent_conditions:
             try:
-                self.agent_conditions[label].eval(self.local_function_dict)
+                self.agent_conditions[label].eval(self.local_function_dict | self.custom_function_dict)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     # it's fine to have zero division. All other errors should be raised
@@ -716,7 +716,7 @@ class PDEModelTimeStep(PDEModel):
         
         for label in self.endog_var_conditions:
             try:
-                self.endog_var_conditions[label].eval(self.local_function_dict)
+                self.endog_var_conditions[label].eval(self.local_function_dict | self.custom_function_dict)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({

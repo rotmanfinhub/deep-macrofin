@@ -504,10 +504,10 @@ class PDEModel:
         '''
         # for agent and endogenous variable conditions, we need to use the exact function to compute the values
         for label in self.agent_conditions:
-            self.loss_val_dict[label] = self.agent_conditions[label].eval(self.local_function_dict, self.loss_reduction_dict[label])
+            self.loss_val_dict[label] = self.agent_conditions[label].eval(self.local_function_dict | self.custom_function_dict, self.loss_reduction_dict[label])
         
         for label in self.endog_var_conditions:
-            self.loss_val_dict[label] = self.endog_var_conditions[label].eval(self.local_function_dict, self.loss_reduction_dict[label])
+            self.loss_val_dict[label] = self.endog_var_conditions[label].eval(self.local_function_dict | self.custom_function_dict, self.loss_reduction_dict[label])
 
         # for all other formula/equations, we can use the pre-computed values of a specific state to compute the loss
         for label in self.endog_equations:
@@ -537,12 +537,12 @@ class PDEModel:
         self.update_variables(SV)
         total_loss = 0
         for label in self.agent_conditions:
-            self.loss_val_dict[label] = torch.square(self.agent_conditions[label].eval(self.local_function_dict, LossReductionMethod.NONE))
+            self.loss_val_dict[label] = torch.square(self.agent_conditions[label].eval(self.local_function_dict | self.custom_function_dict, LossReductionMethod.NONE))
             temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
             total_loss += torch.where(temp.isnan(), 0.0, temp)
         
         for label in self.endog_var_conditions:
-            self.loss_val_dict[label] = torch.square(self.endog_var_conditions[label].eval(self.local_function_dict, LossReductionMethod.NONE))
+            self.loss_val_dict[label] = torch.square(self.endog_var_conditions[label].eval(self.local_function_dict | self.custom_function_dict, LossReductionMethod.NONE))
             temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
             total_loss += torch.where(temp.isnan(), 0.0, temp)
 
@@ -1251,7 +1251,7 @@ class PDEModel:
 
         for label in self.agent_conditions:
             try:
-                self.agent_conditions[label].eval(self.local_function_dict)
+                self.agent_conditions[label].eval(self.local_function_dict | self.custom_function_dict)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     # it's fine to have zero division. All other errors should be raised
@@ -1264,7 +1264,7 @@ class PDEModel:
         
         for label in self.endog_var_conditions:
             try:
-                self.endog_var_conditions[label].eval(self.local_function_dict)
+                self.endog_var_conditions[label].eval(self.local_function_dict | self.custom_function_dict)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
