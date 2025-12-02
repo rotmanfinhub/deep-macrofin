@@ -103,6 +103,7 @@ class PDEModel:
         self.variable_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include all local variables/params + current values, initially, all values in this dictionary can be zero
         self.loss_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include loss equation (constraints, endogenous equations, HJB equations) labels + corresponding loss values, initially, all values in this dictionary can be zero.
         self.loss_weight_dict: Dict[str, float] = OrderedDict() # should include loss equation labels + corresponding weight
+        self.learnable_params = set() # add a set of strings to keep track of all learnable parameters
         self.device = "cpu"
 
         # for residual-based adaptive refinement (RAR) and active learning
@@ -192,6 +193,22 @@ class PDEModel:
             self.check_name_used(name)
         self.params.update(params)
         self.variable_val_dict.update(params)
+
+    def add_learnable_param(self, name: str, init_value: float=1.0):
+        '''
+        Add a single learnable parameter (constant in the PDE system) with name and initial value.
+        '''
+        self.check_name_used(name)
+        self.variable_val_dict[name] = nn.Parameter(torch.tensor(init_value, dtype=torch.get_default_dtype()), requires_grad=True)
+        self.learnable_params.add(name)
+
+    def add_learnable_params(self, params: Dict[str, Any]):
+        '''
+        Add a dictionary of learnable parameters (constants in the PDE system) for the system, 
+        each key value pair represent the name and initial value.
+        '''
+        for name, init_val in params.items():
+            self.add_learnable_param(name, init_val)
 
     def add_agent(self, name: str, 
                   config: Dict[str, Any] = DEFAULT_LEARNABLE_VAR_CONFIG,
@@ -934,6 +951,9 @@ class PDEModel:
             all_params += list(endog_var.parameters())
             if endog_var.config["layer_type"] in [LayerType.KAN, LayerType.MultKAN]:
                 model_has_kan = True
+        for learnable_param_name in self.learnable_params:
+            self.variable_val_dict[learnable_param_name] = self.variable_val_dict[learnable_param_name].detach().to(self.device).requires_grad_(True)
+            all_params += [self.variable_val_dict[learnable_param_name]]
         
         if model_has_kan:
             # KAN can only be trained with LBFGS, 
@@ -1185,6 +1205,8 @@ class PDEModel:
         The entire loop of evaluation
         '''
         self.anchor_points = torch.empty((0, len(self.state_variables)), device=self.device)
+        for learnable_param_name in self.learnable_params:
+            self.variable_val_dict[learnable_param_name] = self.variable_val_dict[learnable_param_name].detach().to(self.device)
         
         self.validate_model_setup()
         self.set_all_model_eval()
@@ -1369,6 +1391,9 @@ class PDEModel:
         for endog_var in self.endog_vars:
             dict_to_save[f"endog_var_{endog_var}_dict"] = self.endog_vars[endog_var].to_dict()
 
+        for learn_var in self.learnable_params:
+            dict_to_save[f"learn_var_{learn_var}"] = {"name": learn_var, "value": self.variable_val_dict[learn_var].tolist()}
+
         os.makedirs(model_dir, exist_ok=True)
         torch.save(dict_to_save, f"{model_dir}/{filename}")
         if verbose:
@@ -1393,6 +1418,11 @@ class PDEModel:
                 endog_var_config = v["model_config"]
                 self.add_endog(endog_var_name, endog_var_config, overwrite=True)
                 self.endog_vars[endog_var_name].from_dict(v)
+            
+            if k.startswith("learn_var"):
+                self.learnable_params.add(v["name"])
+                self.variable_val_dict[v["name"]] = nn.Parameter(torch.tensor(v["value"], dtype=torch.get_default_dtype()), requires_grad=True)
+
         print("Model loaded")
 
     def __str__(self):
