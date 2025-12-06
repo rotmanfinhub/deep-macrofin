@@ -713,16 +713,16 @@ class PDEModel:
         # Note that the conditions (IC/BC, or user pre-defined sampling regions) are not considered
         # Systems are not considered
         for label in self.endog_equations:
-            total_loss += torch.abs(self.endog_equations[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((self.batch_size, 1))
+            total_loss += torch.abs(self.endog_equations[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((-1, 1))
 
         for label in self.constraints:
-            total_loss += torch.abs(self.constraints[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((self.batch_size, 1))
+            total_loss += torch.abs(self.constraints[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((-1, 1))
 
         for label in self.hjb_equations:
-            total_loss += torch.abs(self.hjb_equations[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((self.batch_size, 1))
+            total_loss += torch.abs(self.hjb_equations[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((-1, 1))
 
         for label in self.systems:
-            total_loss += torch.abs(self.systems[label].eval_no_loss(self.custom_function_dict, variable_val_dict_, self.batch_size)).reshape((self.batch_size, 1))
+            total_loss += torch.abs(self.systems[label].eval_no_loss(self.custom_function_dict, variable_val_dict_, self.batch_size)).reshape((-1, 1))
 
         self.batch_size = self.config.get("batch_size", 100) # reset the batch size for normal computation
         self.set_all_model_training() # reset the model for training stage
