@@ -110,6 +110,9 @@ class PDEModel:
         self.anchor_points: torch.Tensor = None
         self.refinement_rounds: int = self.config.get("refinement_rounds", 5)
 
+        self.OnTrainingStart = EventHandler()
+        self.OnTrainingStep = EventHandler()
+
     def check_name_used(self, name: str):
         for self_dicts in [self.state_variables,
                            self.agents, 
@@ -326,7 +329,7 @@ class PDEModel:
             - hidden_units: **List[int]**, number of units in each layer, default: [30, 30, 30, 30]
             - output_size: **int**, number of output units, default: 1 for MLP, and last hidden unit size for KAN and MultKAN
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
-            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - activation_type: **str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false (This has no effect for KAN.)
             - hardcode_function: a lambda function for hardcoded forwarding function, default: None
             - derivative_order: int, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables
@@ -991,19 +994,17 @@ class PDEModel:
         self.set_all_model_training()
         start_time = time.time()
 
-        OnTrainingStart = EventHandler()
-        OnTrainingStep = EventHandler()
         if self.config.get("loss_balancing", False):
-            OnTrainingStart += self.init_loss_balancing
-            OnTrainingStep += self.loss_balancing_step
+            self.OnTrainingStart += self.init_loss_balancing
+            self.OnTrainingStep += self.loss_balancing_step
         elif self.config.get("loss_soft_attention", False):
-            OnTrainingStart += self.init_soft_attention
-            OnTrainingStep += self.soft_attention_step
+            self.OnTrainingStart += self.init_soft_attention
+            self.OnTrainingStep += self.soft_attention_step
             # override the closure function
             self.closure = self.closure_soft_attention
         elif self.config.get("soft_adapt_interval", -1) > 0:
-            OnTrainingStart += self.init_soft_adapt
-            OnTrainingStep += self.soft_adapt_step
+            self.OnTrainingStart += self.init_soft_adapt
+            self.OnTrainingStep += self.soft_adapt_step
         
         set_seeds(0)
         SV_CHECK = self.sample_uniform(0)
@@ -1017,7 +1018,7 @@ class PDEModel:
             if var in self.variable_val_dict and var not in self.prev_vals:
                 self.prev_vals[var] =  torch.zeros_like(SV_CHECK[:, 0:1], device=self.device)
 
-        OnTrainingStart()
+        self.OnTrainingStart()
         set_seeds(0)
         pbar = tqdm(range(self.num_epochs))
         for epoch in pbar:
@@ -1054,7 +1055,7 @@ class PDEModel:
                 pbar.set_description("Min loss: {0:.4f}".format(min_loss))
             # maybe reload the best model when loss is nan.
 
-            OnTrainingStep(epoch=epoch, SV=SV)
+            self.OnTrainingStep(epoch=epoch, SV=SV)
 
             all_changes = self.__compute_changes(SV_CHECK)
             change_dict["epoch"].append(epoch)

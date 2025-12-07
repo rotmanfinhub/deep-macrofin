@@ -119,6 +119,8 @@ class PDEModelTimeStep(PDEModel):
         # for residual-based adaptive refinement (RAR) and active learning
         self.anchor_points: torch.Tensor = None
         self.refinement_rounds: int = self.config.get("refinement_rounds", 5)
+        self.OnInnerLoopStart = EventHandler()
+        self.OnInnerLoopStep = EventHandler()
 
     def __set_agent_time_boundary_condition(self, name: str,
                             time_boundary_value: torch.Tensor,
@@ -512,11 +514,9 @@ class PDEModelTimeStep(PDEModel):
         min_loss_dict = defaultdict(list)
         outer_loop_min_loss = torch.inf
 
-        OnInnerLoopStart = EventHandler()
-        OnInnerLoopStep = EventHandler()
         if self.config.get("loss_balancing", False):
-            OnInnerLoopStart += self.init_loss_balancing
-            OnInnerLoopStep += self.loss_balancing_step
+            self.OnInnerLoopStart += self.init_loss_balancing
+            self.OnInnerLoopStep += self.loss_balancing_step
             self.bernoulli_rho = torch.distributions.Bernoulli(self.config.get("bernoulli_prob", 0.9999))
             self.temp = self.config.get("loss_balancing_temp", 0.1)
             self.alpha = self.config.get("loss_balancing_alpha", 0.999)
@@ -541,7 +541,7 @@ class PDEModelTimeStep(PDEModel):
                 self.variable_val_dict[sv_name] = SV[:, i:i+1]
             self.variable_val_dict["SV"] = SV
 
-            OnInnerLoopStart()
+            self.OnInnerLoopStart()
             set_seeds(0)
             min_loss = torch.inf
             num_inner_iters: int = max(int(self.num_inner_iterations / (np.sqrt(outer_loop_iter + 1))), self.min_inner_iterations)
@@ -571,7 +571,7 @@ class PDEModelTimeStep(PDEModel):
                     for i, sv_name in enumerate(self.state_variables):
                         self.variable_val_dict[sv_name] = SV[:, i:i+1]
                     self.variable_val_dict["SV"] = SV
-                OnInnerLoopStep(epoch=epoch, outer_loop_iter=outer_loop_iter)
+                self.OnInnerLoopStep(epoch=epoch, outer_loop_iter=outer_loop_iter)
                 torch.cuda.empty_cache()
 
             outer_loop_finish_time = time.time()

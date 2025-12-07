@@ -388,6 +388,23 @@ model.register_function(compute_q)
 model.add_equations("q = compute_q(SV, compute_k)")
 ```
 
+## Registering Callbacks
+
+The loss balancing and active sampling depends on callbacks by <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/deep_macrofin/event_handler.py" target="_blank">`EventHandler`</a>s. In basic models, there are two event handlers:
+
+- `self.OnTrainingStart`: triggered when `train_model` is called, before all loop iterations. This can be used for initialization
+- `self.OnTrainingStep`: triggered every epoch, after loss is back propagated, and model parameters are updated once.
+
+The corresponding handlers for time stepping models are 
+
+- `self.OnInnerLoopStart`: triggered at the beginning at each time step
+- `self.OnInnerLoopStep`: triggered every epoch, after loss is back propagated, same as `self.OnTrainingStep`
+
+
+## Solving Inverse Problems
+
+Using `add_learnable_param` or `add_learnable_params`, the users can define a parameter that can be jointly optimized with the PDE system. This is useful for free boundary models like <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/decamps/event_handler.py" target="_blank">decamps_equity.ipynb</a>
+
 ## Training and Evaluation
 
 After the model is defined, `train_model` ([API](./api/pde_model.md#train_model)) can be used to train the models, and `eval_model` ([API](./api/pde_model.md#eval_model)) can be used to eval models. 
