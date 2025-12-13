@@ -114,6 +114,7 @@ class PDEModelTimeStep(PDEModel):
         self.loss_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include loss equation (constraints, endogenous equations, HJB equations) labels + corresponding loss values, initially, all values in this dictionary can be zero.
         self.loss_weight_dict: Dict[str, float] = OrderedDict() # should include loss equation labels + corresponding weight
         self.initial_guess: Dict[str, Union[float, Callable]] = OrderedDict() # should include the overrides of initial guesses for agents and endog vars
+        self.learnable_params = set() # add a set of strings to keep track of all learnable parameters
         self.device = "cpu"
 
         # for residual-based adaptive refinement (RAR) and active learning
