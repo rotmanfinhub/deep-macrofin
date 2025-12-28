@@ -42,6 +42,8 @@ def get_MLP_layers(config):
     if positive:
         layers["positive_act"] = nn.Softplus()
     
+    if config.get("sigmoid", False):
+        layers["final_act"] = nn.Sigmoid()
     return nn.Sequential(layers)
 
 def get_KAN(config):

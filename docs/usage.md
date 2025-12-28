@@ -13,13 +13,13 @@ pde_model = PDEModel("model_name")
 
 ### Training Configs
 
-The default training configs set batch size = 100, epochs = 1000, learning rate = $10^{-3}$, and AdamW optimizer. In this setting, loss will be logged to a csv file every 100 epochs during training (`loss_log_interval`), and data points are sampled randomly. 
+The default training configs set batch size = 100, epochs = 1000, learning rate = $10^{-3}$, and AdamW optimizer. In this setting, validation loss will be logged to a csv file every 50 epochs during training (`loss_log_interval`), and data points are sampled randomly. 
 ```py
 DEFAULT_CONFIG = {
     "batch_size": 100,
     "num_epochs": 1000,
     "lr": 1e-3,
-    "loss_log_interval": 100,
+    "loss_log_interval": 50,
     "optimizer_type": OptimizerType.AdamW,
     "sampling_method": SamplingMethod.UniformRandom,
     "refinement_sample_interval": int(0.2 * num_epochs),

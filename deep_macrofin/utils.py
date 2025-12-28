@@ -76,7 +76,7 @@ DEFAULT_CONFIG = {
     "batch_size": 100,
     "num_epochs": 1000,
     "lr": 1e-3,
-    "loss_log_interval": 100,
+    "loss_log_interval": 50,
     "optimizer_type": OptimizerType.AdamW,
     "sampling_method": SamplingMethod.UniformRandom,
     "refinement_rounds": 5,

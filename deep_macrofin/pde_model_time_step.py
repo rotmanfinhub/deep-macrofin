@@ -46,6 +46,7 @@ class PDEModelTimeStep(PDEModel):
             "num_outer_iterations": 100, # number of time stepping iterations
             "num_inner_iterations": 5000, # initial number of training epochs within each time step, it will decay with factor of sqrt{curr_outer_iteration + 1}
             "min_inner_iterations": 1000, # minimum number of training epochs within each time step, number of inner iterations will not decrease below this value
+            "loss_log_interval": 50,
             "lr": 1e-3,
             "optimizer_type": OptimizerType.Adam,
             "min_t": 0.0,
@@ -72,6 +73,7 @@ class PDEModelTimeStep(PDEModel):
         self.num_outer_iterations = self.config.get("num_outer_iterations", 100)
         self.num_inner_iterations = self.config.get("num_inner_iterations", 5000)
         self.min_inner_iterations = self.config.get("min_inner_iterations", 1000)
+        self.loss_log_interval = self.config.get("loss_log_interval", 50)
         self.time_boundary_loss_reduction = self.config.get("time_boundary_loss_reduction", LossReductionMethod.MSE)
         self.lr = self.config.get("lr", 1e-3)
         self.optimizer_type = self.config.get("optimizer_type", OptimizerType.Adam)
@@ -443,6 +445,27 @@ class PDEModelTimeStep(PDEModel):
             assert k in self.agents or k in self.endog_vars, f"{k} is not a valid agent/endog var name"
         self.initial_guess.update(initial_guess)
 
+    def __validation(self, SV_T0: torch.Tensor):
+        self.set_all_model_eval()
+        temp = self.loss_val_dict.copy()
+        SV_ = SV_T0.detach().clone()
+        SV_.requires_grad_(True)
+        for i, sv_name in enumerate(self.state_variables):
+            self.variable_val_dict[sv_name] = SV_[:, i:i+1]
+        self.variable_val_dict["SV"] = SV_
+
+        self.update_variables(SV_)
+        self.loss_fn()
+
+        loss_dict = self.loss_val_dict.copy()
+        total_loss = 0
+        for loss_label, loss in loss_dict.items():
+            total_loss += torch.nanmean(self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss))
+        loss_dict["total_loss"] = total_loss
+        self.loss_val_dict = temp
+        self.set_all_model_training()
+        return loss_dict
+
     def train_model(self, model_dir: str="./", filename: str=None, full_log=False, variables_to_track: List[str]=[]):
         '''
         The entire loop of training
@@ -498,13 +521,13 @@ class PDEModelTimeStep(PDEModel):
             curr_init_guess = self.initial_guess.get(agent_name, 1)
             if isinstance(curr_init_guess, Callable):
                 curr_init_guess = curr_init_guess(SV_T0)
-            self.prev_vals[agent_name] = torch.ones((B, output_size), device=self.device) * curr_init_guess
+            self.prev_vals[agent_name] = torch.ones((SV_T0.shape[0], output_size), device=self.device) * curr_init_guess
         for endog_name in self.endog_vars:
             output_size = self.endog_vars[endog_name].config["output_size"]
             curr_init_guess = self.initial_guess.get(endog_name, 1)
             if isinstance(curr_init_guess, Callable):
                 curr_init_guess = curr_init_guess(SV_T0)
-            self.prev_vals[endog_name] = torch.ones((B, output_size), device=self.device) * curr_init_guess
+            self.prev_vals[endog_name] = torch.ones((SV_T0.shape[0], output_size), device=self.device) * curr_init_guess
         variables_to_check_ = []
         for var in variables_to_track:
             if var in self.variable_val_dict and var not in self.prev_vals:
@@ -513,7 +536,9 @@ class PDEModelTimeStep(PDEModel):
 
         change_dict = defaultdict(list)
         min_loss_dict = defaultdict(list)
+        global_min_loss_dict = defaultdict(list)
         outer_loop_min_loss = torch.inf
+        global_min_loss = torch.inf
 
         if self.config.get("loss_balancing", False):
             self.OnInnerLoopStart += self.init_loss_balancing
@@ -541,6 +566,8 @@ class PDEModelTimeStep(PDEModel):
             for i, sv_name in enumerate(self.state_variables):
                 self.variable_val_dict[sv_name] = SV[:, i:i+1]
             self.variable_val_dict["SV"] = SV
+            validation_SV = self.sample()
+            validation_SV.requires_grad_(True)
 
             self.OnInnerLoopStart()
             set_seeds(0)
@@ -549,21 +576,26 @@ class PDEModelTimeStep(PDEModel):
             pbar = tqdm(range(num_inner_iters))
             for epoch in pbar:
                 self.optimizer.step(lambda: self.closure(SV))
-                total_loss = 0
-                for loss_label, loss in self.loss_val_dict.items():
-                    total_loss += torch.nanmean(self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss))
-                
-                loss_dict = self.loss_val_dict.copy()
-                loss_dict["total_loss"] = total_loss
+                # within each time step, 
+                # evaluate every log interval time and also evaluate at the end of the final epoch
 
-                if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
-                    min_loss = loss_dict["total_loss"].item()
-                    self.save_model(model_dir, f"{file_prefix}_temp_best.pt")
-                    min_loss_dict["time_loop_iter"].append(outer_loop_iter)
-                    min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
-                    for k, v in loss_dict.items():
-                        min_loss_dict[k].append(v.item())
-                    pbar.set_description("Min loss: {0:.4f}".format(min_loss))
+                if epoch % self.loss_log_interval == 0 or epoch == self.num_inner_iterations - 1:
+                    loss_dict = self.__validation(validation_SV)
+                    curr_loss = loss_dict["total_loss"].item()
+                    if curr_loss < min_loss and all(not v.isnan() for v in loss_dict.values()):
+                        min_loss = curr_loss
+                        self.save_model(model_dir, f"{file_prefix}_temp_best.pt")
+                        min_loss_dict["time_loop_iter"].append(outer_loop_iter)
+                        min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
+                        for k, v in loss_dict.items():
+                            min_loss_dict[k].append(v.item())
+                        pbar.set_description("Min loss: {0:.4f}".format(min_loss))
+                    if curr_loss < global_min_loss and all(not v.isnan() for v in loss_dict.values()):
+                        global_min_loss = curr_loss
+                        global_min_loss_dict["time_loop_iter"].append(outer_loop_iter)
+                        global_min_loss_dict["epoch"].append(len(global_min_loss_dict["epoch"]))
+                        for k, v in loss_dict.items():
+                            global_min_loss_dict[k].append(v.item())
 
                 if self.config["sampling_method"] == SamplingMethod.RARG and epoch % (num_inner_iters // self.refinement_rounds) == 0 and epoch > 0:
                     self.sample_rar_greedy()
@@ -591,7 +623,8 @@ class PDEModelTimeStep(PDEModel):
                 self.loss_weight_log_dict = None
                 self.init_loss_tensor = torch.fill(self.init_loss_tensor, 0.0) 
                 self.prev_loss_tensor = torch.fill(self.prev_loss_tensor, 0.0) # if not fill 0, seems to crash the program
-            total_loss = self.closure(SV)
+            loss_dict = self.__validation(SV_T0) # keep track of the loss at minimum time step only
+            total_loss = loss_dict["total_loss"]
             if total_loss < outer_loop_min_loss:
                 print(f"Updating min loss from {outer_loop_min_loss:.4f} to {total_loss:.4f}")
                 outer_loop_min_loss = total_loss
@@ -632,6 +665,7 @@ class PDEModelTimeStep(PDEModel):
         print(f"Best model saved to {model_dir}/{file_prefix}_best.pt if valid")
         self.save_model(model_dir, filename, verbose=True)
         pd.DataFrame(min_loss_dict).to_csv(f"{model_dir}/{file_prefix}_min_loss.csv", index=False)
+        pd.DataFrame(global_min_loss_dict).to_csv(f"{model_dir}/{file_prefix}_global_min_loss.csv", index=False)
         pd.DataFrame(change_dict).to_csv(f"{model_dir}/{file_prefix}_change_dict.csv", index=False)
         return loss_dict
     
