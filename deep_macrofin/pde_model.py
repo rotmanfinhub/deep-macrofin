@@ -1048,7 +1048,7 @@ class PDEModel:
 
         self.OnTrainingStart()
         set_seeds(0)
-        pbar = tqdm(range(self.num_epochs))
+        pbar = tqdm(range(self.num_epochs), dynamic_ncols=True)
         for epoch in pbar:
             epoch_start_time = time.time()
             
@@ -1172,7 +1172,7 @@ class PDEModel:
         self.set_all_model_training()
         start_time = time.time()
         set_seeds(0)
-        pbar = tqdm(range(self.num_epochs))
+        pbar = tqdm(range(self.num_epochs), dynamic_ncols=True)
 
         active_learning_grids = []
         for al_region in active_learning_regions:

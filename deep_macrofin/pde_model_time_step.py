@@ -573,7 +573,7 @@ class PDEModelTimeStep(PDEModel):
             set_seeds(0)
             min_loss = torch.inf
             num_inner_iters: int = max(int(self.num_inner_iterations / (np.sqrt(outer_loop_iter + 1))), self.min_inner_iterations)
-            pbar = tqdm(range(num_inner_iters))
+            pbar = tqdm(range(num_inner_iters), dynamic_ncols=True)
             for epoch in pbar:
                 self.optimizer.step(lambda: self.closure(SV))
                 # within each time step, 
