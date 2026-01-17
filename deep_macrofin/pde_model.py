@@ -10,6 +10,7 @@ from typing import Any, Dict, List
 import pandas as pd
 import torch
 from tqdm import tqdm
+from torch import nn
 
 from .evaluations import *
 from .event_handler import *
@@ -41,7 +42,7 @@ class PDEModel:
             "batch_size": 100,
             "num_epochs": 1000,
             "lr": 1e-3,
-            "loss_log_interval": 100,
+            "loss_log_interval": 50,
             "optimizer_type": OptimizerType.AdamW,
             "sampling_method": SamplingMethod.UniformRandom,
             "refinement_rounds": 5,
@@ -53,7 +54,7 @@ class PDEModel:
             "loss_soft_attention": False,
         }
 
-        loss_log_interval: the interval at which loss should be reported/recorded
+        loss_log_interval: the interval at which loss should be reported/recorded, this is the time when validation set is used.
 
         latex_var_mapping should include all possible latex to python name conversions. Otherwise latex parsing will fail. Can be omitted if all the input equations/formula are not in latex form. For details, check `Formula` class defined in `evaluations/formula.py`
         '''
@@ -63,7 +64,7 @@ class PDEModel:
         self.batch_size = self.config.get("batch_size", 100)
         self.num_epochs = self.config.get("num_epochs", 1000)
         self.lr = self.config.get("lr", 1e-3)
-        self.loss_log_interval = self.config.get("loss_log_interval", 100)
+        self.loss_log_interval = self.config.get("loss_log_interval", 50)
         self.optimizer_type = self.config.get("optimizer_type", OptimizerType.AdamW)
         self.sampling_method = self.config.get("sampling_method", SamplingMethod.UniformRandom)
 
@@ -102,11 +103,15 @@ class PDEModel:
         self.variable_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include all local variables/params + current values, initially, all values in this dictionary can be zero
         self.loss_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include loss equation (constraints, endogenous equations, HJB equations) labels + corresponding loss values, initially, all values in this dictionary can be zero.
         self.loss_weight_dict: Dict[str, float] = OrderedDict() # should include loss equation labels + corresponding weight
+        self.learnable_params = set() # add a set of strings to keep track of all learnable parameters
         self.device = "cpu"
 
         # for residual-based adaptive refinement (RAR) and active learning
         self.anchor_points: torch.Tensor = None
         self.refinement_rounds: int = self.config.get("refinement_rounds", 5)
+
+        self.OnTrainingStart = EventHandler()
+        self.OnTrainingStep = EventHandler()
 
     def check_name_used(self, name: str):
         for self_dicts in [self.state_variables,
@@ -191,6 +196,22 @@ class PDEModel:
             self.check_name_used(name)
         self.params.update(params)
         self.variable_val_dict.update(params)
+
+    def add_learnable_param(self, name: str, init_value: float=1.0):
+        '''
+        Add a single learnable parameter (constant in the PDE system) with name and initial value.
+        '''
+        self.check_name_used(name)
+        self.variable_val_dict[name] = nn.Parameter(torch.tensor(init_value, dtype=torch.get_default_dtype()), requires_grad=True)
+        self.learnable_params.add(name)
+
+    def add_learnable_params(self, params: Dict[str, Any]):
+        '''
+        Add a dictionary of learnable parameters (constants in the PDE system) for the system, 
+        each key value pair represent the name and initial value.
+        '''
+        for name, init_val in params.items():
+            self.add_learnable_param(name, init_val)
 
     def add_agent(self, name: str, 
                   config: Dict[str, Any] = DEFAULT_LEARNABLE_VAR_CONFIG,
@@ -308,7 +329,7 @@ class PDEModel:
             - hidden_units: **List[int]**, number of units in each layer, default: [30, 30, 30, 30]
             - output_size: **int**, number of output units, default: 1 for MLP, and last hidden unit size for KAN and MultKAN
             - layer_type: **str**, a selection from the LayerType enum, default: LayerType.MLP
-            - activation_type: *str**, a selection from the ActivationType enum, default: ActivationType.Tanh
+            - activation_type: **str**, a selection from the ActivationType enum, default: ActivationType.Tanh
             - positive: **bool**, apply softplus to the output to be always positive if true, default: false (This has no effect for KAN.)
             - hardcode_function: a lambda function for hardcoded forwarding function, default: None
             - derivative_order: int, an additional constraint for the number of derivatives to take, so for a function with one state variable, we can still take multiple derivatives, default: number of state variables
@@ -486,7 +507,7 @@ class PDEModel:
             self.variable_val_dict[func_name] = self.local_function_dict[func_name](SV)
 
         # properly update variables, using equations
-        for eq_name in self.equations:
+        for eq_name in self.equations: # (1-x) * x * \frac{1-\gamma}{\gamma} * \left( \frac{1}{\xi} * \frac{\partial \xi}{\partial v} - \frac{1}{\zeta} * \frac{\partial \zeta}{\partial v} \right)
             lhs = self.equations[eq_name].lhs.formula_str
             self.variable_val_dict[lhs] = self.equations[eq_name].eval(self.custom_function_dict, self.variable_val_dict)
     
@@ -503,10 +524,10 @@ class PDEModel:
         '''
         # for agent and endogenous variable conditions, we need to use the exact function to compute the values
         for label in self.agent_conditions:
-            self.loss_val_dict[label] = self.agent_conditions[label].eval(self.local_function_dict, self.loss_reduction_dict[label])
+            self.loss_val_dict[label] = self.agent_conditions[label].eval(self.local_function_dict | self.custom_function_dict, self.loss_reduction_dict[label])
         
         for label in self.endog_var_conditions:
-            self.loss_val_dict[label] = self.endog_var_conditions[label].eval(self.local_function_dict, self.loss_reduction_dict[label])
+            self.loss_val_dict[label] = self.endog_var_conditions[label].eval(self.local_function_dict | self.custom_function_dict, self.loss_reduction_dict[label])
 
         # for all other formula/equations, we can use the pre-computed values of a specific state to compute the loss
         for label in self.endog_equations:
@@ -522,6 +543,9 @@ class PDEModel:
             self.loss_val_dict[label] = self.systems[label].eval(self.custom_function_dict, self.variable_val_dict)
 
     def closure(self, SV):
+        for i, sv_name in enumerate(self.state_variables):
+            self.variable_val_dict[sv_name] = SV[:, i:i+1]
+        self.variable_val_dict["SV"] = SV
         self.update_variables(SV)
         self.loss_fn()
         total_loss = 0
@@ -536,12 +560,12 @@ class PDEModel:
         self.update_variables(SV)
         total_loss = 0
         for label in self.agent_conditions:
-            self.loss_val_dict[label] = torch.square(self.agent_conditions[label].eval(self.local_function_dict, LossReductionMethod.NONE))
+            self.loss_val_dict[label] = torch.square(self.agent_conditions[label].eval(self.local_function_dict | self.custom_function_dict, LossReductionMethod.NONE))
             temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
             total_loss += torch.where(temp.isnan(), 0.0, temp)
         
         for label in self.endog_var_conditions:
-            self.loss_val_dict[label] = torch.square(self.endog_var_conditions[label].eval(self.local_function_dict, LossReductionMethod.NONE))
+            self.loss_val_dict[label] = torch.square(self.endog_var_conditions[label].eval(self.local_function_dict | self.custom_function_dict, LossReductionMethod.NONE))
             temp = torch.nanmean(self.loss_weight_dict[label] * self.loss_val_dict[label])
             total_loss += torch.where(temp.isnan(), 0.0, temp)
 
@@ -695,16 +719,16 @@ class PDEModel:
         # Note that the conditions (IC/BC, or user pre-defined sampling regions) are not considered
         # Systems are not considered
         for label in self.endog_equations:
-            total_loss += torch.abs(self.endog_equations[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((self.batch_size, 1))
+            total_loss += torch.abs(self.endog_equations[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((-1, 1))
 
         for label in self.constraints:
-            total_loss += torch.abs(self.constraints[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((self.batch_size, 1))
+            total_loss += torch.abs(self.constraints[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((-1, 1))
 
         for label in self.hjb_equations:
-            total_loss += torch.abs(self.hjb_equations[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((self.batch_size, 1))
+            total_loss += torch.abs(self.hjb_equations[label].eval_no_loss(self.custom_function_dict, variable_val_dict_)).reshape((-1, 1))
 
         for label in self.systems:
-            total_loss += torch.abs(self.systems[label].eval_no_loss(self.custom_function_dict, variable_val_dict_, self.batch_size)).reshape((self.batch_size, 1))
+            total_loss += torch.abs(self.systems[label].eval_no_loss(self.custom_function_dict, variable_val_dict_, self.batch_size)).reshape((-1, 1))
 
         self.batch_size = self.config.get("batch_size", 100) # reset the batch size for normal computation
         self.set_all_model_training() # reset the model for training stage
@@ -757,7 +781,7 @@ class PDEModel:
             for i, (loss_label, loss) in enumerate(self.loss_val_dict.items()):
                 self.init_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
                 self.prev_loss_tensor[i] = torch.where(loss.isnan(), torch.finfo(loss.dtype).eps, loss)
-        else:
+        elif epoch % self.loss_log_interval == 0:
             # relative loss balancing with random lookback
             # https://arxiv.org/pdf/2110.09813
             curr_loss_tensor = torch.zeros_like(self.prev_loss_tensor, device=self.device)
@@ -910,6 +934,31 @@ class PDEModel:
         total_rel_change = min(max_abs_change, max_rel_change)
         all_changes["total"] = total_rel_change
         return all_changes
+    
+    def __validation(self, SV_CHECK: torch.Tensor):
+        self.set_all_model_eval()
+        temp = self.loss_val_dict.copy()
+        SV = SV_CHECK.detach().clone()
+        SV.requires_grad_(True)
+        for i, sv_name in enumerate(self.state_variables):
+            self.variable_val_dict[sv_name] = SV[:, i:i+1]
+        self.variable_val_dict["SV"] = SV
+
+        self.update_variables(SV)
+        self.loss_fn()
+        loss_dict = self.loss_val_dict.copy()
+        if self.config.get("loss_soft_attention", False):
+            for k in loss_dict:
+                loss_dict[k] = torch.mean(loss_dict[k])
+
+        total_loss = 0
+        for loss_label, loss in loss_dict.items():
+            total_loss += torch.nanmean(self.loss_weight_dict[loss_label] * torch.where(loss.isnan(), 0.0, loss))
+
+        loss_dict["total_loss"] = total_loss
+        self.loss_val_dict = temp
+        self.set_all_model_training()
+        return loss_dict
 
     def train_model(self, model_dir: str="./", filename: str=None, full_log=False, variables_to_track: List[str]=[]):
         '''
@@ -933,6 +982,9 @@ class PDEModel:
             all_params += list(endog_var.parameters())
             if endog_var.config["layer_type"] in [LayerType.KAN, LayerType.MultKAN]:
                 model_has_kan = True
+        for learnable_param_name in self.learnable_params:
+            self.variable_val_dict[learnable_param_name] = self.variable_val_dict[learnable_param_name].detach().to(self.device).requires_grad_(True)
+            all_params += [self.variable_val_dict[learnable_param_name]]
         
         if model_has_kan:
             # KAN can only be trained with LBFGS, 
@@ -970,19 +1022,17 @@ class PDEModel:
         self.set_all_model_training()
         start_time = time.time()
 
-        OnTrainingStart = EventHandler()
-        OnTrainingStep = EventHandler()
         if self.config.get("loss_balancing", False):
-            OnTrainingStart += self.init_loss_balancing
-            OnTrainingStep += self.loss_balancing_step
+            self.OnTrainingStart += self.init_loss_balancing
+            self.OnTrainingStep += self.loss_balancing_step
         elif self.config.get("loss_soft_attention", False):
-            OnTrainingStart += self.init_soft_attention
-            OnTrainingStep += self.soft_attention_step
+            self.OnTrainingStart += self.init_soft_attention
+            self.OnTrainingStep += self.soft_attention_step
             # override the closure function
             self.closure = self.closure_soft_attention
         elif self.config.get("soft_adapt_interval", -1) > 0:
-            OnTrainingStart += self.init_soft_adapt
-            OnTrainingStep += self.soft_adapt_step
+            self.OnTrainingStart += self.init_soft_adapt
+            self.OnTrainingStep += self.soft_adapt_step
         
         set_seeds(0)
         SV_CHECK = self.sample_uniform(0)
@@ -996,9 +1046,9 @@ class PDEModel:
             if var in self.variable_val_dict and var not in self.prev_vals:
                 self.prev_vals[var] =  torch.zeros_like(SV_CHECK[:, 0:1], device=self.device)
 
-        OnTrainingStart()
+        self.OnTrainingStart()
         set_seeds(0)
-        pbar = tqdm(range(self.num_epochs))
+        pbar = tqdm(range(self.num_epochs), dynamic_ncols=True)
         for epoch in pbar:
             epoch_start_time = time.time()
             
@@ -1023,24 +1073,26 @@ class PDEModel:
                 formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
             else:
                 formatted_train_loss = "%.4f" % loss_dict["total_loss"].item()
-            
-            if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
-                min_loss = loss_dict["total_loss"].item()
-                self.save_model(model_dir, f"{file_prefix}_best.pt")
-                min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
-                for k, v in loss_dict.items():
-                    min_loss_dict[k].append(v.item())
-                pbar.set_description("Min loss: {0:.4f}".format(min_loss))
-            # maybe reload the best model when loss is nan.
 
-            OnTrainingStep(epoch=epoch, SV=SV)
+            self.OnTrainingStep(epoch=epoch, SV=SV)
 
             all_changes = self.__compute_changes(SV_CHECK)
             change_dict["epoch"].append(epoch)
             for k, v in all_changes.items():
                 change_dict[k].append(v)
 
-            if epoch % self.loss_log_interval == 0:
+            if epoch % self.loss_log_interval == 0 or epoch == self.num_epochs - 1:
+                # evaluate every log interval time and also evaluate at the end of the final epoch
+                loss_dict = self.__validation(SV_CHECK)
+                if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
+                    # if we get a lower loss on the validation set, save as the latest best model
+                    min_loss = loss_dict["total_loss"].item()
+                    self.save_model(model_dir, f"{file_prefix}_best.pt")
+                    min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
+                    for k, v in loss_dict.items():
+                        min_loss_dict[k].append(v.item())
+                    pbar.set_description("Min loss: {0:.4f}".format(min_loss))
+
                 epoch_loss_dict["epoch"].append(epoch)
                 for k, v in loss_dict.items():
                     epoch_loss_dict[k].append(v.item())
@@ -1120,7 +1172,7 @@ class PDEModel:
         self.set_all_model_training()
         start_time = time.time()
         set_seeds(0)
-        pbar = tqdm(range(self.num_epochs))
+        pbar = tqdm(range(self.num_epochs), dynamic_ncols=True)
 
         active_learning_grids = []
         for al_region in active_learning_regions:
@@ -1184,6 +1236,8 @@ class PDEModel:
         The entire loop of evaluation
         '''
         self.anchor_points = torch.empty((0, len(self.state_variables)), device=self.device)
+        for learnable_param_name in self.learnable_params:
+            self.variable_val_dict[learnable_param_name] = self.variable_val_dict[learnable_param_name].detach().to(self.device)
         
         self.validate_model_setup()
         self.set_all_model_eval()
@@ -1250,7 +1304,7 @@ class PDEModel:
 
         for label in self.agent_conditions:
             try:
-                self.agent_conditions[label].eval(self.local_function_dict)
+                self.agent_conditions[label].eval(self.local_function_dict | self.custom_function_dict)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     # it's fine to have zero division. All other errors should be raised
@@ -1263,7 +1317,7 @@ class PDEModel:
         
         for label in self.endog_var_conditions:
             try:
-                self.endog_var_conditions[label].eval(self.local_function_dict)
+                self.endog_var_conditions[label].eval(self.local_function_dict | self.custom_function_dict)
             except Exception as e:
                 if e is not ZeroDivisionError:
                     errors.append({
@@ -1368,6 +1422,9 @@ class PDEModel:
         for endog_var in self.endog_vars:
             dict_to_save[f"endog_var_{endog_var}_dict"] = self.endog_vars[endog_var].to_dict()
 
+        for learn_var in self.learnable_params:
+            dict_to_save[f"learn_var_{learn_var}"] = {"name": learn_var, "value": self.variable_val_dict[learn_var].tolist()}
+
         os.makedirs(model_dir, exist_ok=True)
         torch.save(dict_to_save, f"{model_dir}/{filename}")
         if verbose:
@@ -1392,6 +1449,11 @@ class PDEModel:
                 endog_var_config = v["model_config"]
                 self.add_endog(endog_var_name, endog_var_config, overwrite=True)
                 self.endog_vars[endog_var_name].from_dict(v)
+            
+            if k.startswith("learn_var"):
+                self.learnable_params.add(v["name"])
+                self.variable_val_dict[v["name"]] = nn.Parameter(torch.tensor(v["value"], dtype=torch.get_default_dtype()), requires_grad=True)
+
         print("Model loaded")
 
     def __str__(self):

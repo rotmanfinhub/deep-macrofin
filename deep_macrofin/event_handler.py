@@ -4,7 +4,8 @@ class EventHandler(object):
     
     def __iadd__(self, evt):
         '''Add an event function by += operator'''
-        self.event_handlers.append(evt)
+        if evt not in self.event_handlers:
+            self.event_handlers.append(evt)
         return self
     
     def __isub__(self, evt):

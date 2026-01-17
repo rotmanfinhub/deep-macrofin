@@ -37,7 +37,8 @@ class LearnableVar(nn.Module):
         '''
         super(LearnableVar, self).__init__()
         self.name = name
-        self.state_variables = state_variables
+        self.sv_subset_idx = config.get("sv_subset", list(range(len(state_variables))))
+        self.state_variables = list(np.array(state_variables)[self.sv_subset_idx])
         config["input_size"] = len(self.state_variables)
         self.config = self.check_inputs(config)
         self.device = self.config["device"]
@@ -95,12 +96,16 @@ class LearnableVar(nn.Module):
             self.model = get_MultKAN(self.config)
         elif self.config["layer_type"] == LayerType.DeepSet:
             self.model = get_DeepSet(self.config)
+        elif self.config["layer_type"] == LayerType.DGM:
+            self.model = get_DGM(self.config)
+        elif self.config["layer_type"] == LayerType.ResNet:
+            self.model = get_ResNet(self.config)
         else:
             required_model_type = self.config["layer_type"]
             raise NotImplementedError(f"Model type: {required_model_type} is not implemented")
     
     def forward(self, X: torch.Tensor):
-        X = X.to(self.device)
+        X = X.to(self.device)[..., self.sv_subset_idx]
         # The if check will never be true.
         # if len(X.shape) == 1: 
         #     # always have the shape (B, num_inputs)
@@ -151,7 +156,7 @@ class LearnableVar(nn.Module):
             self.derivatives[self.name + "_Hess"] = lambda x: vmap(hessian(self.forward))(x)
         else:
             for deriv_name in self.derives_template:
-                self.derivatives[deriv_name] = lambda x, target_deriv=deriv_name: self.compute_derivative(x, target_deriv) 
+                self.derivatives[deriv_name] = lambda x, target_deriv=deriv_name: self.compute_derivative(x, target_deriv)
 
     def to_dict(self):
         '''

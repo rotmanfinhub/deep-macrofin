@@ -63,17 +63,17 @@ class TestPDESystem(unittest.TestCase):
 
     def test_second_order(self):
         self.run_one_step()
-        expected_qxx = torch.ones((self.pde_sys.config["batch_size"], 1)) * 2
+        expected_qxx = torch.ones((self.pde_sys.config["batch_size"], 1), device=self.pde_sys.device) * 2
         result = self.pde_sys.variable_val_dict["q_xx"]
         self.assertTrue(torch.allclose(result, expected_qxx), f"q_x: Expected {expected_qxx}, got {result}")
 
-        expected_qyx = torch.zeros((self.pde_sys.config["batch_size"], 1))
+        expected_qyx = torch.zeros((self.pde_sys.config["batch_size"], 1), device=self.pde_sys.device)
         result = self.pde_sys.variable_val_dict["q_yx"]
         self.assertTrue(torch.allclose(result, expected_qyx), f"q_x: Expected {expected_qxx}, got {result}")
 
     def test_laplacian(self):
         self.run_one_step()
-        expected_k_lap = torch.ones((self.pde_sys.config["batch_size"], 2, 2)) * 2
+        expected_k_lap = torch.ones((self.pde_sys.config["batch_size"], 2, 2), device=self.pde_sys.device) * 2
         result = self.pde_sys.variable_val_dict["k_lap"]
         self.assertTrue(torch.allclose(result, expected_k_lap), f"q_x: Expected {expected_k_lap}, got {result}")
 

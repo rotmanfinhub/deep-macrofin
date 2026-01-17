@@ -8,6 +8,7 @@ class ActivationType(str, Enum):
     ReLU="relu"
     SiLU="silu"
     Sigmoid="sigmoid"
+    Softplus="softplus"
     Tanh="tanh"
     Wavelet="wavelet"
 
@@ -25,6 +26,7 @@ activation_function_mapping = {
     ActivationType.ReLU: nn.ReLU,
     ActivationType.SiLU: nn.SiLU,
     ActivationType.Sigmoid: nn.Sigmoid,
+    ActivationType.Softplus: nn.Softplus,
     ActivationType.Tanh: nn.Tanh,
     ActivationType.Wavelet: Wavelet
 }

@@ -55,6 +55,18 @@ def add_params(self, params: Dict[str, Any])
 ```
 Add a dictionary of parameters (constants in the PDE system) for the system.
 
+### add_learnable_param
+```py
+def add_learnable_param(self, name: str, init_value: float=1.0):
+```
+Add a single learnable parameter (constant in the PDE system) with name and initial value.
+
+### add_learnable_params
+```py
+def add_learnable_params(self, params: Dict[str, Any]):
+```
+Add a dictionary of learnable parameters (constants in the PDE system) for the system, each key value pair represent the name and initial value.
+
 ### add_agent
 ```py
 def add_agent(self, name: str, 

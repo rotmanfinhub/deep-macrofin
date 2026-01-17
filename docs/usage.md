@@ -13,13 +13,13 @@ pde_model = PDEModel("model_name")
 
 ### Training Configs
 
-The default training configs set batch size = 100, epochs = 1000, learning rate = $10^{-3}$, and AdamW optimizer. In this setting, loss will be logged to a csv file every 100 epochs during training (`loss_log_interval`), and data points are sampled randomly. 
+The default training configs set batch size = 100, epochs = 1000, learning rate = $10^{-3}$, and AdamW optimizer. In this setting, validation loss will be logged to a csv file every 50 epochs during training (`loss_log_interval`), and data points are sampled randomly. 
 ```py
 DEFAULT_CONFIG = {
     "batch_size": 100,
     "num_epochs": 1000,
     "lr": 1e-3,
-    "loss_log_interval": 100,
+    "loss_log_interval": 50,
     "optimizer_type": OptimizerType.AdamW,
     "sampling_method": SamplingMethod.UniformRandom,
     "refinement_sample_interval": int(0.2 * num_epochs),
@@ -387,6 +387,23 @@ def compute_q(SV, compute_k):
 model.register_function(compute_q)
 model.add_equations("q = compute_q(SV, compute_k)")
 ```
+
+## Registering Callbacks
+
+The loss balancing and active sampling depends on callbacks by <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/deep_macrofin/event_handler.py" target="_blank">`EventHandler`</a>s. In basic models, there are two event handlers:
+
+- `self.OnTrainingStart`: triggered when `train_model` is called, before all loop iterations. This can be used for initialization
+- `self.OnTrainingStep`: triggered every epoch, after loss is back propagated, and model parameters are updated once.
+
+The corresponding handlers for time stepping models are 
+
+- `self.OnInnerLoopStart`: triggered at the beginning at each time step
+- `self.OnInnerLoopStep`: triggered every epoch, after loss is back propagated, same as `self.OnTrainingStep`
+
+
+## Solving Inverse Problems
+
+Using `add_learnable_param` or `add_learnable_params`, the users can define a parameter that can be jointly optimized with the PDE system. This is useful for free boundary models like <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/decamps/event_handler.py" target="_blank">decamps_equity.ipynb</a>
 
 ## Training and Evaluation
 
