@@ -14,13 +14,11 @@ Deep-MacroFin is a comprehensive deep-learning framework designed to solve equil
 ### Code
 All the code are under [`deep_macrofin`](./deep_macrofin/), and the tests are under [`tests`](./tests/)
 
-The project is now configured with [poetry](https://python-poetry.org/) for dependency management and packaging. 
+The project is now configured with [uv](https://docs.astral.sh/uv/) for dependency management and packaging. 
 To install the dependencies and run the code:
 
 ```bash
-poetry config virtualenvs.in-project true --local # this sets the virtual environment path to be in the local directory.
-poetry shell # creates the virtual environment
-poetry install --no-interaction # installs the dependencies and the package
+uv sync # this will automatically download suitable python versions, create virtual environment and install packages in pyproject.toml file
 
 ## You can now run the tests using the command:
 pytest tests
