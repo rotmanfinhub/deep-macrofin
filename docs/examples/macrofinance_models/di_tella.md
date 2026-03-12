@@ -379,7 +379,7 @@ MODEL_DIR = "./models/ditella"
 set_seeds(0)
 pde_model = PDEModelTimeStep("ditella", 
                      {"batch_size": 500, "time_batch_size": 1, "sampling_method": SamplingMethod.UniformRandom, 
-                      "num_outer_iterations": 50, "num_inner_iterations": 5000, "loss_balancing": True}, 
+                      "num_outer_iterations": 70, "num_inner_iterations": 5000, "loss_balancing": True}, 
                      latex_var_mapping)
 pde_model.set_state(["x", "v"], {"x": [0.05, 0.95], "v": [0.05, 0.95]})
 pde_model.add_agents(["xi", "zeta"], 
