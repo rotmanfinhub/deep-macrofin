@@ -165,3 +165,4 @@ examples/**/figures/
 *.pkl
 tests/*.txt
 *-errors.txt
+examples/active_learning_paper

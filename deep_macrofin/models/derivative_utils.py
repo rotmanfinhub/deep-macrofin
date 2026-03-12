@@ -20,6 +20,8 @@ def get_derivs_1order(y, x, idx):
         return torch.zeros((x.shape[0], 1))
 
 def get_all_derivs(target_var_name="f", all_vars: List[str] = ["x", "y", "z"], derivative_order = 2) -> Dict[str, Callable]:
+    if derivative_order <= 0:
+        return {}
     num_levels = derivative_order + 1
     level_derivatives = {i: {} for i in range(1, num_levels)}
     # first order
