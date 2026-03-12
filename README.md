@@ -14,13 +14,11 @@ Deep-MacroFin is a comprehensive deep-learning framework designed to solve equil
 ### Code
 All the code are under [`deep_macrofin`](./deep_macrofin/), and the tests are under [`tests`](./tests/)
 
-The project is now configured with [poetry](https://python-poetry.org/) for dependency management and packaging. 
+The project is now configured with [uv](https://docs.astral.sh/uv/) for dependency management and packaging. 
 To install the dependencies and run the code:
 
 ```bash
-poetry config virtualenvs.in-project true --local # this sets the virtual environment path to be in the local directory.
-poetry shell # creates the virtual environment
-poetry install --no-interaction # installs the dependencies and the package
+uv sync # this will automatically download suitable python versions, create virtual environment and install packages in pyproject.toml file
 
 ## You can now run the tests using the command:
 pytest tests
@@ -51,7 +49,7 @@ Various examples using the library, with comparisons to DeepXDE and PyMacroFin a
 - [`initial_examples`](./examples/initial_examples/): Initial scripts for testing deep neural networks for ODE/PDE solutions, and macromodels.
 - [`kan_examples`](./examples/kan_examples/): Solutions to basic ODEs, using KAN as approximators
 - [`macro_problems`](./examples/macro_problems/): Macroeconomic models in different dimensions.
-- [`paper_example`](./examples/paper_example/): Examples in the paper, with PyMacroFin and deepXDE comparisons. Models and log files for reproducing paper results can be found in [Google Drive](https://drive.google.com/drive/folders/1wVtO9JUq_a7IhA9Sult2oYmKOX5GHcPh?usp=sharing).
+- [`paper_example`](./examples/paper_example/): Examples in the paper, with PyMacroFin and deepXDE comparisons. Models and log files for reproducing paper results can be found in [Google Drive](https://drive.google.com/drive/folders/1wVtO9JUq_a7IhA9Sult2oYmKOX5GHcPh?usp=sharing). For a complete set of experiments, see [this GitHub repo](https://github.com/yuntaowu2000/deep_macrofin_paper)
 - [`pymacrofin_eg`](./examples/pymacrofin_eg/): Examples from PyMacroFin and proposition 2 from Brunnermeier and Sannikov (2014)
 
 **Note**:  <a href="https://adriendavernas.com/pymacrofin/index.html" target="_blank">PyMacroFin</a> and <a href="https://github.com/lululxvi/deepxde/tree/master" target="_blank">DeepXDE</a> are used as benchmarks in several examples, but the associated packages are not included in this repo's `requirements.txt`. To run the comparisons properly, please install their packages respectively.
