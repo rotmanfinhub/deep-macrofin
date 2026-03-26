@@ -1035,7 +1035,7 @@ class PDEModel:
             self.OnTrainingStep += self.soft_adapt_step
         
         set_seeds(0)
-        SV_CHECK = self.sample_uniform(0)
+        SV_CHECK = self.sample(0)
         change_dict = defaultdict(list)
         self.prev_vals = {}
         for agent_name in self.agents:
