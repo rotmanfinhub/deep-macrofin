@@ -1,6 +1,6 @@
 # Basak Cuoco Problem
 
-The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/macro_problems/basak_cuoco/basak_cuoco.ipynb" target="_blank">basak_cuoco.ipynb</a>. 
+The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/macro_problems/basak_cuoco/basak_cuoco.ipynb" target="_blank">basak_cuoco.ipynb</a>. The solution with passive agent pricing is at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/macro_problems/basak_cuoco/basak_cuoco_passive_pricing.ipynb" target="_blank">basak_cuoco_passive_pricing.ipynb</a>. 
 
 The model has 3 agents and 2 shocks. Agent $u$ is unconstrained; agent $c$ is constrained; and agent $p$ is passive. Endowment follows a GBM with two independent shocks. Here we assume that the passive agent is not participating tin pricing.
 
@@ -39,6 +39,13 @@ $$
 | $\kappa$ | Death rate | $\kappa=0$ |
 | $\omega=(\omega_u,\omega_c,\omega_p)$ | Mass of agents | $\omega_u=0.25, \omega_c=0.25, \omega_p=0.5$ |
 | $\alpha_{p,min},\alpha_{p,max}$ | Max/Min alpha for passive agent | $\alpha_{p,min}=\alpha_{p,max}=0$ |
+
+For passive pricing, we change the following parameters,
+
+| Parameter | Definition | Value |
+|-----------|------------|-------|
+| $\gamma=(\gamma_u, \gamma_c, \gamma_p)$ | Risk aversion (unconstrained, constrained, passive) | $\gamma_u=1,\gamma_c=1,\gamma_p=1$ |
+| $\psi$ | IES | $\psi=1.5$ |
 
 ## Variables
 
