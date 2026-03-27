@@ -1,6 +1,6 @@
-# Basak Cuoco Problem
+# Basak-Cuoco and Gârleanu-Panageas
 
-The full solution can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/macro_problems/basak_cuoco/basak_cuoco.ipynb" target="_blank">basak_cuoco.ipynb</a>. The solution with passive agent pricing is at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/macro_problems/basak_cuoco/basak_cuoco_passive_pricing.ipynb" target="_blank">basak_cuoco_passive_pricing.ipynb</a>. 
+The full solution for Basak-Cuoco model can be found at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/macro_problems/basak_cuoco/basak_cuoco.ipynb" target="_blank">basak_cuoco.ipynb</a>. The solution for Gârleanu-Panageas model (with passive agent pricing) is at <a href="https://github.com/rotmanfinhub/deep-macrofin/blob/main/examples/macro_problems/basak_cuoco/garleanu_panageas.ipynb" target="_blank">garleanu_panageas.ipynb</a>. 
 
 The model has 3 agents and 2 shocks. Agent $u$ is unconstrained; agent $c$ is constrained; and agent $p$ is passive. Endowment follows a GBM with two independent shocks. Here we assume that the passive agent is not participating tin pricing.
 
