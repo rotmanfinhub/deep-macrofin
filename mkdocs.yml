@@ -101,3 +101,4 @@ nav:
     - 'Bewley-Huggett-Aiyagari': 'examples/macrofinance_models/bewley_huggett_aiyagari.md'
     - 'Neoclassical Growth': 'examples/macrofinance_models/neoclassical_growth.md'
     - 'Basak-Cuoco and Gârleanu-Panageas': 'examples/macrofinance_models/basak_cuoco.md'
+  - 'Basic Dynamic Programming': 'examples/macrofinance_models/dynamic_programming.md'
