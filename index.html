@@ -470,10 +470,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#build-from-source-with-poetry" class="md-nav__link">
+  <a href="#build-from-source-with-uv" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Build from Source (with poetry)
+        Build from Source (with uv)
       
     </span>
   </a>
@@ -481,15 +481,15 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#build-from-source-without-poetry" class="md-nav__link">
+  <a href="#build-from-source-without-uv" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Build from Source (without poetry)
+        Build from Source (without uv)
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Build from Source (without poetry)">
+    <nav class="md-nav" aria-label="Build from Source (without uv)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1517,10 +1517,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#build-from-source-with-poetry" class="md-nav__link">
+  <a href="#build-from-source-with-uv" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Build from Source (with poetry)
+        Build from Source (with uv)
       
     </span>
   </a>
@@ -1528,15 +1528,15 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#build-from-source-without-poetry" class="md-nav__link">
+  <a href="#build-from-source-without-uv" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Build from Source (without poetry)
+        Build from Source (without uv)
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Build from Source (without poetry)">
+    <nav class="md-nav" aria-label="Build from Source (without uv)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1598,8 +1598,8 @@
 <p>The stable version of the package can be installed from PyPI.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>deep-macrofin
 </span></code></pre></div>
-<h3 id="build-from-source-with-poetry">Build from Source (with poetry)</h3>
-<p>The project is now configured with <a href="https://python-poetry.org/">poetry</a> for dependency management and packaging. 
+<h3 id="build-from-source-with-uv">Build from Source (with uv)</h3>
+<p>The project is now configured with <a href="https://docs.astral.sh/uv/">uv</a> for dependency management and packaging. 
 To install the dependencies and run the code:</p>
 <ol>
 <li>
@@ -1608,17 +1608,15 @@ To install the dependencies and run the code:</p>
 </span></code></pre></div></p>
 </li>
 <li>
-<p>Install poetry by following the official documentation <a href="https://python-poetry.org/docs/#installation">here</a></p>
+<p>Install uv by following the official documentation <a href="https://docs.astral.sh/uv/getting-started/installation/">here</a></p>
 </li>
 <li>
-<p>Create a poetry virtual environment and install the dependencies and the package
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>poetry<span class="w"> </span>config<span class="w"> </span>virtualenvs.in-project<span class="w"> </span><span class="nb">true</span><span class="w"> </span>--local<span class="w"> </span><span class="c1"># this sets the virtual environment path to be in the local directory.</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>poetry<span class="w"> </span>shell<span class="w"> </span><span class="c1"># creates the virtual environment</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>poetry<span class="w"> </span>install<span class="w"> </span>--no-interaction<span class="w"> </span><span class="c1"># installs the dependencies and the package</span>
+<p>Create a uv virtual environment and install the dependencies and the package
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>uv<span class="w"> </span>sync<span class="w"> </span><span class="c1"># this will automatically download suitable python versions, create virtual environment and install packages in pyproject.toml file</span>
 </span></code></pre></div></p>
 </li>
 </ol>
-<h3 id="build-from-source-without-poetry">Build from Source (without poetry)</h3>
+<h3 id="build-from-source-without-uv">Build from Source (without uv)</h3>
 <p>For developers, you should clone the folder to your local machine and install from the local folder.</p>
 <ol>
 <li>
