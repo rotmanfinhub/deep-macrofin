@@ -12,8 +12,8 @@ The stable version of the package can be installed from PyPI.
 pip install deep-macrofin
 ```
 
-### Build from Source (with poetry)
-The project is now configured with [poetry](https://python-poetry.org/) for dependency management and packaging. 
+### Build from Source (with uv)
+The project is now configured with [uv](https://docs.astral.sh/uv/) for dependency management and packaging. 
 To install the dependencies and run the code:
 
 1. Clone the repository
@@ -21,16 +21,14 @@ To install the dependencies and run the code:
 git clone https://github.com/rotmanfinhub/deep-macrofin.git
 ```
 
-2. Install poetry by following the official documentation [here](https://python-poetry.org/docs/#installation)
+2. Install uv by following the official documentation [here](https://docs.astral.sh/uv/getting-started/installation/)
 
-3. Create a poetry virtual environment and install the dependencies and the package
+3. Create a uv virtual environment and install the dependencies and the package
 ```bash
-poetry config virtualenvs.in-project true --local # this sets the virtual environment path to be in the local directory.
-poetry shell # creates the virtual environment
-poetry install --no-interaction # installs the dependencies and the package
+uv sync # this will automatically download suitable python versions, create virtual environment and install packages in pyproject.toml file
 ```
 
-### Build from Source (without poetry)
+### Build from Source (without uv)
 
 For developers, you should clone the folder to your local machine and install from the local folder.
 
