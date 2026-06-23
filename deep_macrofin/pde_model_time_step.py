@@ -291,6 +291,7 @@ class PDEModelTimeStep(PDEModel):
         all_losses = refinement_loss_dict["loss"]
         X_ids = torch.topk(all_losses, self.batch_size//self.refinement_rounds, dim=0)[1].squeeze(-1)
         self.anchor_points = torch.vstack((self.anchor_points, SV[X_ids]))
+        return SV[X_ids].to(self.device)
 
     def sample_uniform_ts(self):
         SV = np.random.uniform(low=self.state_variable_constraints["sv_low"][:-1], 
@@ -598,8 +599,8 @@ class PDEModelTimeStep(PDEModel):
                             global_min_loss_dict[k].append(v.item())
 
                 if self.config["sampling_method"] == SamplingMethod.RARG and epoch % (num_inner_iters // self.refinement_rounds) == 0 and epoch > 0:
-                    self.sample_rar_greedy()
-                    SV = torch.vstack([SV, self.anchor_points])
+                    new_anchors = self.sample_rar_greedy()
+                    SV = torch.vstack([SV, new_anchors])
                     SV.requires_grad_(True)
                     for i, sv_name in enumerate(self.state_variables):
                         self.variable_val_dict[sv_name] = SV[:, i:i+1]
