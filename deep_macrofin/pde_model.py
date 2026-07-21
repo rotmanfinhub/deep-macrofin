@@ -1070,9 +1070,9 @@ class PDEModel:
             loss_dict["total_loss"] = total_loss
 
             if full_log:
-                formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
+                formatted_train_loss = ",\n".join([f'{k}: {v:.2e}' for k, v in loss_dict.items()])
             else:
-                formatted_train_loss = "%.4f" % loss_dict["total_loss"].item()
+                formatted_train_loss = "%.2e" % loss_dict["total_loss"].item()
 
             self.OnTrainingStep(epoch=epoch, SV=SV)
 
@@ -1091,7 +1091,7 @@ class PDEModel:
                     min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
                     for k, v in loss_dict.items():
                         min_loss_dict[k].append(v.item())
-                    pbar.set_description("Min loss: {0:.4f}".format(min_loss))
+                    pbar.set_description("Min loss: {0:.2e}".format(min_loss))
 
                 epoch_loss_dict["epoch"].append(epoch)
                 for k, v in loss_dict.items():
@@ -1200,9 +1200,9 @@ class PDEModel:
             loss_dict["total_loss"] = total_loss
 
             if full_log:
-                formatted_train_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
+                formatted_train_loss = ",\n".join([f'{k}: {v:.2e}' for k, v in loss_dict.items()])
             else:
-                formatted_train_loss = "%.4f" % loss_dict["total_loss"]
+                formatted_train_loss = "%.2e" % loss_dict["total_loss"]
             
             if loss_dict["total_loss"].item() < min_loss and all(not v.isnan() for v in loss_dict.values()):
                 min_loss = loss_dict["total_loss"].item()
@@ -1216,7 +1216,7 @@ class PDEModel:
                 epoch_loss_dict["epoch"].append(epoch)
                 for k, v in loss_dict.items():
                     epoch_loss_dict[k].append(v.item())
-                pbar.set_description("Total loss: {0:.4f}".format(loss_dict["total_loss"]))
+                pbar.set_description("Total loss: {0:.2e}".format(loss_dict["total_loss"]))
             print(f"epoch {epoch}: \ntrain loss :: {formatted_train_loss},\ntime elapsed :: {time.time() - epoch_start_time}", file=log_file)
         print(f"training finished, total time :: {time.time() - start_time}")
         print(f"training finished, total time :: {time.time() - start_time}", file=log_file)
@@ -1250,9 +1250,9 @@ class PDEModel:
         loss_dict = self.test_step(SV)
 
         if full_log:
-            formatted_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
+            formatted_loss = ",\n".join([f'{k}: {v:.2e}' for k, v in loss_dict.items()])
         else:
-            formatted_loss = "%.4f" % loss_dict["total_loss"].item()
+            formatted_loss = "%.2e" % loss_dict["total_loss"].item()
         print(f"loss :: {formatted_loss}")
         return loss_dict
 

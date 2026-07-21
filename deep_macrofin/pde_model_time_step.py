@@ -590,7 +590,7 @@ class PDEModelTimeStep(PDEModel):
                         min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
                         for k, v in loss_dict.items():
                             min_loss_dict[k].append(v.item())
-                        pbar.set_description("Min loss: {0:.4f}".format(min_loss))
+                        pbar.set_description("Min loss: {0:.2e}".format(min_loss))
                     if curr_loss < global_min_loss and all(not v.isnan() for v in loss_dict.values()):
                         global_min_loss = curr_loss
                         global_min_loss_dict["time_loop_iter"].append(outer_loop_iter)
@@ -627,7 +627,7 @@ class PDEModelTimeStep(PDEModel):
             loss_dict = self.__validation(SV_T0) # keep track of the loss at minimum time step only
             total_loss = loss_dict["total_loss"]
             if total_loss < outer_loop_min_loss:
-                print(f"Updating min loss from {outer_loop_min_loss:.4f} to {total_loss:.4f}")
+                print(f"Updating min loss from {outer_loop_min_loss:.2e} to {total_loss:.2e}")
                 outer_loop_min_loss = total_loss
                 loss_dict = self.loss_val_dict.copy()
                 loss_dict["total_loss"] = total_loss
@@ -685,9 +685,9 @@ class PDEModelTimeStep(PDEModel):
         loss_dict = self.test_step(SV)
 
         if full_log:
-            formatted_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
+            formatted_loss = ",\n".join([f'{k}: {v:.2e}' for k, v in loss_dict.items()])
         else:
-            formatted_loss = "%.4f" % loss_dict["total_loss"].item()
+            formatted_loss = "%.4e" % loss_dict["total_loss"].item()
         print(f"loss :: {formatted_loss}")
         return loss_dict
     
