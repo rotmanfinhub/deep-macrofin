@@ -99,6 +99,31 @@ $$\alpha_i = \frac{f_i \alpha_i}{\sum_{j=1}^m f_j \alpha_j}$$
 
 **Soft Attention** implements the algorithm in Song et al. 2024[^4]. Specifically, loss weights are linear neural networks applied to individual grid points in the training data.
 
+#### Experimental: Stacked (vmap-batched) evaluation
+
+By default, every agent/endogenous variable is evaluated one network at a time: each network runs its own forward pass and its own automatic-differentiation pass to produce values and derivatives. When a model has many networks that share the same architecture (e.g. one value function per agent in an N-agent model), this per-network loop dominates the cost.
+
+Setting the experimental `stacked` flag batches all same-architecture networks into a single [`torch.func.vmap`](https://pytorch.org/docs/stable/func.html) call across both the network dimension and the batch dimension, computing values, jacobians and hessians at once:
+
+```py
+from deep_macrofin import PDEModel
+pde_model = PDEModel("model_name", {"stacked": True})
+```
+
+Stacked evaluation **requires `batch_jac_hes=True`** on every stacked network, so each network exposes `name`, `name_Jac` and `name_Hess`. If a stackable network (an `LayerType.MLP` without a `hardcode_function`) is configured with `batch_jac_hes=False`, a `ValueError` is raised — set `batch_jac_hes=True` on that variable.
+
+The flag also works for `PDEModelTimeStep`. It is confined to the agent/endogenous-variable forward computation (`_eval_local_functions`); equations, endogenous equations, constraints, HJB equations, systems and loss computation are unchanged, so enabling it does not change the results, only the speed. The batched path produces exactly the same variable and derivative keys (`name`, `name_Jac`, `name_Hess`) that the per-network `batch_jac_hes=True` path produces.
+
+Networks are grouped automatically by architecture signature (which includes the final elementwise activation), so a set of otherwise-identical networks that differ only by, say, a final `Softplus` (`positive=True`) are split into a couple of groups, each still evaluated with a single `vmap` call.
+
+Limitations (experimental):
+
+- Every stacked network must use `batch_jac_hes=True` (see above).
+- Only `LayerType.MLP` networks are stacked. Other layer types (KAN, MultKAN, DeepSet, DGM, ResNet) and any variable defined with a `hardcode_function` fall back to the per-network evaluation automatically.
+- Non-stackable variables simply keep the default behaviour, so mixing stackable and non-stackable variables is safe.
+
+If you need custom forward logic for the agent/endogenous variables (for example, imposing an analytic relationship among networks), override `update_variables` (or `_eval_local_functions`) once on your subclass; because training, validation, refinement and plotting all route through it, the change applies everywhere. See [`BasePDEModel`](./api/base_pde_model.md#overriding-the-forward-computation).
+
 ### Latex Variable Map
 Economic models may involve a large amount of variables and equations. Each variable can have super-/subscripts. To properly distinguish super-/subscripts from powers/derivatives and parse equations when LaTex formula are provided, we require a mapping from LaTex variables to Python strings. The keys are LaTex strings in raw format `r""`, and the values are the corresponding python string. The following dictionary maps LaTex string $\xi_t^h$ to Python string `"xih"`, and LaTex string $q_t^a$ to Python string `"qa"`.
 

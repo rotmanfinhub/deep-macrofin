@@ -2,6 +2,8 @@
 
 This is the main interface to construct the PDE system to solve.
 
+`PDEModel` is the stationary (non-time-stepping) solver. It shares most of its API (variable/equation/constraint definition, forward evaluation, loss computation, model validation, saving/loading) with [`PDEModelTimeStep`](./pde_model_time_step.md) through the common abstract base class [`BasePDEModel`](./base_pde_model.md).
+
 ## PDEModel
 ```py
 class PDEModel(name: str, 
@@ -28,6 +30,7 @@ Initialize a PDEModel with the provided name and config.
     - loss_balancing_alpha: **float**, parameter for loss balancing
     - soft_adapt_interval: **int**, if larger than 0, use soft adapt for loss weight update, and the value is set to be the look-back interval.
     - loss_soft_attention: **bool**, use soft attention for grid-wise loss weight updates.
+    - stacked: **bool**, *experimental*, when True, all same-architecture agents/endogenous variables are evaluated with a single `vmap`-batched forward/derivative call instead of one call per network. See [Experimental: stacked evaluation](../usage.md#experimental-stacked-vmap-batched-evaluation). Default: False.
 - latex_var_mapping: **Dict[str, str]**, it should include all possible latex to python name conversions. Otherwise latex parsing will fail. Can be omitted if all the input equations/formula are not in latex form. For details, check [`Formula`](evaluations.md#formula).
 
 
