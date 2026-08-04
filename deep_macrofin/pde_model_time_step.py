@@ -4,21 +4,20 @@ import json
 import os
 import time
 from collections import OrderedDict, defaultdict
-from copy import deepcopy
 from typing import Any, Callable, Dict, List, Union
 
 import pandas as pd
 import torch
 from tqdm import tqdm
 
+from .base_pde_model import BasePDEModel
 from .evaluations import *
 from .event_handler import *
 from .models import *
-from .pde_model import PDEModel
 from .utils import *
 
 
-class PDEModelTimeStep(PDEModel):
+class PDEModelTimeStep(BasePDEModel):
     '''
     PDEModelTimeStep uses time stepping scheme + neural network to solve for optimality
 
@@ -26,6 +25,8 @@ class PDEModelTimeStep(PDEModel):
 
     Also initialize the neural network architectures for each agent/endogenous variables 
     with some config dictionary.
+
+    Shared functionality lives in :class:`BasePDEModel`.
     '''
     
     '''
@@ -59,6 +60,7 @@ class PDEModelTimeStep(PDEModel):
             "bernoulli_prob": 0.9999,
             "loss_balancing_temp": 0.1,
             "loss_balancing_alpha": 0.999,
+            "stacked": False,
         }
 
         latex_var_mapping should include all possible latex to python name conversions. Otherwise latex parsing will fail. Can be omitted if all the input equations/formula are not in latex form. For details, check `Formula` class defined in `evaluations/formula.py`
@@ -90,40 +92,38 @@ class PDEModelTimeStep(PDEModel):
             self.boundary_uniform_points = None
 
         self.latex_var_mapping = latex_var_mapping
-        
-        self.state_variables = []
-        self.state_variable_constraints = {}
 
-        # label to object mapping, used for actual evaluations
-        self.agents: Dict[str, Agent] = OrderedDict()
-        self.agent_conditions: Dict[str, AgentConditions] = OrderedDict()
-        self.endog_vars: Dict[str, EndogVar] = OrderedDict()
-        self.endog_var_conditions: Dict[str, EndogVarConditions] = OrderedDict()
-        self.equations: Dict[str, Equation] = OrderedDict()
-        self.endog_equations: Dict[str, EndogEquation] = OrderedDict()
-        self.constraints: Dict[str, Constraint] = OrderedDict()
-        self.hjb_equations : Dict[str, HJBEquation]= OrderedDict()
-        self.systems: Dict[str, System] = OrderedDict()
-        
-        self.local_function_dict: Dict[str, Callable] = OrderedDict() # should include all functions available from agents and endogenous vars (direct evaluation and derivatives)
-        self.custom_function_dict: Dict[str, Callable] = OrderedDict() # user-defined functions
+        self._init_common()
 
-        self.loss_reduction_dict: Dict[str, LossReductionMethod] = OrderedDict() # used to store all loss function label to reduction method mappings
-
-        # label to value mapping, used to store all variable values and loss.
-        self.params: Dict[str, torch.Tensor] = OrderedDict()
-        self.variable_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include all local variables/params + current values, initially, all values in this dictionary can be zero
-        self.loss_val_dict: Dict[str, torch.Tensor] = OrderedDict() # should include loss equation (constraints, endogenous equations, HJB equations) labels + corresponding loss values, initially, all values in this dictionary can be zero.
-        self.loss_weight_dict: Dict[str, float] = OrderedDict() # should include loss equation labels + corresponding weight
         self.initial_guess: Dict[str, Union[float, Callable]] = OrderedDict() # should include the overrides of initial guesses for agents and endog vars
-        self.learnable_params = set() # add a set of strings to keep track of all learnable parameters
-        self.device = "cpu"
-
-        # for residual-based adaptive refinement (RAR) and active learning
-        self.anchor_points: torch.Tensor = None
-        self.refinement_rounds: int = self.config.get("refinement_rounds", 5)
         self.OnInnerLoopStart = EventHandler()
         self.OnInnerLoopStep = EventHandler()
+
+    def set_config(self, config: Dict[str, Any] = DEFAULT_CONFIG_TIME_STEP):
+        '''
+        This function overwrites the existing configurations.
+        '''
+        self.config.update(config)
+        self.batch_size = self.config.get("batch_size", 100)
+        self.time_batch_size = self.config.get("time_batch_size", None)
+        if self.time_batch_size is None:
+            self.time_batch_size = self.batch_size
+        self.num_outer_iterations = self.config.get("num_outer_iterations", 100)
+        self.num_inner_iterations = self.config.get("num_inner_iterations", 5000)
+        self.min_inner_iterations = self.config.get("min_inner_iterations", 1000)
+        self.loss_log_interval = self.config.get("loss_log_interval", 50)
+        self.time_boundary_loss_reduction = self.config.get("time_boundary_loss_reduction", LossReductionMethod.MSE)
+        self.lr = self.config.get("lr", 1e-3)
+        self.optimizer_type = self.config.get("optimizer_type", OptimizerType.Adam)
+        self.refinement_rounds = self.config.get("refinement_rounds", 5)
+        self.stacked = self.config.get("stacked", False)
+
+    def set_state(self, names: List[str], constraints: Dict[str, List] = {}):
+        '''
+        Set the state variables ("grid") of the problem, reserving an extra ``t``
+        time dimension for the time-stepping scheme.
+        '''
+        super().set_state(names, constraints, reserve_time=True)
 
     def __set_agent_time_boundary_condition(self, name: str,
                             time_boundary_value: torch.Tensor,
@@ -173,57 +173,6 @@ class PDEModelTimeStep(PDEModel):
         self.loss_weight_dict[label] = weight
         self.loss_reduction_dict[label] = loss_reduction
 
-    def set_state(self, names: List[str], constraints: Dict[str, List] = {}):
-        '''
-        Set the state variables ("grid") of the problem.
-        We probably want to add some constraints for each variable (domain). 
-        By default, the constraints will be [-1, 1] (for easier sampling). 
-        
-        Only rectangular regions are supported
-        '''
-        assert "t" not in names, "t is reserved for time stepping, and should not be included in state variables"
-        assert len(self.agents) + len(self.endog_vars) == 0, "Neural networks for agents and endogenous variables have been initialized. State variables cannot be changed."
-        for name in names:
-            self.check_name_used(name)
-        self.state_variables = names
-        self.state_variable_constraints = {sv: [-1.0, 1.0] for sv in self.state_variables}
-        self.state_variable_constraints.update(constraints)
-
-        self.state_variables += ["t"]
-        self.state_variable_constraints["t"] = [self.config["min_t"], self.config["max_t"]]
-
-        constraints_low = []
-        constraints_high = []
-        
-        for svc in self.state_variables:
-            constraints_low.append(self.state_variable_constraints[svc][0])
-            constraints_high.append(self.state_variable_constraints[svc][1])
-        self.state_variable_constraints["sv_low"] = constraints_low
-        self.state_variable_constraints["sv_high"] = constraints_high
-
-        for name in self.state_variables:
-            self.variable_val_dict[name] = torch.zeros((self.batch_size, 1))
-        self.variable_val_dict["SV"] = torch.zeros((self.batch_size, len(self.state_variables)))
-        self.boundary_uniform_points = None
-
-    def sample_fixed_grid(self):
-        '''
-        Sample fixed grid of shape (B^N, 1), where B is batch size, N is number of state variables including time dimension.
-        We always have at least 2 variables (one state variable, one hidden time dimension)
-        '''
-        sv_ls = [0] * len(self.state_variables)
-        for i in range(len(self.state_variables)):
-            sv_ls[i] = torch.linspace(self.state_variable_constraints["sv_low"][i], 
-                                    self.state_variable_constraints["sv_high"][i], 
-                                    steps=self.batch_size, device=self.device)
-        return torch.cartesian_prod(*sv_ls)
-    
-    def sample_uniform(self):
-        SV = np.random.uniform(low=self.state_variable_constraints["sv_low"], 
-                         high=self.state_variable_constraints["sv_high"], 
-                         size=(self.batch_size, len(self.state_variables)))
-        return torch.Tensor(SV).to(self.device)
-    
     def __get_refinement_loss_dict(self):
         '''
         Sample a dense subset of the problem domain, compute the loss and return total loss for each point sampled. Used for Residual-based Adaptive Refinement and Active Learning
@@ -248,19 +197,9 @@ class PDEModelTimeStep(PDEModel):
         variable_val_dict_ = self.variable_val_dict.copy()
         total_loss = torch.zeros((self.batch_size, 1), device=self.device)
 
-        # forward pass
-        for i, sv_name in enumerate(self.state_variables):
-            variable_val_dict_[sv_name] = SV[:, i:i+1]
-        variable_val_dict_["SV"] = SV
-
-        # update variables, including agent, endogenous variables, their derivatives
-        for func_name in self.local_function_dict:
-            variable_val_dict_[func_name] = self.local_function_dict[func_name](SV)
-
-        # update variables, using equations
-        for eq_name in self.equations:
-            lhs = self.equations[eq_name].lhs.formula_str
-            variable_val_dict_[lhs] = self.equations[eq_name].eval(self.custom_function_dict, variable_val_dict_)
+        # forward pass (agent/endog + derivatives + equations) through the single
+        # overridable evaluation path
+        self.update_variables(SV, vd=variable_val_dict_)
 
         # compute total losses, without reducing to a single value, keep the original dimension, but summing up using abs values
         # Note that the conditions (IC/BC, or user pre-defined sampling regions) are not considered
@@ -293,7 +232,7 @@ class PDEModelTimeStep(PDEModel):
         self.anchor_points = torch.vstack((self.anchor_points, SV[X_ids]))
         return SV[X_ids].to(self.device)
 
-    def sample_uniform_ts(self):
+    def sample_uniform_ts(self, epoch=0):
         SV = np.random.uniform(low=self.state_variable_constraints["sv_low"][:-1], 
                          high=self.state_variable_constraints["sv_high"][:-1], 
                          size=(self.batch_size, len(self.state_variables) - 1))
@@ -354,18 +293,9 @@ class PDEModelTimeStep(PDEModel):
         This checks that agent(t=0) converges to agent(t=1) and endog(t=0) converges to endog(t=1) 
         '''
         temp_dict = {}
-        for i, sv_name in enumerate(self.state_variables):
-            temp_dict[sv_name] = SV_T0[:, i:i+1]
-        temp_dict["SV"] = SV_T0
-
-        # update variables, including agent, endogenous variables, their derivatives
-        for func_name in self.local_function_dict:
-            temp_dict[func_name] = self.local_function_dict[func_name](SV_T0)
-
-        # update variables, using equations
-        for eq_name in self.equations:
-            lhs = self.equations[eq_name].lhs.formula_str
-            temp_dict[lhs] = self.equations[eq_name].eval(self.custom_function_dict, temp_dict)
+        # forward pass (agent/endog + derivatives + equations) through the single
+        # overridable evaluation path
+        self.update_variables(SV_T0, vd=temp_dict)
 
         new_vals = {}
         for k in self.prev_vals:
@@ -590,7 +520,7 @@ class PDEModelTimeStep(PDEModel):
                         min_loss_dict["epoch"].append(len(min_loss_dict["epoch"]))
                         for k, v in loss_dict.items():
                             min_loss_dict[k].append(v.item())
-                        pbar.set_description("Min loss: {0:.4f}".format(min_loss))
+                        pbar.set_description("Min loss: {0:.2e}".format(min_loss))
                     if curr_loss < global_min_loss and all(not v.isnan() for v in loss_dict.values()):
                         global_min_loss = curr_loss
                         global_min_loss_dict["time_loop_iter"].append(outer_loop_iter)
@@ -627,7 +557,7 @@ class PDEModelTimeStep(PDEModel):
             loss_dict = self.__validation(SV_T0) # keep track of the loss at minimum time step only
             total_loss = loss_dict["total_loss"]
             if total_loss < outer_loop_min_loss:
-                print(f"Updating min loss from {outer_loop_min_loss:.4f} to {total_loss:.4f}")
+                print(f"Updating min loss from {outer_loop_min_loss:.2e} to {total_loss:.2e}")
                 outer_loop_min_loss = total_loss
                 loss_dict = self.loss_val_dict.copy()
                 loss_dict["total_loss"] = total_loss
@@ -685,152 +615,12 @@ class PDEModelTimeStep(PDEModel):
         loss_dict = self.test_step(SV)
 
         if full_log:
-            formatted_loss = ",\n".join([f'{k}: {v:.4f}' for k, v in loss_dict.items()])
+            formatted_loss = ",\n".join([f'{k}: {v:.2e}' for k, v in loss_dict.items()])
         else:
-            formatted_loss = "%.4f" % loss_dict["total_loss"].item()
+            formatted_loss = "%.4e" % loss_dict["total_loss"].item()
         print(f"loss :: {formatted_loss}")
         return loss_dict
-    
-    def validate_model_setup(self, model_dir="./"):
-        '''
-        Check that all the equations/constraints given are valid. If not, log the errors in a file, and raise an ultimate error.
 
-        Need to check the following:
-        self.agents,
-        self.agent_conditions,
-        self.endog_vars,
-        self.endog_var_conditions,
-        self.equations,
-        self.endog_equations,
-        self.constraints,
-        self.hjb_equations,
-        self.systems,
-        '''
-        errors = []
-        sv = self.sample()
-        sv.requires_grad_(True)
-        variable_val_dict_ = self.variable_val_dict.copy()
-        for i, sv_name in enumerate(self.state_variables):
-            variable_val_dict_[sv_name] = sv[:, i:i+1]
-        variable_val_dict_["SV"] = sv
-
-        for agent_name in self.agents:
-            try:
-                y = self.agents[agent_name].forward(sv)
-                assert y.shape[0] == sv.shape[0] and y.shape[1] == self.agents[agent_name].config["output_size"]
-            except Exception as e:
-                errors.append({
-                    "label": agent_name, 
-                    "error": str(e)
-                })
-
-        for endog_var_name in self.endog_vars:
-            try:
-                y = self.endog_vars[endog_var_name].forward(sv)
-                assert y.shape[0] == sv.shape[0] and y.shape[1] == self.endog_vars[endog_var_name].config["output_size"]
-            except Exception as e:
-                errors.append({
-                    "label": endog_var_name,
-                    "error": str(e),
-                })
-        
-        for func_name in self.local_function_dict:
-            variable_val_dict_[func_name] = self.local_function_dict[func_name](sv)
-
-        for label in self.agent_conditions:
-            try:
-                self.agent_conditions[label].eval(self.local_function_dict | self.custom_function_dict)
-            except Exception as e:
-                if e is not ZeroDivisionError:
-                    # it's fine to have zero division. All other errors should be raised
-                    errors.append({
-                        "label": label,
-                        "repr": self.agent_conditions[label].lhs.formula_str + self.agent_conditions[label].comparator + self.agent_conditions[label].rhs.formula_str,
-                        "error": str(e),
-                        "info": " Please use SV as the hard coded state variable inputs, in lhs or rhs"
-                    })
-        
-        for label in self.endog_var_conditions:
-            try:
-                self.endog_var_conditions[label].eval(self.local_function_dict | self.custom_function_dict)
-            except Exception as e:
-                if e is not ZeroDivisionError:
-                    errors.append({
-                        "label": label,
-                        "repr": self.endog_var_conditions[label].lhs.formula_str + self.endog_var_conditions[label].comparator + self.endog_var_conditions[label].rhs.formula_str,
-                        "error": str(e),
-                        "info": " Please use SV as the hard coded state variable inputs, in lhs or rhs"
-                    })
-        
-        for label in self.equations:
-            try:
-                lhs = self.equations[label].lhs.formula_str
-                variable_val_dict_[lhs] = self.equations[label].eval(self.custom_function_dict, variable_val_dict_)
-            except Exception as e:
-                if e is not ZeroDivisionError:
-                    errors.append({
-                        "label": label,
-                        "raw": self.equations[label].eq,
-                        "parsed": f"{self.equations[label].lhs.formula_str}={self.equations[label].rhs.formula_str}",
-                        "error": str(e)
-                    })
-
-
-        for label in self.endog_equations:
-            try:
-                self.endog_equations[label].eval(self.custom_function_dict, variable_val_dict_)
-            except Exception as e:
-                if e is not ZeroDivisionError:
-                    errors.append({
-                        "label": label,
-                        "raw": self.endog_equations[label].eq,
-                        "parsed": f"{self.endog_equations[label].lhs.formula_str}={self.endog_equations[label].rhs.formula_str}",
-                        "error": str(e)
-                    })
-
-        for label in self.constraints:
-            try:
-                self.constraints[label].eval(self.custom_function_dict, variable_val_dict_)
-            except Exception as e:
-                if e is not ZeroDivisionError:
-                    errors.append({
-                        "label": label,
-                        "parsed": self.constraints[label].lhs.formula_str + self.constraints[label].comparator + self.constraints[label].rhs.formula_str,
-                        "error": str(e)
-                    })
-
-        for label in self.hjb_equations:
-            try:
-                self.hjb_equations[label].eval(self.custom_function_dict, variable_val_dict_)
-            except Exception as e:
-                if e is not ZeroDivisionError:
-                    errors.append({
-                        "label": label,
-                        "raw": self.hjb_equations[label].eq,
-                        "parsed": self.hjb_equations[label].parsed_eq.formula_str,
-                        "error": str(e)
-                    })
-
-        for label in self.systems:
-            try:
-                self.systems[label].eval(self.custom_function_dict, variable_val_dict_)
-            except Exception as e:
-                if e is not ZeroDivisionError:
-                    # it's fine to have zero division. All other errors should be raised
-                    errors.append({
-                        "label": label,
-                        "repr": str(self.systems[label]),
-                        "error": str(e)
-                    })
-
-        if len(errors) > 0:
-            os.makedirs(model_dir, exist_ok=True)
-            with open(os.path.join(model_dir, f"{self.name}-errors.txt"), "w", encoding="utf-8") as f:
-                f.write("Error Log:\n")
-                f.write(json.dumps(errors, indent=True))
-            print(json.dumps(errors, indent=True))
-            raise Exception(f"Errors when validating model setup, please check {self.name}-errors.txt for details.")
-    
     def plot_vars(self, vars_to_plot: List[str], ncols: int=4, elev=30, azim=-135, roll=0):
         '''
         Inputs:
@@ -864,17 +654,9 @@ class PDEModelTimeStep(PDEModel):
             SV = torch.clone(X)
             SV.requires_grad_(True)
             X = X.detach().cpu().numpy()[:, :1].reshape(-1)
-            for i, sv_name in enumerate(self.state_variables):
-                variable_var_dict_[sv_name] = SV[:, i:i+1]
-            variable_var_dict_["SV"] = SV
-            # properly update variables, including agent, endogenous variables, their derivatives
-            for func_name in self.local_function_dict:
-                variable_var_dict_[func_name] = self.local_function_dict[func_name](SV)
-
-            # properly update variables, using equations
-            for eq_name in self.equations:
-                lhs = self.equations[eq_name].lhs.formula_str
-                variable_var_dict_[lhs] = self.equations[eq_name].eval(self.custom_function_dict, variable_var_dict_)
+            # forward pass (agent/endog + derivatives + equations) through the single
+            # overridable evaluation path
+            self.update_variables(SV, vd=variable_var_dict_)
 
             sv_text = self.state_variables[0]
             if self.state_variables[0] in var_to_latex:
@@ -931,17 +713,9 @@ class PDEModelTimeStep(PDEModel):
             X = X.detach().cpu().numpy()
             Y = Y.detach().cpu().numpy()
             SV.requires_grad_(True)
-            for i, sv_name in enumerate(self.state_variables):
-                variable_var_dict_[sv_name] = SV[:, i:i+1]
-            variable_var_dict_["SV"] = SV
-            # properly update variables, including agent, endogenous variables, their derivatives
-            for func_name in self.local_function_dict:
-                variable_var_dict_[func_name] = self.local_function_dict[func_name](SV)
-
-            # properly update variables, using equations
-            for eq_name in self.equations:
-                lhs = self.equations[eq_name].lhs.formula_str
-                variable_var_dict_[lhs] = self.equations[eq_name].eval(self.custom_function_dict, variable_var_dict_)
+            # forward pass (agent/endog + derivatives + equations) through the single
+            # overridable evaluation path
+            self.update_variables(SV, vd=variable_var_dict_)
 
             sv_text0 = self.state_variables[0]
             sv_text1 = self.state_variables[1]

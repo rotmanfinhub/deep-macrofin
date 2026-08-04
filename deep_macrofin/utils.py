@@ -86,6 +86,7 @@ DEFAULT_CONFIG = {
     "loss_balancing_alpha": 0.999,
     "soft_adapt_interval": -1,
     "loss_soft_attention": False,
+    "stacked": False,
 }
 
 DEFAULT_CONFIG_TIME_STEP = {
@@ -106,6 +107,7 @@ DEFAULT_CONFIG_TIME_STEP = {
     "bernoulli_prob": 0.9999,
     "loss_balancing_temp": 0.1,
     "loss_balancing_alpha": 0.999,
+    "stacked": False,
 }
 
 DEFAULT_LEARNABLE_VAR_CONFIG = {
