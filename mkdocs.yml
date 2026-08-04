@@ -76,6 +76,7 @@ nav:
   - 'API':
     - 'deep_macrofin.models': 'api/models.md'
     - 'deep_macrofin.evaluations': 'api/evaluations.md'
+    - 'deep_macrofin.base_pde_model': 'api/base_pde_model.md'
     - 'deep_macrofin.pde_model': 'api/pde_model.md'
     - 'deep_macrofin.pde_model_time_step': 'api/pde_model_time_step.md'
     - 'deep_macrofin.utils': 'api/utils.md'

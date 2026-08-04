@@ -1,10 +1,10 @@
 # deep_macrofin.pde_model_time_step
 
-This is a subclass of [PDEModel](./pde_model.md) that implements the time stepping scheme with neural network. It has exactly the same API as the base class.
+This implements the time stepping scheme with neural network. It shares the same abstract base class [`BasePDEModel`](./base_pde_model.md) as [`PDEModel`](./pde_model.md), so it has exactly the same variable/equation/constraint definition API; only the training loop and a few sampling helpers differ.
 
 ## PDEModelTimeStep
 ```py
-class PDEModelTimeStep(PDEModel):
+class PDEModelTimeStep(BasePDEModel):
 '''
 PDEModelTimeStep uses time stepping scheme + neural network to solve for optimality
 
@@ -14,6 +14,8 @@ Also initialize the neural network architectures for each agent/endogenous varia
 with some config dictionary.
 '''
 ```
+
+The time-stepping config additionally accepts the experimental `stacked` flag (default False), which batches all same-architecture agents/endogenous variables into a single `vmap` forward/derivative call. See [Experimental: stacked evaluation](../usage.md#experimental-stacked-vmap-batched-evaluation).
 
 ### set_initial_guess
 ```py
