@@ -82,6 +82,8 @@ nav:
     - 'deep_macrofin.utils': 'api/utils.md'
   - 'Basic Usage': 
     - 'General Usage': 'usage.md'
+    - 'Optional JAX Backend': 'jax_backend.md'
+    - 'JAX Validation': 'jax_validation.md'
     - 'Time Stepping Scheme': 'usage_timestep.md'
     - 'Tips and Additional Considerations': 'faq.md'
   - 'Basic Examples':
