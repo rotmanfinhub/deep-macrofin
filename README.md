@@ -7,6 +7,21 @@
 
 Deep-MacroFin is a comprehensive deep-learning framework designed to solve equilibrium economic models in continuous time. The library leverages deep learning to alleviate curse of dimensionality.
 
+## Optional JAX backend
+
+An experimental JAX-native backend is available for the Basak–Cuoco and
+scalable tree reference models. It uses compiled training chunks,
+directional second derivatives that avoid materializing full Hessians, and
+pickle-free warm-start checkpoints.
+
+```bash
+pip install "deep_macrofin[jax]"
+```
+
+See the [JAX backend guide](docs/jax_backend.md) for usage, scope, tests, and
+benchmark results. The JAX package does not import PyTorch at runtime. The
+existing PyTorch API and required installation dependency are unchanged.
+
 **Documentation:** [mkdocs](https://rotmanfinhub.github.io/deep-macrofin)
 
 ## Start developing
